@@ -1834,3 +1834,11 @@ ConnectionResetError: [Errno 54] Connection reset by peer
 127.0.0.1 - - [07/Oct/2026 11:14:24] "POST /api/step HTTP/1.1" 200 -
 127.0.0.1 - - [07/Oct/2026 11:15:19] "POST /api/step HTTP/1.1" 200 -
 127.0.0.1 - - [07/Oct/2026 14:47:23] "POST /api/step HTTP/1.1" 200 -
+127.0.0.1 - - [07/Oct/2026 15:23:51] "POST /api/step HTTP/1.1" 200 -
+127.0.0.1 - - [07/Oct/2026 16:09:36] "POST /api/step HTTP/1.1" 200 -
+127.0.0.1 - - [07/Oct/2026 16:09:37] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [07/Oct/2026 16:09:38] "GET /style.css?v=20260929_01 HTTP/1.1" 200 -
+127.0.0.1 - - [07/Oct/2026 16:09:38] "GET /app.js?v=20260929_10 HTTP/1.1" 200 -
+127.0.0.1 - - [07/Oct/2026 16:09:38] "GET /api/lobby?user_id=1 HTTP/1.1" 200 -
+127.0.0.1 - - [07/Oct/2026 16:09:38] "GET /api/schedules HTTP/1.1" 200 -
+127.0.0.1 - - [07/Oct/2026 16:11:16] "POST /api/step HTTP/1.1" 200 -
