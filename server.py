@@ -26,24 +26,70 @@ engine = GameEngine("한화", "롯데")
 
 
 def login_required(f):
-    """세션 인증 데코레이터: user_id 또는 username이 없으면 무조건 로그인 페이지로 강제 리다이렉트"""
+    """세션 및 SQLite 데이터베이스 실시간 대조 인증 데코레이터:
+    세션에 user_id와 username이 존재하더라도, 실제 SQLite DB users 테이블에 유효하게 존재하는 사용자인지 엄격 검증.
+    DB에 존재하지 않거나 무효한 세션인 경우 즉시 session.clear() 및 쿠키 만료 후 로그인 페이지로 강제 리다이렉트.
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('user_id') or not session.get('username'):
+        user_id = session.get('user_id')
+        username = session.get('username')
+
+        # 1. 세션 키 존재 여부 확인
+        if not user_id or not username:
+            session.clear()
+            session.modified = True
             if request.is_json or request.path.startswith('/api/'):
-                return jsonify({
+                resp = jsonify({
                     "status": "error",
                     "message": "로그인이 필요합니다.",
                     "redirect": url_for('login')
-                }), 401
-            return redirect(url_for('login'))
+                })
+                resp.status_code = 401
+            else:
+                resp = make_response(redirect(url_for('login')))
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+            return resp
+
+        # 2. SQLite users 테이블에 실제 존재하는 유효 사용자인지 실시간 대조
+        db_user = database.verify_session_user(user_id, username)
+        if not db_user:
+            session.clear()
+            session.modified = True
+            if request.is_json or request.path.startswith('/api/'):
+                resp = jsonify({
+                    "status": "error",
+                    "message": "유효하지 않은 계정 세션입니다. 다시 로그인해 주세요.",
+                    "redirect": url_for('login')
+                })
+                resp.status_code = 401
+            else:
+                resp = make_response(redirect(url_for('login')))
+
+            cookie_name = app.config.get('SESSION_COOKIE_NAME', 'session')
+            resp.delete_cookie(
+                cookie_name,
+                path=app.config.get('APPLICATION_ROOT', '/'),
+                domain=app.config.get('SESSION_COOKIE_DOMAIN', None),
+                samesite=app.config.get('SESSION_COOKIE_SAMESITE', 'Lax')
+            )
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+            return resp
+
+        # 최신 DB 정보로 세션 상태 갱신
+        session['nickname'] = db_user.get('nickname') or (username + " 감독")
+        session['favorite_team'] = db_user.get('favorite_team') or db_user.get('team') or '한화'
         return f(*args, **kwargs)
     return decorated_function
 
 
 @app.before_request
 def authentication_guard():
-    """모든 요청 사전 검사 가드: 새로고침 또는 URL 직접 접근 시 세션 부재 시 로그인 페이지로 강제 이동"""
+    """모든 요청 사전 검사 가드: SQLite users 테이블 실시간 대조 및 무효 세션 즉각 강제 파기"""
     path = request.path
 
     # 1. 정적 에셋 파일 허용
@@ -69,32 +115,67 @@ def authentication_guard():
     if path in PUBLIC_PATHS or path.startswith('/api/check-'):
         return None
 
-    # 3. 비인가 세션의 메인 로비/게임 및 기타 페이지/API 접근 시 로그인 페이지로 강제 리다이렉트
-    if not session.get('user_id') or not session.get('username'):
+    # 3. 비인가 세션 검사
+    user_id = session.get('user_id')
+    username = session.get('username')
+
+    if not user_id or not username:
+        session.clear()
+        session.modified = True
         if request.is_json or path.startswith('/api/'):
-            return jsonify({
+            resp = jsonify({
                 "status": "error",
                 "message": "로그인이 필요합니다.",
                 "redirect": url_for('login')
-            }), 401
-        return redirect(url_for('login'))
+            })
+            resp.status_code = 401
+        else:
+            resp = make_response(redirect(url_for('login')))
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
+
+    # 4. SQLite DB users 테이블 실시간 대조 검증
+    db_user = database.verify_session_user(user_id, username)
+    if not db_user:
+        # 데이터베이스에 존재하지 않는 무효 사용자: 세션 완전 파기 및 쿠키 만료
+        session.clear()
+        session.modified = True
+        if request.is_json or path.startswith('/api/'):
+            resp = jsonify({
+                "status": "error",
+                "message": "유효하지 않은 계정 세션입니다. 다시 로그인해 주세요.",
+                "redirect": url_for('login')
+            })
+            resp.status_code = 401
+        else:
+            resp = make_response(redirect(url_for('login')))
+
+        cookie_name = app.config.get('SESSION_COOKIE_NAME', 'session')
+        resp.delete_cookie(
+            cookie_name,
+            path=app.config.get('APPLICATION_ROOT', '/'),
+            domain=app.config.get('SESSION_COOKIE_DOMAIN', None),
+            samesite=app.config.get('SESSION_COOKIE_SAMESITE', 'Lax')
+        )
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
+
+    # 세션 정보 동기화
+    session['nickname'] = db_user.get('nickname') or (username + " 감독")
+    session['favorite_team'] = db_user.get('favorite_team') or db_user.get('team') or '한화'
+    return None
 
 
 @app.after_request
 def add_cache_control_headers(response):
-    """브라우저 캐시 및 뒤로 가기(BFCache) 방지: HTML 페이지 및 주요 라우트에 Cache-Control 헤더 주입"""
-    content_type = response.headers.get('Content-Type', '')
-    path = request.path
-
-    if (
-        'text/html' in content_type or 
-        path in ('/', '/lobby', '/index.html', '/login', '/signup', '/logout', '/admin/users') or 
-        path.startswith('/api/')
-    ):
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-
+    """모든 응답에 브라우저 캐시 및 뒤로 가기(BFCache) 완전 차단 헤더 적용"""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return response
 
 
@@ -107,7 +188,7 @@ def add_cache_control_headers(response):
 @app.route('/', endpoint='index')
 @login_required
 def index():
-    """메인 페이지: 세션 로그인 상태 검사 및 미로그인 시 로그인 페이지로 강제 리다이렉트 (캐시 차단 적용)"""
+    """메인 페이지: 세션 로그인 상태 및 SQLite 대조 검사 후 로비 렌더링 (캐시 완전 차단 적용)"""
     user_id = session.get('user_id')
     username = session.get('username')
     nickname = session.get('nickname') or (username + " 감독")
@@ -120,9 +201,9 @@ def index():
         nickname=nickname, 
         favorite_team=favorite_team
     ))
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return response
 
 
@@ -230,9 +311,13 @@ def signup():
                 return jsonify({"status": "error", "message": error_msg}), 400
             return render_template('signup.html', error=error_msg)
 
-    # GET 요청: 이미 로그인되어 있다면 메인으로 이동
+    # GET 요청: 이미 로그인되어 있다면 DB 확인 후 메인으로 이동
     if session.get('user_id') and session.get('username'):
-        return redirect(url_for('index'))
+        if database.verify_session_user(session.get('user_id'), session.get('username')):
+            return redirect(url_for('index'))
+        else:
+            session.clear()
+            session.modified = True
     return render_template('signup.html')
 
 
@@ -280,9 +365,13 @@ def login():
                 return jsonify({"status": "error", "message": error_msg}), 401
             return render_template('login.html', error=error_msg)
 
-    # GET 요청: 이미 로그인되어 있다면 메인으로 이동
+    # GET 요청: 이미 로그인되어 있다면 DB 대조 후 메인으로 이동
     if session.get('user_id') and session.get('username'):
-        return redirect(url_for('index'))
+        if database.verify_session_user(session.get('user_id'), session.get('username')):
+            return redirect(url_for('index'))
+        else:
+            session.clear()
+            session.modified = True
     return render_template('login.html')
 
 
@@ -311,9 +400,9 @@ def logout():
     )
 
     # 캐시 방지 헤더 주입
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return response
 
 
@@ -385,16 +474,23 @@ def admin_logout():
 @app.route('/api/session')
 @app.route('/api/me')
 def api_session():
-    """현재 세션 유저 정보 조회 API"""
+    """현재 세션 유저 정보 조회 API (SQLite users 테이블 실시간 대조)"""
     username = session.get('username')
     user_id = session.get('user_id')
-    logged_in = bool(username and user_id)
+    db_user = None
+    if username and user_id:
+        db_user = database.verify_session_user(user_id, username)
+        if not db_user:
+            session.clear()
+            session.modified = True
+
+    logged_in = bool(db_user)
     return jsonify({
         "logged_in": logged_in,
-        "username": username if logged_in else None,
-        "nickname": session.get('nickname') if logged_in else None,
-        "favorite_team": session.get('favorite_team', '한화') if logged_in else '한화',
-        "user_id": user_id if logged_in else None
+        "username": db_user['username'] if logged_in else None,
+        "nickname": (db_user.get('nickname') or (db_user['username'] + " 감독")) if logged_in else None,
+        "favorite_team": (db_user.get('favorite_team') or db_user.get('team') or '한화') if logged_in else '한화',
+        "user_id": db_user['id'] if logged_in else None
     })
 
 

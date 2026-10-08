@@ -272,6 +272,29 @@ def get_user_by_id(user_id):
     conn.close()
     return dict(row) if row else None
 
+def verify_session_user(user_id, username):
+    """세션에 담긴 유저 ID 및 username이 실제 SQLite users 테이블에 유효하게 존재하는지 검증"""
+    if not user_id or not username:
+        return None
+    try:
+        u_id = int(user_id)
+    except (ValueError, TypeError):
+        return None
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ? AND LOWER(username) = LOWER(?)", (u_id, str(username).strip()))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    user_dict = dict(row)
+    if not user_dict.get('favorite_team'):
+        user_dict['favorite_team'] = user_dict.get('team') or '한화'
+    if not user_dict.get('nickname'):
+        user_dict['nickname'] = user_dict.get('username') or '감독'
+    return user_dict
+
 def update_user_profile(user_id, nickname, team):
     conn = get_db()
     cursor = conn.cursor()
