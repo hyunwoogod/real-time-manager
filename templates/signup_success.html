@@ -114,7 +114,8 @@
         <h1 class="success-title">회원가입되었습니다!</h1>
         
         <div class="success-desc">
-            <strong>{{ username }}</strong> 감독님, 환영합니다!<br>
+            {% set disp_nick = nickname if nickname else username %}
+            <strong>{{ disp_nick }}</strong>{% if not disp_nick.endswith('감독') %} 감독님{% else %}님{% endif %}, 환영합니다!<br>
             선택하신 KBO 응원 구단으로 등록이 완료되었습니다.
             <div>
                 <span class="team-highlight-pill">⚾ 응원 구단: {{ favorite_team }}</span>

@@ -20,6 +20,7 @@
         <!-- ========================================== -->
         <script>
             window.CURRENT_SESSION_USER = {{ username | tojson if username else 'null' }};
+            window.CURRENT_SESSION_NICKNAME = {{ nickname | tojson if nickname else 'null' }};
             window.CURRENT_SESSION_TEAM = {{ favorite_team | tojson if favorite_team else 'null' }};
             window.dismissSplash = function () {
                 try {
@@ -226,8 +227,8 @@
                 <div class="session-welcome-card" id="session-welcome-banner" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(16, 185, 129, 0.45); border-radius: 16px; padding: 14px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px);">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 1.35rem;">👋</span>
-                        <div>
-                            <span class="user-welcome-text" style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">{{ username }}님 반갑습니다</span>
+                            {% set disp_nick = nickname if nickname else username %}
+                            <span class="user-welcome-text" style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">{{ disp_nick }}{% if not disp_nick.endswith('감독') %} 감독님{% else %}님{% endif %} 환영합니다</span>
                             <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 2px;">
                                 ⚾ 나의 응원 구단: <strong style="color: #10b981;">{{ favorite_team if favorite_team else '한화' }}</strong>
                             </div>

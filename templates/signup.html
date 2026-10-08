@@ -23,8 +23,8 @@
         }
         .auth-container {
             width: 100%;
-            max-width: 420px;
-            background: rgba(15, 23, 42, 0.88);
+            max-width: 440px;
+            background: rgba(15, 23, 42, 0.92);
             border: 1px solid rgba(255, 255, 255, 0.14);
             border-radius: 24px;
             padding: 36px 30px;
@@ -71,11 +71,45 @@
             text-align: left;
         }
         .form-group label {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             font-size: 0.85rem;
             font-weight: 600;
             color: #cbd5e1;
             margin-bottom: 6px;
+        }
+        .label-hint {
+            font-size: 0.76rem;
+            font-weight: 400;
+            color: #94a3b8;
+        }
+        .input-with-btn {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .input-with-btn input {
+            flex: 1;
+            min-width: 0;
+        }
+        .btn-check {
+            flex-shrink: 0;
+            padding: 13px 14px;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            border-radius: 12px;
+            color: #38bdf8;
+            font-size: 0.86rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .btn-check:hover {
+            background: rgba(56, 189, 248, 0.28);
+            border-color: #38bdf8;
+            color: #ffffff;
         }
         .form-group input {
             width: 100%;
@@ -109,6 +143,24 @@
         .form-group select option {
             background-color: #0f172a;
             color: #ffffff;
+        }
+        .field-feedback {
+            font-size: 0.8rem;
+            margin-top: 5px;
+            line-height: 1.4;
+            min-height: 16px;
+            transition: all 0.2s ease;
+        }
+        .field-feedback.success {
+            color: #34d399;
+            font-weight: 600;
+        }
+        .field-feedback.error {
+            color: #f87171;
+            font-weight: 600;
+        }
+        .field-feedback.info {
+            color: #94a3b8;
         }
         .btn-submit {
             margin-top: 8px;
@@ -171,24 +223,53 @@
         <div class="auth-card-header">회원가입</div>
 
         {% if error %}
-        <div class="error-alert">
+        <div class="error-alert" id="server-error-banner">
             ⚠️ {{ error }}
         </div>
         {% endif %}
 
-        <form method="POST" action="/signup" class="auth-form">
+        <form method="POST" action="/signup" class="auth-form" id="signup-form" onsubmit="return handleSignupSubmit(event)">
+            <!-- 1. 아이디 및 중복 확인 -->
             <div class="form-group">
-                <label for="username">아이디 (ID)</label>
-                <input type="text" id="username" name="username" placeholder="영문/숫자 2자 이상" required minlength="2" autofocus>
+                <label for="username">
+                    <span>아이디 (ID)</span>
+                    <span class="label-hint">영문/숫자 2자 이상</span>
+                </label>
+                <div class="input-with-btn">
+                    <input type="text" id="username" name="username" placeholder="아이디 입력" required minlength="2" autofocus autocomplete="username" oninput="onUsernameChanged()">
+                    <button type="button" class="btn-check" id="btn-check-username" onclick="checkUsernameAvailability()">중복 확인</button>
+                </div>
+                <div id="username-msg" class="field-feedback"></div>
             </div>
 
+            <!-- 2. 감독 닉네임 및 중복 확인 -->
             <div class="form-group">
-                <label for="password">비밀번호 (Password)</label>
-                <input type="password" id="password" name="password" placeholder="비밀번호 입력 (2자 이상)" required minlength="2">
+                <label for="nickname">
+                    <span>감독 닉네임</span>
+                    <span class="label-hint">2~10자 자유 입력</span>
+                </label>
+                <div class="input-with-btn">
+                    <input type="text" id="nickname" name="nickname" placeholder="감독 이름 (예: 김명장)" required minlength="2" maxlength="10" oninput="onNicknameChanged()">
+                    <button type="button" class="btn-check" id="btn-check-nickname" onclick="checkNicknameAvailability()">중복 확인</button>
+                </div>
+                <div id="nickname-msg" class="field-feedback"></div>
             </div>
 
+            <!-- 3. 비밀번호 -->
             <div class="form-group">
-                <label for="favorite_team">응원 구단 선택 (KBO 팀)</label>
+                <label for="password">
+                    <span>비밀번호 (Password)</span>
+                    <span class="label-hint">2자 이상</span>
+                </label>
+                <input type="password" id="password" name="password" placeholder="비밀번호 입력" required minlength="2" autocomplete="new-password">
+            </div>
+
+            <!-- 4. 응원 구단 선택 -->
+            <div class="form-group">
+                <label for="favorite_team">
+                    <span>응원 구단 선택</span>
+                    <span class="label-hint">KBO 10개 구단</span>
+                </label>
                 <select id="favorite_team" name="favorite_team" required>
                     <option value="KIA">🐯 KIA 타이거즈</option>
                     <option value="삼성">🦁 삼성 라이온즈</option>
@@ -215,5 +296,182 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // 중복 확인 상태 관리
+        let usernameChecked = false;
+        let checkedUsername = "";
+
+        let nicknameChecked = false;
+        let checkedNickname = "";
+
+        function onUsernameChanged() {
+            usernameChecked = false;
+            checkedUsername = "";
+            const msgEl = document.getElementById('username-msg');
+            const u = document.getElementById('username').value.trim();
+            if (!u) {
+                msgEl.innerText = "";
+                msgEl.className = "field-feedback";
+            } else if (u.length < 2) {
+                msgEl.innerText = "아이디는 2자 이상 입력해 주세요.";
+                msgEl.className = "field-feedback error";
+            } else {
+                msgEl.innerText = "아이디 중복 확인 버튼을 눌러주세요.";
+                msgEl.className = "field-feedback info";
+            }
+        }
+
+        function onNicknameChanged() {
+            nicknameChecked = false;
+            checkedNickname = "";
+            const msgEl = document.getElementById('nickname-msg');
+            const n = document.getElementById('nickname').value.trim();
+            if (!n) {
+                msgEl.innerText = "";
+                msgEl.className = "field-feedback";
+            } else if (n.length < 2) {
+                msgEl.innerText = "닉네임은 2자 이상 입력해 주세요.";
+                msgEl.className = "field-feedback error";
+            } else if (n.length > 10) {
+                msgEl.innerText = "닉네임은 10자 이하로 입력해 주세요.";
+                msgEl.className = "field-feedback error";
+            } else {
+                msgEl.innerText = "닉네임 중복 확인 버튼을 눌러주세요.";
+                msgEl.className = "field-feedback info";
+            }
+        }
+
+        async function checkUsernameAvailability() {
+            const input = document.getElementById('username');
+            const username = input.value.trim();
+            const msgEl = document.getElementById('username-msg');
+
+            if (!username) {
+                msgEl.innerText = "⚠️ 아이디를 입력해 주세요.";
+                msgEl.className = "field-feedback error";
+                input.focus();
+                return false;
+            }
+            if (username.length < 2) {
+                msgEl.innerText = "⚠️ 아이디는 2자 이상 입력해 주세요.";
+                msgEl.className = "field-feedback error";
+                input.focus();
+                return false;
+            }
+
+            try {
+                const res = await fetch(`/api/check-username?username=${encodeURIComponent(username)}`);
+                const data = await res.json();
+                if (data.available) {
+                    msgEl.innerText = "✅ 사용 가능한 아이디입니다.";
+                    msgEl.className = "field-feedback success";
+                    usernameChecked = true;
+                    checkedUsername = username;
+                    return true;
+                } else {
+                    msgEl.innerText = `⚠️ ${data.message || '이미 사용 중인 아이디입니다.'}`;
+                    msgEl.className = "field-feedback error";
+                    usernameChecked = false;
+                    checkedUsername = "";
+                    return false;
+                }
+            } catch (err) {
+                msgEl.innerText = "⚠️ 중복 확인 중 서버 통신 오류가 발생했습니다.";
+                msgEl.className = "field-feedback error";
+                return false;
+            }
+        }
+
+        async function checkNicknameAvailability() {
+            const input = document.getElementById('nickname');
+            const nickname = input.value.trim();
+            const msgEl = document.getElementById('nickname-msg');
+
+            if (!nickname) {
+                msgEl.innerText = "⚠️ 감독 닉네임을 입력해 주세요.";
+                msgEl.className = "field-feedback error";
+                input.focus();
+                return false;
+            }
+            if (nickname.length < 2 || nickname.length > 10) {
+                msgEl.innerText = "⚠️ 닉네임은 2자 이상 10자 이하로 입력해 주세요.";
+                msgEl.className = "field-feedback error";
+                input.focus();
+                return false;
+            }
+
+            try {
+                const res = await fetch(`/api/check-nickname?nickname=${encodeURIComponent(nickname)}`);
+                const data = await res.json();
+                if (data.available) {
+                    msgEl.innerText = "✅ 사용 가능한 닉네임입니다.";
+                    msgEl.className = "field-feedback success";
+                    nicknameChecked = true;
+                    checkedNickname = nickname;
+                    return true;
+                } else {
+                    msgEl.innerText = `⚠️ ${data.message || '이미 사용 중인 닉네임입니다.'}`;
+                    msgEl.className = "field-feedback error";
+                    nicknameChecked = false;
+                    checkedNickname = "";
+                    return false;
+                }
+            } catch (err) {
+                msgEl.innerText = "⚠️ 중복 확인 중 서버 통신 오류가 발생했습니다.";
+                msgEl.className = "field-feedback error";
+                return false;
+            }
+        }
+
+        async function handleSignupSubmit(event) {
+            const usernameInput = document.getElementById('username');
+            const nicknameInput = document.getElementById('nickname');
+            const currentUsername = usernameInput.value.trim();
+            const currentNickname = nicknameInput.value.trim();
+
+            // 1. 아이디 검증
+            if (!currentUsername || currentUsername.length < 2) {
+                event.preventDefault();
+                alert("아이디를 2자 이상 입력해 주세요.");
+                usernameInput.focus();
+                return false;
+            }
+
+            // 2. 닉네임 글자 수 검증
+            if (!currentNickname || currentNickname.length < 2 || currentNickname.length > 10) {
+                event.preventDefault();
+                alert("감독 닉네임은 2자 이상 10자 이하로 입력해 주세요.");
+                nicknameInput.focus();
+                return false;
+            }
+
+            // 3. 닉네임 중복 확인 완료 여부 검증 (미완료 시 방어)
+            if (!nicknameChecked || checkedNickname !== currentNickname) {
+                event.preventDefault();
+                alert("감독 닉네임 중복 확인을 먼저 완료해 주세요.");
+                document.getElementById('nickname-msg').innerText = "⚠️ 닉네임 중복 확인을 완료해 주세요.";
+                document.getElementById('nickname-msg').className = "field-feedback error";
+                nicknameInput.focus();
+                return false;
+            }
+
+            // 4. 아이디 중복 확인 여부 검증 (미완료 시 자동 검증 실행)
+            if (!usernameChecked || checkedUsername !== currentUsername) {
+                event.preventDefault();
+                const ok = await checkUsernameAvailability();
+                if (ok) {
+                    // 확인 완료되었으므로 양식 제출
+                    document.getElementById('signup-form').submit();
+                } else {
+                    alert("아이디 중복 확인 결과 이미 사용 중인 아이디입니다.");
+                    usernameInput.focus();
+                }
+                return false;
+            }
+
+            return true;
+        }
+    </script>
 </body>
 </html>

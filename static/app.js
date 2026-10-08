@@ -234,7 +234,15 @@ function showInitialLandingScreen() {
     } catch(e) {}
 
     if (window.CURRENT_SESSION_USER) {
-        userNickname = window.CURRENT_SESSION_USER;
+        let nick = window.CURRENT_SESSION_NICKNAME || window.CURRENT_SESSION_USER;
+        if (nick && !nick.endsWith('감독')) {
+            nick = nick + ' 감독';
+        }
+        userNickname = nick || '김명장 감독';
+        localStorage.setItem('antigravity_user_nickname', userNickname);
+        const nameEl = document.getElementById('lobby-user-name');
+        if (nameEl) nameEl.innerText = userNickname;
+
         if (window.CURRENT_SESSION_TEAM) {
             selectedTeamCode = window.CURRENT_SESSION_TEAM;
             localStorage.setItem('antigravity_favorite_team', selectedTeamCode);
@@ -409,8 +417,14 @@ function submitLogin() {
 
     function proceedToLobby(user) {
         currentUserId = user ? user.id : 1;
-        userNickname = user ? user.nickname : (username ? (username + " 감독") : "김명장 감독");
-        window.CURRENT_SESSION_USER = userNickname;
+        let nick = user ? (user.nickname || user.username) : (username || "김명장");
+        if (nick && !nick.endsWith('감독')) {
+            nick = nick + ' 감독';
+        }
+        userNickname = nick;
+        window.CURRENT_SESSION_USER = username || userNickname;
+        window.CURRENT_SESSION_NICKNAME = nick;
+        localStorage.setItem('antigravity_user_nickname', userNickname);
         selectedTeamCode = user ? (user.favorite_team || user.team || '한화') : '한화';
         localStorage.setItem('antigravity_favorite_team', selectedTeamCode);
 
@@ -423,7 +437,7 @@ function submitLogin() {
             tag.className = "login-tag kakao";
         }
 
-        showToast(`🔑 환영합니다, ${userNickname} 감독님!`);
+        showToast(`🔑 환영합니다, ${userNickname}님!`);
         closeLoginModal();
         hideOverlay('login-screen');
         switchView('pregame-view');

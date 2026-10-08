@@ -32,9 +32,13 @@ def init_db():
         )
     ''')
 
-    # favorite_team 컬럼 존재 여부 확인 및 자동 마이그레이션
+    # favorite_team 및 nickname 컬럼 존재 여부 확인 및 자동 마이그레이션
     cursor.execute("PRAGMA table_info(users)")
     user_cols = [row['name'] for row in cursor.fetchall()]
+    if 'nickname' not in user_cols:
+        cursor.execute("ALTER TABLE users ADD COLUMN nickname TEXT DEFAULT ''")
+        cursor.execute("UPDATE users SET nickname = username WHERE nickname IS NULL OR nickname = ''")
+        conn.commit()
     if 'favorite_team' not in user_cols:
         cursor.execute("ALTER TABLE users ADD COLUMN favorite_team TEXT DEFAULT '한화'")
         cursor.execute("UPDATE users SET favorite_team = team WHERE favorite_team IS NULL OR favorite_team = ''")
@@ -129,32 +133,67 @@ def clear_all_users():
     conn.close()
     return {"status": "success", "message": "모든 회원 데이터가 성공적으로 초기화되었습니다."}
 
+def check_username_exists(username):
+    """아이디 중복 여부 확인"""
+    if not username:
+        return True
+    u = username.strip()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (u,))
+    row = cursor.fetchone()
+    conn.close()
+    return bool(row)
+
+def check_nickname_exists(nickname):
+    """닉네임 중복 여부 확인"""
+    if not nickname:
+        return True
+    n = nickname.strip()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE LOWER(nickname) = LOWER(?)", (n,))
+    row = cursor.fetchone()
+    conn.close()
+    return bool(row)
+
 def register_user(username, password, email=None, marketing_agreed=False, nickname=None, team=None, favorite_team=None):
     conn = get_db()
     cursor = conn.cursor()
 
+    username = username.strip() if username else ''
+    if not username:
+        conn.close()
+        return {"status": "error", "message": "아이디를 입력해 주세요."}
+
+    # 아이디 중복 확인
+    cursor.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,))
+    if cursor.fetchone():
+        conn.close()
+        return {"status": "error", "message": "이미 사용 중인 아이디입니다."}
+
+    # 닉네임 유효성 (2~10자 범위) 및 중복 확인
+    raw_nick = (nickname or username).strip()
+    if len(raw_nick) < 2 or len(raw_nick) > 10:
+        conn.close()
+        return {"status": "error", "message": "감독 닉네임은 2자 이상 10자 이하로 입력해 주세요."}
+
+    cursor.execute("SELECT id FROM users WHERE LOWER(nickname) = LOWER(?)", (raw_nick,))
+    if cursor.fetchone():
+        conn.close()
+        return {"status": "error", "message": "이미 사용 중인 닉네임입니다."}
+
     fav_team = favorite_team or team or '한화'
     if not email:
         email = f"{username}@zipgamdok.com"
-    if not nickname:
-        nickname = username
 
     try:
         cursor.execute('''
             INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed)
             VALUES (?, ?, ?, ?, ?, ?, '👑', 2000, 'B', ?)
-        ''', (username, password, email, nickname, fav_team, fav_team, 1 if marketing_agreed else 0))
+        ''', (username, password, email, raw_nick, fav_team, fav_team, 1 if marketing_agreed else 0))
         conn.commit()
         user_id = cursor.lastrowid
-
-        # 기본 친구 몇 명 자동 등록 (소셜 랭킹 풍성함을 위해)
-        cursor.execute("SELECT id FROM users WHERE username IN ('haeseol', 'yagoo')")
-        for row in cursor.fetchall():
-            try:
-                cursor.execute("INSERT INTO user_friends (user_id, friend_id) VALUES (?, ?)", (user_id, row['id']))
-            except sqlite3.IntegrityError:
-                pass
-        conn.commit()
 
         cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
         user = dict(cursor.fetchone())
@@ -162,7 +201,7 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
         return {"status": "success", "user": user}
     except sqlite3.IntegrityError:
         conn.close()
-        return {"status": "error", "message": "이미 사용 중인 아이디입니다."}
+        return {"status": "error", "message": "이미 사용 중인 아이디 또는 닉네임입니다."}
     except Exception as e:
         conn.close()
         return {"status": "error", "message": str(e)}
