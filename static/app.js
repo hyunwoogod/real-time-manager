@@ -339,14 +339,59 @@ function closeRegisterModal() {
     if (modal) modal.classList.remove('active');
 }
 
+// Settings Modal Handlers (환경설정 및 로그아웃)
+function openSettingsModal() {
+    const modal = document.getElementById('settings-modal');
+    if (!modal) return;
+
+    // 현재 사용자 및 구단 정보 동기화
+    const nick = window.CURRENT_SESSION_NICKNAME || window.CURRENT_SESSION_USER || localStorage.getItem('antigravity_user_nickname') || '김명장 감독';
+    const team = window.CURRENT_SESSION_TEAM || localStorage.getItem('antigravity_favorite_team') || '한화';
+    const user = window.CURRENT_SESSION_USER || '';
+
+    const nickEl = document.getElementById('settings-disp-nickname');
+    const teamEl = document.getElementById('settings-disp-team');
+    const idEl = document.getElementById('settings-disp-id');
+
+    if (nickEl) nickEl.innerText = nick.endsWith('감독') ? nick : `${nick} 감독`;
+    if (teamEl) teamEl.innerText = `⚾ ${team} 응원 구단`;
+    if (idEl) {
+        if (user) {
+            idEl.innerText = `계정: ${user}`;
+            idEl.style.display = 'block';
+        } else {
+            idEl.style.display = 'none';
+        }
+    }
+
+    modal.classList.add('active');
+}
+
+function closeSettingsModal() {
+    const modal = document.getElementById('settings-modal');
+    if (modal) modal.classList.remove('active');
+}
+
+function toggleSoundSetting(checkbox) {
+    if (checkbox.checked) {
+        try { showToast("🔊 실시간 효과음 및 알림이 켜졌습니다."); } catch(e) {}
+    } else {
+        try { showToast("🔇 실시간 효과음 및 알림이 꺼졌습니다."); } catch(e) {}
+    }
+}
+
 window.addEventListener('click', (event) => {
     const loginModal = document.getElementById('login-modal');
     const regModal = document.getElementById('register-modal');
+    const settingsModal = document.getElementById('settings-modal');
     if (event.target === loginModal) {
         closeLoginModal();
     }
     if (event.target === regModal) {
         closeRegisterModal();
+    }
+    if (event.target === settingsModal) {
+        closeSettingsModal();
     }
 });
 
@@ -748,22 +793,18 @@ function updateBottomNavVisibility() {
 
     const loginScreen = document.getElementById('login-screen');
     const isLoginActive = loginScreen && 
-        (loginScreen.classList.contains('active') || loginScreen.style.display === 'flex') && 
+        loginScreen.classList.contains('active') && 
         loginScreen.style.display !== 'none';
         
     const teamSelectScreen = document.getElementById('team-select-screen');
-    const isTeamSelectActive = teamSelectScreen && teamSelectScreen.classList.contains('active');
+    const isTeamSelectActive = teamSelectScreen && 
+        teamSelectScreen.classList.contains('active') &&
+        teamSelectScreen.style.display !== 'none';
 
-    // 로그인 여부 확인: 세션 사용자 변수 존재 또는 login-screen 비활성화 상태
-    const isLoggedIn = Boolean(window.CURRENT_SESSION_USER);
+    // 로그인 여부 확인: 세션 사용자 변수 존재 또는 로컬스토리지 닉네임 정보
+    const isLoggedIn = Boolean(window.CURRENT_SESSION_USER || localStorage.getItem('antigravity_user_nickname'));
 
-    // 메인 로비(pregame-view) 또는 게임 화면(ingame-view)에 진입했는지 확인
-    const pregame = document.getElementById('pregame-view');
-    const ingame = document.getElementById('ingame-view');
-    const isLobbyOrGame = (pregame && pregame.classList.contains('active')) || 
-                          (ingame && ingame.classList.contains('active'));
-
-    if (isLoggedIn && !isLoginActive && !isTeamSelectActive && isLobbyOrGame) {
+    if (isLoggedIn && !isLoginActive && !isTeamSelectActive) {
         bottomNav.style.setProperty('display', 'flex', 'important');
         bottomNav.classList.remove('hidden');
         bottomNav.classList.add('visible');
@@ -776,13 +817,19 @@ function updateBottomNavVisibility() {
 
 function showOverlay(id) {
     const el = document.getElementById(id);
-    if (el) el.classList.add('active');
+    if (el) {
+        el.classList.add('active');
+        el.style.display = 'flex';
+    }
     try { updateBottomNavVisibility(); } catch(e) {}
 }
 
 function hideOverlay(id) {
     const el = document.getElementById(id);
-    if (el) el.classList.remove('active');
+    if (el) {
+        el.classList.remove('active');
+        el.style.display = 'none';
+    }
     try { updateBottomNavVisibility(); } catch(e) {}
 }
 
@@ -881,6 +928,8 @@ function switchLobbyTab(tabName, btnEl) {
     } else if (tabName === 'my_records') {
         renderMyRecordsPane();
     }
+
+    try { updateBottomNavVisibility(); } catch(e) {}
 }
 
 const kboTeamStandingsData = [

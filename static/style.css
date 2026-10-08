@@ -3384,14 +3384,13 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     box-sizing: border-box !important;
 }
 
-/* 로그인 화면 또는 오버레이 표시 중에는 하단 바 강제 숨김 */
-.screen-overlay.active ~ .bottom-nav-bar,
-#login-screen.active ~ .bottom-nav-bar,
-.bottom-nav-bar.hidden {
+/* 로그인 화면(미로그인) 상태에서는 하단 바 숨김 */
+.bottom-nav-bar.hidden,
+#login-screen.active ~ .bottom-nav-bar {
     display: none !important;
 }
 
-/* 로그인 완료 후 메인 로비 또는 게임 화면 진입 시 하단 바 표시 */
+/* 로그인 완료 후 메인 로비 또는 게임 화면 진입 시 하단 바 정상 노출 */
 .bottom-nav-bar.visible,
 #pregame-view.active ~ .bottom-nav-bar:not(.hidden),
 #ingame-view.active ~ .bottom-nav-bar:not(.hidden) {
@@ -4096,10 +4095,174 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
 }
 
+/* ==========================================
+   SETTINGS BUTTON & MODAL POPUP STYLING
+   ========================================== */
+.btn-settings-gear {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #f1f5f9;
+    font-size: 1.15rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    flex-shrink: 0;
+    line-height: 1;
+    padding: 0;
+}
 
+.btn-settings-gear:hover {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: rgba(56, 189, 248, 0.5);
+    color: #38bdf8;
+    transform: rotate(45deg) scale(1.06);
+    box-shadow: 0 6px 18px rgba(56, 189, 248, 0.3);
+}
 
+.btn-settings-gear:active {
+    transform: scale(0.95);
+}
 
+.settings-modal-card {
+    max-width: 380px;
+    width: 90%;
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.15);
+    backdrop-filter: blur(20px);
+    box-sizing: border-box;
+}
 
+.settings-user-summary {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
 
+.settings-user-avatar {
+    font-size: 2rem;
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
 
+.settings-user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    text-align: left;
+    overflow: hidden;
+}
 
+.settings-user-name {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #f8fafc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.settings-user-team {
+    font-size: 0.84rem;
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+.settings-user-id {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.settings-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.settings-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    font-size: 0.92rem;
+    color: #cbd5e1;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.settings-menu-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+.btn-settings-logout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.35));
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    border-radius: 12px;
+    color: #fca5a5;
+    font-size: 0.98rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.btn-settings-logout:hover {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.35), rgba(220, 38, 38, 0.55));
+    border-color: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+.switch-toggle input:checked + .slider-round {
+    background-color: #10b981 !important;
+}
+
+.slider-round:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .25s ease;
+    border-radius: 50%;
+}
+
+.switch-toggle input:checked + .slider-round:before {
+    transform: translateX(20px);
+}

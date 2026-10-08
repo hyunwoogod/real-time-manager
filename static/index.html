@@ -223,18 +223,22 @@
             <div id="pane-home" class="lobby-tab-pane active">
 
                 {% if username %}
-                <!-- 상단 로그인 환영 문구 및 로그아웃 버튼 -->
-                <div class="session-welcome-card" id="session-welcome-banner" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(16, 185, 129, 0.45); border-radius: 16px; padding: 14px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px);">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-size: 1.35rem;">👋</span>
+                <!-- 상단 로그인 환영 문구 및 설정(톱니바퀴) 아이콘 -->
+                <div class="session-welcome-card" id="session-welcome-banner" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(16, 185, 129, 0.45); border-radius: 16px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 1.4rem;">👋</span>
+                        <div>
                             {% set disp_nick = nickname if nickname else username %}
-                            <span class="user-welcome-text" style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">{{ disp_nick }}{% if not disp_nick.endswith('감독') %} 감독님{% else %}님{% endif %} 환영합니다</span>
-                            <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 2px;">
+                            <div class="user-welcome-text" style="font-size: 1.05rem; font-weight: 800; color: #38bdf8; line-height: 1.3;">{{ disp_nick }}{% if not disp_nick.endswith('감독') %} 감독님{% else %}님{% endif %} 환영합니다</div>
+                            <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 3px;">
                                 ⚾ 나의 응원 구단: <strong style="color: #10b981;">{{ favorite_team if favorite_team else '한화' }}</strong>
                             </div>
                         </div>
                     </div>
-                    <a href="/logout" id="btn-session-logout" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; padding: 8px 16px; border-radius: 10px; font-size: 0.88rem; font-weight: 700; text-decoration: none; transition: all 0.2s ease;">로그아웃</a>
+                    <!-- 상단 맨 오른쪽 구석 세련된 설정(톱니바퀴) 아이콘 -->
+                    <button type="button" class="btn-settings-gear" id="btn-session-settings" onclick="openSettingsModal()" title="환경 설정" aria-label="환경 설정">
+                        ⚙️
+                    </button>
                 </div>
                 {% endif %}
 
@@ -256,10 +260,15 @@
                             <span id="lobby-login-type" class="login-tag kakao">{{ favorite_team if favorite_team else '한화' }} 팬클럽 감독</span>
                         </div>
                     </div>
-                    <div class="lobby-score-box">
-                        <span class="score-label">MANAGER SCORE</span>
-                        <span id="lobby-my-score" class="score-value">2,000 pts</span>
-                        <span id="lobby-my-grade" class="grade-badge grade-b">B급 명장</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="lobby-score-box">
+                            <span class="score-label">MANAGER SCORE</span>
+                            <span id="lobby-my-score" class="score-value">2,000 pts</span>
+                            <span id="lobby-my-grade" class="grade-badge grade-b">B급 명장</span>
+                        </div>
+                        <button type="button" class="btn-settings-gear" id="btn-header-settings" onclick="openSettingsModal()" title="환경 설정" aria-label="환경 설정">
+                            ⚙️
+                        </button>
                     </div>
                 </header>
 
@@ -802,6 +811,60 @@
         </div>
 
 
+        <!-- ========================================== -->
+        <!-- SETTINGS POPUP MODAL (환경설정 및 로그아웃) -->
+        <!-- ========================================== -->
+        <div id="settings-modal" class="modal-overlay">
+            <div class="modal-card settings-modal-card">
+                <div class="modal-header">
+                    <h3 style="display: flex; align-items: center; gap: 8px;">⚙️ 환경 설정</h3>
+                    <button type="button" class="btn-close-modal" onclick="closeSettingsModal()">✕</button>
+                </div>
+                
+                <!-- 사용자 정보 요약 -->
+                <div class="settings-user-summary">
+                    <div class="settings-user-avatar">
+                        {% if favorite_team == '삼성' %}🦁{% elif favorite_team == '한화' %}🦅{% elif favorite_team == 'KIA' %}🐯{% elif favorite_team == 'LG' %}🧢{% elif favorite_team == '두산' %}🐻{% elif favorite_team == '롯데' %}⚓{% elif favorite_team == 'SSG' %}🚀{% elif favorite_team == 'KT' %}🧙{% elif favorite_team == 'NC' %}🦖{% elif favorite_team == '키움' %}🦸{% else %}👑{% endif %}
+                    </div>
+                    <div class="settings-user-details">
+                        {% set disp_nick = nickname if nickname else username %}
+                        <div class="settings-user-name" id="settings-disp-nickname">{{ disp_nick if disp_nick else '김명장 감독' }}</div>
+                        <div class="settings-user-team" id="settings-disp-team">⚾ {{ favorite_team if favorite_team else '한화' }} 응원 구단</div>
+                        {% if username %}
+                        <div class="settings-user-id" id="settings-disp-id">계정: {{ username }}</div>
+                        {% else %}
+                        <div class="settings-user-id" id="settings-disp-id" style="display: none;"></div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 설정 메뉴 항목 -->
+                <div class="settings-menu-list">
+                    <div class="settings-menu-item">
+                        <span>🔊 실시간 효과음 및 알림</span>
+                        <label class="switch-toggle" style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0;">
+                            <input type="checkbox" id="sound-setting-toggle" checked onchange="toggleSoundSetting(this)" style="opacity: 0; width: 0; height: 0;">
+                            <span class="slider-round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #10b981; transition: .3s; border-radius: 24px;"></span>
+                        </label>
+                    </div>
+                    <a href="/admin/users" class="settings-menu-item">
+                        <span>🛡️ 관리자 회원 관리</span>
+                        <span style="font-size: 0.8rem; color: #94a3b8;">이동 ➔</span>
+                    </a>
+                </div>
+
+                <!-- 로그아웃 기능 버튼 -->
+                <div style="margin-top: 14px; margin-bottom: 10px;">
+                    <a href="/logout" class="btn-settings-logout" id="btn-settings-logout">
+                        🚪 로그아웃
+                    </a>
+                </div>
+
+                <button type="button" class="btn-modal-cancel" onclick="closeSettingsModal()" style="width: 100%;">
+                    닫기
+                </button>
+            </div>
+        </div>
         <!-- ========================================== -->
         <!-- IN-GAME MODAL 1: CRISIS DECISION POPUP -->
         <!-- ========================================== -->
