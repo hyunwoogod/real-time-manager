@@ -1,250 +1,312 @@
-import http.server
-import socketserver
-import json
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response
 import os
 import sys
+import json
 import time
 import datetime
-import urllib.parse
-from socketserver import ThreadingMixIn
 import database
 import game_engine
 from game_engine import GameEngine
 
-PORT = 8000
-STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
+app = Flask(__name__, static_folder='static', static_url_path='', template_folder='templates')
+app.secret_key = os.environ.get('SECRET_KEY', 'zipgamdok-secret-baseball-key-2026')
+
+PORT = int(os.environ.get('PORT', 8000))
 
 # DB 초기화 및 글로벌 게임 엔진 생성
 database.init_db()
 engine = GameEngine("한화", "롯데")
 
-class ThreadedHTTPServer(ThreadingMixIn, socketserver.TCPServer):
-    daemon_threads = True
-    allow_reuse_address = True
 
-class RequestHandler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=STATIC_DIR, **kwargs)
+# ==============================================================================
+# AUTH & PAGE ROUTES
+# ==============================================================================
 
-    def log_message(self, format, *args):
-        """정상 2xx/3xx 로그는 stdout(server.log)으로, 4xx/5xx 에러만 stderr(server_error.log)로 분리"""
-        message = "%s - - [%s] %s\n" % (
-            self.address_string(),
-            self.log_date_time_string(),
-            format % args
-        )
-        if len(args) > 1 and str(args[1]).isdigit() and int(args[1]) >= 400:
-            sys.stderr.write(message)
-            sys.stderr.flush()
+@app.route('/')
+def index():
+    """메인 페이지: 세션 로그인 상태에 따라 환영 문구 및 화면 표시"""
+    username = session.get('username')
+    return render_template('index.html', username=username)
+
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    """회원가입 기능: 아이디와 비밀번호를 입력받아 SQLite users 테이블에 저장"""
+    if request.method == 'POST':
+        if request.is_json:
+            data = request.get_json(silent=True) or {}
+            username = data.get('username', '').strip()
+            password = data.get('password', '').strip()
         else:
-            sys.stdout.write(message)
-            sys.stdout.flush()
+            username = request.form.get('username', '').strip()
+            password = request.form.get('password', '').strip()
 
-    def end_headers(self):
-        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-        self.send_header('Pragma', 'no-cache')
-        self.send_header('Expires', '0')
-        super().end_headers()
+        if not username or not password:
+            error_msg = "아이디와 비밀번호를 모두 입력해주세요."
+            if request.is_json:
+                return jsonify({"status": "error", "message": error_msg}), 400
+            return render_template('signup.html', error=error_msg)
 
-    def do_GET(self):
-        try:
-            url = urllib.parse.urlparse(self.path)
-            params = urllib.parse.parse_qs(url.query)
-            
-            if url.path == '/api/stream':
-                self.handle_sse_stream()
-                return
-            elif url.path == '/api/state':
-                self.send_json(engine.get_state())
-                return
-            elif url.path == '/api/lobby':
-                try:
-                    user_id = int(params.get('user_id', [1])[0])
-                except (ValueError, TypeError, IndexError):
-                    user_id = 1
-                rankings = database.get_user_friends_ranking(user_id)
-                user_info = database.get_user_by_id(user_id)
-                
-                user_score = user_info['score'] if user_info else engine.manager_score
-                user_grade = user_info['grade'] if user_info else engine.manager_grade
-                user_team = user_info['team'] if user_info else "한화"
-
-                today_str = datetime.date.today().strftime('%Y-%m-%d')
-                today_info = database.get_today_schedule_info(today_str, user_team)
-
-                self.send_json({
-                    "rankings": rankings,
-                    "history": database.get_tactics_history(),
-                    "user_score": user_score,
-                    "user_grade": user_grade,
-                    "user_info": user_info,
-                    "today_schedule": today_info,
-                    "countdown": "14분 30초"
+        res = database.register_user(username=username, password=password)
+        if res.get('status') == 'success':
+            if request.is_json:
+                return jsonify({
+                    "status": "success",
+                    "message": "회원가입이 완료되었습니다. 로그인해 주세요.",
+                    "redirect": url_for('login')
                 })
-                return
-            elif url.path == '/api/schedules':
-                date_filter = params.get('date', [None])[0]
-                if date_filter:
-                    data = database.get_schedules_by_date(date_filter)
-                else:
-                    data = database.get_all_schedules()
-                self.send_json({"schedules": data})
-                return
-            elif url.path == '/api/search_friends':
-                query = params.get('query', [''])[0]
-                try:
-                    current_user_id = int(params.get('user_id', [1])[0])
-                except (ValueError, TypeError, IndexError):
-                    current_user_id = 1
-                results = database.search_users_by_nickname(query, current_user_id)
-                self.send_json({"results": results})
-                return
+            return redirect(url_for('login'))
+        else:
+            error_msg = res.get('message', '회원가입 처리 중 오류가 발생했습니다.')
+            if request.is_json:
+                return jsonify({"status": "error", "message": error_msg}), 400
+            return render_template('signup.html', error=error_msg)
 
-            # 기본 Static 파일 서빙 (index.html, style.css, app.js 등)
-            super().do_GET()
-        except Exception as e:
-            sys.stderr.write(f"[ERROR do_GET] {str(e)}\n")
-            self.send_json({"status": "error", "message": str(e)}, 500)
+    # GET 요청: 이미 로그인되어 있다면 메인으로 이동
+    if 'username' in session:
+        return redirect(url_for('index'))
+    return render_template('signup.html')
 
-    def do_POST(self):
-        try:
-            url = urllib.parse.urlparse(self.path)
-            length = int(self.headers.get('Content-Length', 0))
-            body_bytes = self.rfile.read(length) if length > 0 else b'{}'
-            
-            try:
-                body = json.loads(body_bytes.decode('utf-8'))
-            except Exception:
-                body = {}
 
-            if url.path == '/api/register':
-                username = body.get('username', '').strip()
-                password = body.get('password', '').strip()
-                email = body.get('email', '').strip()
-                marketing_agreed = body.get('marketing_agreed', False)
-                nickname = body.get('nickname', '김명장').strip()
-                team = body.get('team', '한화').strip()
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """로그인 기능: SQLite 일치 확인 후 Flask session에 사용자 이름 저장 및 세션 유지"""
+    if request.method == 'POST':
+        if request.is_json:
+            data = request.get_json(silent=True) or {}
+            username = data.get('username', '').strip()
+            password = data.get('password', '').strip()
+        else:
+            username = request.form.get('username', '').strip()
+            password = request.form.get('password', '').strip()
 
-                if not username or not password or not email:
-                    self.send_json({"status": "error", "message": "필수 정보를 모두 입력해주세요."}, 400)
-                    return
+        if not username or not password:
+            error_msg = "아이디와 비밀번호를 모두 입력해주세요."
+            if request.is_json:
+                return jsonify({"status": "error", "message": error_msg}), 400
+            return render_template('login.html', error=error_msg)
 
-                res = database.register_user(username, password, email, marketing_agreed, nickname, team)
-                self.send_json(res)
-                return
+        res = database.login_user(username, password)
+        if res.get('status') == 'success':
+            session['username'] = username
+            user_info = res.get('user', {})
+            session['user_id'] = user_info.get('id', 1)
 
-            elif url.path == '/api/login':
-                username = body.get('username', '').strip()
-                password = body.get('password', '').strip()
+            if request.is_json:
+                return jsonify({
+                    "status": "success",
+                    "username": username,
+                    "user": user_info,
+                    "redirect": url_for('index')
+                })
+            return redirect(url_for('index'))
+        else:
+            error_msg = res.get('message', '아이디 또는 비밀번호가 일치하지 않습니다.')
+            if request.is_json:
+                return jsonify({"status": "error", "message": error_msg}), 401
+            return render_template('login.html', error=error_msg)
 
-                if not username or not password:
-                    self.send_json({"status": "error", "message": "아이디와 비밀번호를 입력해주세요."}, 400)
-                    return
+    # GET 요청: 이미 로그인되어 있다면 메인으로 이동
+    if 'username' in session:
+        return redirect(url_for('index'))
+    return render_template('login.html')
 
-                res = database.login_user(username, password)
-                self.send_json(res)
-                return
 
-            elif url.path == '/api/add_friend':
-                try:
-                    user_id = int(body.get('user_id', 1))
-                except (ValueError, TypeError):
-                    user_id = 1
-                try:
-                    friend_id = int(body.get('friend_id', 0))
-                except (ValueError, TypeError):
-                    friend_id = 0
-                res = database.add_friend(user_id, friend_id)
-                self.send_json(res)
-                return
+@app.route('/logout', methods=['GET', 'POST'])
+def logout():
+    """로그아웃 기능: 세션 삭제 후 메인 페이지 또는 로그인 화면으로 이동"""
+    session.pop('username', None)
+    session.pop('user_id', None)
+    if request.is_json:
+        return jsonify({"status": "success", "message": "로그아웃되었습니다.", "redirect": url_for('index')})
+    return redirect(url_for('index'))
 
-            elif url.path == '/api/tactic':
-                tactic_id = body.get('tactic_id')
-                try:
-                    user_id = int(body.get('user_id', 1))
-                except (ValueError, TypeError):
-                    user_id = 1
-                res = engine.apply_tactic(tactic_id)
-                if res.get('status') == 'success':
-                    database.update_user_score(engine.manager_score, engine.manager_grade, user_id)
-                self.send_json(res)
-                return
 
-            elif url.path == '/api/reset':
-                home = body.get('home_team', '삼성')
-                away = body.get('away_team', '한화')
-                home_p = body.get('home_pitcher') or game_engine.TEAMS.get(home, {}).get("pitcher", "페덱")
-                away_p = body.get('away_pitcher') or game_engine.TEAMS.get(away, {}).get("pitcher", "박준영")
-                if home == away:
-                    away = '한화' if home != '한화' else '삼성'
-                engine.home_team_name = home
-                engine.away_team_name = away
-                engine.home_pitcher = home_p
-                engine.away_pitcher = away_p
-                engine.reset()
-                self.send_json({"status": "success", "message": "경기 초기화 완료", "state": engine.get_state()})
-                return
+# ==============================================================================
+# BASEBALL GAME API ROUTES
+# ==============================================================================
 
-            elif url.path == '/api/step':
-                state = engine.step_pitch()
-                self.send_json(state)
-                return
+@app.route('/api/session')
+@app.route('/api/me')
+def api_session():
+    """현재 세션 유저 정보 조회 API"""
+    username = session.get('username')
+    return jsonify({
+        "logged_in": bool(username),
+        "username": username,
+        "user_id": session.get('user_id')
+    })
 
-            self.send_error(404, "API not found")
-        except Exception as e:
-            sys.stderr.write(f"[ERROR do_POST] {str(e)}\n")
-            self.send_json({"status": "error", "message": str(e)}, 500)
 
-    def handle_sse_stream(self):
-        """SSE (Server-Sent Events) 라이브 중계 스트림"""
-        self.send_response(200)
-        self.send_header('Content-Type', 'text/event-stream')
-        self.send_header('Cache-Control', 'no-cache')
-        self.send_header('Connection', 'keep-alive')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-
+@app.route('/api/stream')
+def api_stream():
+    """SSE (Server-Sent Events) 실시간 라이브 중계 스트림"""
+    def event_stream():
         try:
             while True:
                 state_data = json.dumps(engine.get_state(), ensure_ascii=False)
-                payload = f"data: {state_data}\n\n"
-                self.wfile.write(payload.encode('utf-8'))
-                self.wfile.flush()
-                
-                time.sleep(15.0) # 15초마다 1구/상황 단위 스트리밍
-        except (BrokenPipeError, ConnectionResetError):
+                yield f"data: {state_data}\n\n"
+                time.sleep(15.0)
+        except GeneratorExit:
             pass
 
-    def send_json(self, data, status=200):
-        body = json.dumps(data, ensure_ascii=False).encode('utf-8')
-        self.send_response(status)
-        self.send_header('Content-Type', 'application/json; charset=utf-8')
-        self.send_header('Content-Length', str(len(body)))
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        self.wfile.write(body)
+    return Response(
+        event_stream(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*'
+        }
+    )
 
-def run_server():
+
+@app.route('/api/state')
+def api_state():
+    return jsonify(engine.get_state())
+
+
+@app.route('/api/lobby')
+def api_lobby():
+    user_id = request.args.get('user_id', type=int)
+    if not user_id:
+        user_id = session.get('user_id', 1)
+
+    rankings = database.get_user_friends_ranking(user_id)
+    user_info = database.get_user_by_id(user_id)
+    
+    user_score = user_info['score'] if user_info else engine.manager_score
+    user_grade = user_info['grade'] if user_info else engine.manager_grade
+    user_team = user_info['team'] if user_info else "한화"
+
+    today_str = datetime.date.today().strftime('%Y-%m-%d')
+    today_info = database.get_today_schedule_info(today_str, user_team)
+
+    return jsonify({
+        "rankings": rankings,
+        "history": database.get_tactics_history(),
+        "user_score": user_score,
+        "user_grade": user_grade,
+        "user_info": user_info,
+        "today_schedule": today_info,
+        "countdown": "14분 30초",
+        "current_username": session.get('username')
+    })
+
+
+@app.route('/api/schedules')
+def api_schedules():
+    date_filter = request.args.get('date')
+    if date_filter:
+        data = database.get_schedules_by_date(date_filter)
+    else:
+        data = database.get_all_schedules()
+    return jsonify({"schedules": data})
+
+
+@app.route('/api/search_friends')
+def api_search_friends():
+    query = request.args.get('query', '')
+    current_user_id = request.args.get('user_id', type=int) or session.get('user_id', 1)
+    results = database.search_users_by_nickname(query, current_user_id)
+    return jsonify({"results": results})
+
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    data = request.get_json(silent=True) or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    email = data.get('email', '').strip()
+    marketing_agreed = data.get('marketing_agreed', False)
+    nickname = data.get('nickname', '김명장').strip()
+    team = data.get('team', '한화').strip()
+
+    if not username or not password:
+        return jsonify({"status": "error", "message": "필수 정보를 모두 입력해주세요."}), 400
+
+    res = database.register_user(username, password, email, marketing_agreed, nickname, team)
+    if res.get('status') == 'success':
+        session['username'] = username
+        session['user_id'] = res.get('user', {}).get('id', 1)
+    return jsonify(res)
+
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.get_json(silent=True) or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+
+    if not username or not password:
+        return jsonify({"status": "error", "message": "아이디와 비밀번호를 입력해주세요."}), 400
+
+    res = database.login_user(username, password)
+    if res.get('status') == 'success':
+        session['username'] = username
+        session['user_id'] = res.get('user', {}).get('id', 1)
+    return jsonify(res)
+
+
+@app.route('/api/add_friend', methods=['POST'])
+def api_add_friend():
+    data = request.get_json(silent=True) or {}
+    user_id = data.get('user_id') or session.get('user_id', 1)
+    friend_id = data.get('friend_id', 0)
     try:
-        server = ThreadedHTTPServer(('0.0.0.0', PORT), RequestHandler)
-        print(f"==================================================")
-        print(f"🚀 실시간 야구 감독 매니지먼트 웹앱 서버 실행 중")
-        print(f"👉 접속 주소: http://localhost:{PORT}")
-        print(f"==================================================")
-        server.serve_forever()
-    except OSError as e:
-        if e.errno == 48:
-            print(f"⚠️ [오류] 포트 {PORT}번이 이미 다른 프로세스에서 사용 중입니다.")
-            print(f"👉 해결 방법: 터미널에서 'lsof -i :{PORT}' 또는 'kill -9 <PID>'로 기존 프로세스를 종료한 후 다시 실행해 주세요.")
-            sys.stderr.write(f"[OSError 48] Address already in use on port {PORT}\n")
-        else:
-            print(f"⚠️ [오류] 서버 실행 중 네트워크 오류 발생: {e}")
-            sys.stderr.write(f"[OSError] {e}\n")
-    except KeyboardInterrupt:
-        print("\n🛑 서버가 사용자에 의해 중지되었습니다.")
-    except Exception as e:
-        print(f"⚠️ [오류] 서버 예기치 않은 오류: {e}")
-        sys.stderr.write(f"[ServerError] {e}\n")
+        user_id = int(user_id)
+        friend_id = int(friend_id)
+    except (ValueError, TypeError):
+        pass
+    res = database.add_friend(user_id, friend_id)
+    return jsonify(res)
+
+
+@app.route('/api/tactic', methods=['POST'])
+def api_tactic():
+    data = request.get_json(silent=True) or {}
+    tactic_id = data.get('tactic_id')
+    user_id = data.get('user_id') or session.get('user_id', 1)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        user_id = 1
+    res = engine.apply_tactic(tactic_id)
+    if res.get('status') == 'success':
+        database.update_user_score(engine.manager_score, engine.manager_grade, user_id)
+    return jsonify(res)
+
+
+@app.route('/api/reset', methods=['POST'])
+def api_reset():
+    data = request.get_json(silent=True) or {}
+    home = data.get('home_team', '삼성')
+    away = data.get('away_team', '한화')
+    home_p = data.get('home_pitcher') or game_engine.TEAMS.get(home, {}).get("pitcher", "페덱")
+    away_p = data.get('away_pitcher') or game_engine.TEAMS.get(away, {}).get("pitcher", "박준영")
+    if home == away:
+        away = '한화' if home != '한화' else '삼성'
+    engine.home_team_name = home
+    engine.away_team_name = away
+    engine.home_pitcher = home_p
+    engine.away_pitcher = away_p
+    engine.reset()
+    return jsonify({"status": "success", "message": "경기 초기화 완료", "state": engine.get_state()})
+
+
+@app.route('/api/step', methods=['POST'])
+def api_step():
+    state = engine.step_pitch()
+    return jsonify(state)
+
+
+# ==============================================================================
+# MAIN ENTRY POINT
+# ==============================================================================
 
 if __name__ == '__main__':
-    run_server()
+    print("==================================================")
+    print("🚀 실시간 야구 감독 매니지먼트 Flask 웹앱 서버 실행")
+    print(f"👉 접속 주소: http://localhost:{PORT}")
+    print("==================================================")
+    app.run(host='0.0.0.0', port=PORT, debug=False)

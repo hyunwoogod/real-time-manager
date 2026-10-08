@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입 - 집감독 실시간 야구 매니지먼트</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #070d19;
+            background-image: radial-gradient(circle at 50% 20%, rgba(16, 185, 129, 0.12) 0%, transparent 60%),
+                              radial-gradient(circle at 80% 80%, rgba(14, 165, 233, 0.08) 0%, transparent 50%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Noto Sans KR', sans-serif;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 24px;
+            padding: 36px 30px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            text-align: center;
+        }
+        .auth-logo {
+            font-size: 2.4rem;
+            margin-bottom: 6px;
+            animation: floatBall 3s ease-in-out infinite;
+            display: inline-block;
+        }
+        @keyframes floatBall {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        .auth-title {
+            font-size: 1.7rem;
+            font-weight: 900;
+            margin: 0 0 6px 0;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .auth-subtitle {
+            font-size: 0.88rem;
+            color: #94a3b8;
+            margin: 0 0 24px 0;
+        }
+        .auth-card-header {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #38bdf8;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 13px 16px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+            background: rgba(30, 41, 59, 1);
+        }
+        .btn-submit {
+            margin-top: 8px;
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+            transition: all 0.2s ease;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.5);
+        }
+        .auth-links {
+            margin-top: 24px;
+            font-size: 0.88rem;
+            color: #94a3b8;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .auth-links a {
+            color: #38bdf8;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s ease;
+        }
+        .auth-links a:hover {
+            color: #7dd3fc;
+            text-decoration: underline;
+        }
+        .auth-back {
+            color: #64748b !important;
+            font-size: 0.8rem;
+        }
+        .error-alert {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 0.86rem;
+            margin-bottom: 16px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-logo">⚾</div>
+        <h1 class="auth-title">집감독</h1>
+        <p class="auth-subtitle">실시간 라이브 야구 감독 매니지먼트</p>
+
+        <div class="auth-card-header">회원가입</div>
+
+        {% if error %}
+        <div class="error-alert">
+            ⚠️ {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/signup" class="auth-form">
+            <div class="form-group">
+                <label for="username">아이디 (ID)</label>
+                <input type="text" id="username" name="username" placeholder="영문/숫자 2자 이상" required minlength="2" autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="password">비밀번호 (Password)</label>
+                <input type="password" id="password" name="password" placeholder="비밀번호 입력 (2자 이상)" required minlength="2">
+            </div>
+
+            <button type="submit" class="btn-submit" id="btn-submit-signup">회원가입 완료</button>
+        </form>
+
+        <div class="auth-links">
+            <div>
+                이미 계정이 있으신가요? <a href="/login" id="link-to-login">로그인하기</a>
+            </div>
+            <div>
+                <a href="/" class="auth-back">← 메인 화면으로 돌아가기</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

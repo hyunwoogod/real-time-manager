@@ -3,7 +3,7 @@ import json
 import os
 import datetime
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'baseball_game.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), 'baseball.db')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -142,9 +142,16 @@ def seed_mock_users():
     conn.commit()
     conn.close()
 
-def register_user(username, password, email, marketing_agreed, nickname, team):
+def register_user(username, password, email=None, marketing_agreed=False, nickname=None, team='한화'):
     conn = get_db()
     cursor = conn.cursor()
+
+    if not email:
+        email = f"{username}@zipgamdok.com"
+    if not nickname:
+        nickname = username
+    if not team:
+        team = '한화'
 
     try:
         cursor.execute('''

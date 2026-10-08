@@ -232,9 +232,18 @@ function showInitialLandingScreen() {
         }
     } catch(e) {}
 
-    try {
-        showOverlay('login-screen');
-    } catch(e) {}
+    if (window.CURRENT_SESSION_USER) {
+        userNickname = window.CURRENT_SESSION_USER;
+        try {
+            hideOverlay('login-screen');
+            switchView('pregame-view');
+            loadLobbyData();
+        } catch(e) {}
+    } else {
+        try {
+            showOverlay('login-screen');
+        } catch(e) {}
+    }
 }
 
 function dismissSplash() {
