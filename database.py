@@ -3,8 +3,36 @@ import json
 import os
 import re
 import datetime
+import shutil
 
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'baseball.db'))
+def get_db_path():
+    """Render 배포 환경(Persistent Disk) 및 로컬 환경에 최적화된 SQLite 데이터베이스 경로 확인"""
+    # 1. 환경 변수 DATABASE_PATH 지정 시 우선 적용
+    env_path = os.environ.get('DATABASE_PATH')
+    if env_path:
+        os.makedirs(os.path.dirname(os.path.abspath(env_path)), exist_ok=True)
+        return os.path.abspath(env_path)
+
+    # 2. Render Persistent Disk 기본 경로 (/var/data 또는 DATA_DIR)
+    data_dir = os.environ.get('DATA_DIR', '')
+    if data_dir and os.path.exists(data_dir):
+        return os.path.abspath(os.path.join(data_dir, 'baseball.db'))
+    if os.path.exists('/var/data'):
+        return '/var/data/baseball.db'
+
+    # 3. 프로젝트 루트 기본 경로
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), 'baseball.db'))
+
+DB_PATH = get_db_path()
+
+# Render 영구 디스크로 마운트된 경우, 저장소 내 기본 DB 파일이 있으면 최초 1회 자동 동기화 복사
+repo_db = os.path.abspath(os.path.join(os.path.dirname(__file__), 'baseball.db'))
+if DB_PATH != repo_db and not os.path.exists(DB_PATH) and os.path.exists(repo_db):
+    try:
+        shutil.copy2(repo_db, DB_PATH)
+        print(f"⚾ [DB] Render 영구 디스크로 초기 DB 파일 동기화 완료: {DB_PATH}")
+    except Exception as e:
+        print(f"⚠️ [DB] 영구 디스크 복사 안내: {e}")
 
 def get_db():
     conn = sqlite3.connect(DB_PATH, timeout=20.0)
@@ -117,8 +145,36 @@ def init_db():
     conn.commit()
     conn.close()
 
-    # KBO 경기 일정 시딩 (회원 시딩은 데이터 초기화 요청에 따라 비활성화)
+    # KBO 경기 일정 시딩
     seed_kbo_schedules()
+    # 유저 테이블이 비어있을 경우 테스트용 기본 계정 자동 생성 안전장치
+    ensure_default_test_user()
+
+def ensure_default_test_user():
+    """서버가 시작되거나 DB가 생성될 때 users 테이블이 비어있으면 테스트용 기본 계정 자동 생성"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) as cnt FROM users")
+    count = cursor.fetchone()['cnt']
+    if count == 0:
+        cursor.execute('''
+            INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed)
+            VALUES (?, ?, ?, ?, ?, ?, '👑', 2000, 'B', 1)
+        ''', (
+            'coach1234', 
+            'Coach2026!', 
+            'coach1234@zipgamdok.com', 
+            '김명장감독', 
+            '한화', 
+            '한화'
+        ))
+        conn.commit()
+        try:
+            conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
+        except Exception:
+            pass
+        print("⚾ [DB] 테스트용 기본 계정 자동 생성 완료 (아이디: coach1234 / 비밀번호: Coach2026!)")
+    conn.close()
 
 def seed_mock_users():
     """테스트용 가상 유저 시딩 (데이터 초기화 요청에 따라 비활성화)"""
