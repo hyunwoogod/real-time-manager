@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>집감독 - 프로 라이브 야구 감독 매니지먼트</title>
     <link rel="stylesheet" href="style.css?v=20260929_01">
     <!-- Google Fonts for Professional Sports Platform -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
+        rel="stylesheet">
 </head>
+
 <body>
     <div id="app" class="app-container">
 
@@ -15,21 +19,21 @@
         <!-- PHASE 1-1: INTRO SPLASH & LOADER (1.2s MAX / SKIP ON CLICK) -->
         <!-- ========================================== -->
         <script>
-            window.dismissSplash = function() {
+            window.dismissSplash = function () {
                 try {
                     var splash = document.getElementById('splash-screen');
                     if (splash) {
                         splash.classList.add('fade-out');
                         splash.style.opacity = '0';
                         splash.style.pointerEvents = 'none';
-                        setTimeout(function() {
+                        setTimeout(function () {
                             try {
                                 splash.style.display = 'none';
                                 if (splash.parentNode) splash.parentNode.removeChild(splash);
-                            } catch(e) {}
+                            } catch (e) { }
                         }, 250);
                     }
-                } catch(e) {}
+                } catch (e) { }
                 try {
                     var loginScr = document.getElementById('login-screen');
                     if (loginScr) {
@@ -38,13 +42,14 @@
                         loginScr.style.pointerEvents = 'auto';
                         loginScr.classList.add('active');
                     }
-                } catch(e) {}
+                } catch (e) { }
             };
 
             // Mandatory Inline Safety Fallback Timeout (1.2s MAX)
-            setTimeout(function() { window.dismissSplash(); }, 1200);
+            setTimeout(function () { window.dismissSplash(); }, 1200);
         </script>
-        <div id="splash-screen" class="splash-overlay active" onclick="window.dismissSplash()" ontouchstart="window.dismissSplash()" onpointerdown="window.dismissSplash()">
+        <div id="splash-screen" class="splash-overlay active" onclick="window.dismissSplash()"
+            ontouchstart="window.dismissSplash()" onpointerdown="window.dismissSplash()">
             <div class="splash-content">
                 <div class="brand-badge">PRO BASEBALL PLATFORM</div>
                 <div class="baseball-spin-wrapper">
@@ -52,7 +57,7 @@
                 </div>
                 <h1 class="splash-logo">집감독</h1>
                 <p class="splash-subtitle">실시간 라이브 야구 감독 매니지먼트</p>
-                
+
                 <div class="loader-box">
                     <div class="loader-status" id="loader-status-text">실시간 KBO/MLB 중계 데이터 동기화 중...</div>
                     <div class="loader-bar-bg">
@@ -79,10 +84,10 @@
                 <!-- 2 Main Action Buttons Only -->
                 <div class="landing-action-group">
                     <button id="btn-landing-login" class="btn-landing-primary" onclick="openLoginModal()">
-                        🔑 기존 로그인하기
+                        기존 로그인하기
                     </button>
                     <button id="btn-landing-register" class="btn-landing-secondary" onclick="openRegisterModal()">
-                        📝 일반 회원가입하기
+                        일반 회원가입하기
                     </button>
                 </div>
 
@@ -102,11 +107,12 @@
             <div class="onboarding-card team-select-card">
                 <h3>⚾ 감독 온보딩 & 응원 구단 설정</h3>
                 <p class="sub">닉네임을 입력하고 응원 구단을 선택하시면 기본 2,000pt가 지급됩니다!</p>
-                
+
                 <!-- Nickname Input Group -->
                 <div class="nickname-form-group">
                     <label for="user-nickname-input">👑 감독 닉네임 설정</label>
-                    <input type="text" id="user-nickname-input" placeholder="닉네임 입력 (예: 김명장)" value="김명장 감독" maxlength="10">
+                    <input type="text" id="user-nickname-input" placeholder="닉네임 입력 (예: 김명장)" value="김명장 감독"
+                        maxlength="10">
                 </div>
 
                 <!-- KBO 10 Teams Scrollable Grid Container -->
@@ -229,7 +235,7 @@
                         <span class="timer-icon">⏱️</span>
                         <span id="match-countdown">KBO 수요일 18:30 경기 개시 대기 중 (사직 구장)</span>
                     </div>
-                    
+
                     <div class="lobby-action-btns">
                         <!-- Prominent Live Entry Button (Manual Click Only) -->
                         <button id="btn-enter-ingame" class="btn-live-entry-glow" onclick="forceLiveMatchStart()">
@@ -300,10 +306,14 @@
 
                     <!-- Category Sub Tabs Bar -->
                     <div class="standings-sub-tabs">
-                        <button class="standings-tab-btn active" onclick="switchStandingsSubTab('team_rank', this)">팀 순위</button>
-                        <button class="standings-tab-btn" onclick="switchStandingsSubTab('team_stats', this)">팀 기록</button>
-                        <button class="standings-tab-btn" onclick="switchStandingsSubTab('batter_stats', this)">타자 기록</button>
-                        <button class="standings-tab-btn" onclick="switchStandingsSubTab('pitcher_stats', this)">투수 기록</button>
+                        <button class="standings-tab-btn active" onclick="switchStandingsSubTab('team_rank', this)">팀
+                            순위</button>
+                        <button class="standings-tab-btn" onclick="switchStandingsSubTab('team_stats', this)">팀
+                            기록</button>
+                        <button class="standings-tab-btn" onclick="switchStandingsSubTab('batter_stats', this)">타자
+                            기록</button>
+                        <button class="standings-tab-btn" onclick="switchStandingsSubTab('pitcher_stats', this)">투수
+                            기록</button>
                     </div>
 
                     <!-- Section Title -->
@@ -360,7 +370,8 @@
                     <!-- Friend Search Box (Always visible inside search tab) -->
                     <div id="friend-search-box" class="friend-search-box active" style="display:block;">
                         <div class="search-input-group">
-                            <input type="text" id="friend-search-input" placeholder="친구 닉네임 입력 (예: 이해설, 박야구)" onkeyup="if(event.key==='Enter') executeFriendSearch()">
+                            <input type="text" id="friend-search-input" placeholder="친구 닉네임 입력 (예: 이해설, 박야구)"
+                                onkeyup="if(event.key==='Enter') executeFriendSearch()">
                             <button class="btn-search-submit" onclick="executeFriendSearch()">검색</button>
                         </div>
                         <div id="friend-search-results" class="search-results-list">
@@ -372,53 +383,57 @@
                         <!-- Dynamic Ranking List Cards Rendered via JS -->
                     </div>
                 </div>
-            <!-- TAB 5: PANE MY RECORDS (나의 기록 탭) -->
-            <div id="pane-my-records" class="lobby-tab-pane">
-                <div class="records-hub-card">
-                    <div class="card-header">
-                        <div>
-                            <h3>📊 나의 감독 판단 기록 & 히스토리</h3>
-                            <span class="sub-text">실시간 승부처 감독 판단 데이터 및 경기별 분석 통계</span>
+                <!-- TAB 5: PANE MY RECORDS (나의 기록 탭) -->
+                <div id="pane-my-records" class="lobby-tab-pane">
+                    <div class="records-hub-card">
+                        <div class="card-header">
+                            <div>
+                                <h3>📊 나의 감독 판단 기록 & 히스토리</h3>
+                                <span class="sub-text">실시간 승부처 감독 판단 데이터 및 경기별 분석 통계</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="records-stats-grid">
-                        <div class="stat-box">
-                            <span class="stat-num" id="stat-total-score">2,025 pt</span>
-                            <span class="stat-label">현재 누적 점수</span>
+                        <div class="records-stats-grid">
+                            <div class="stat-box">
+                                <span class="stat-num" id="stat-total-score">2,025 pt</span>
+                                <span class="stat-label">현재 누적 점수</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-num" id="stat-current-grade">B급</span>
+                                <span class="stat-label">감독 등급</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-num" id="stat-success-rate">68.5%</span>
+                                <span class="stat-label">명장 적중률</span>
+                            </div>
                         </div>
-                        <div class="stat-box">
-                            <span class="stat-num" id="stat-current-grade">B급</span>
-                            <span class="stat-label">감독 등급</span>
-                        </div>
-                        <div class="stat-box">
-                            <span class="stat-num" id="stat-success-rate">68.5%</span>
-                            <span class="stat-label">명장 적중률</span>
-                        </div>
-                    </div>
 
-                    <!-- Date / Game Filter Pills Container -->
-                    <div class="my-records-filter-section" style="margin-top: 24px; margin-bottom: 16px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                            <h4 class="section-title" style="margin: 0;">📅 경기별 감독 판단 기록 선택</h4>
-                            <span style="font-size: 0.78rem; color: #94a3b8;">날짜별 경기를 터치하여 조회</span>
+                        <!-- Date / Game Filter Pills Container -->
+                        <div class="my-records-filter-section" style="margin-top: 24px; margin-bottom: 16px;">
+                            <div
+                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                <h4 class="section-title" style="margin: 0;">📅 경기별 감독 판단 기록 선택</h4>
+                                <span style="font-size: 0.78rem; color: #94a3b8;">날짜별 경기를 터치하여 조회</span>
+                            </div>
+                            <div class="my-records-game-pills" id="my-records-game-pills">
+                                <!-- Dynamic Game Pills Rendered via JS -->
+                            </div>
                         </div>
-                        <div class="my-records-game-pills" id="my-records-game-pills">
-                            <!-- Dynamic Game Pills Rendered via JS -->
-                        </div>
-                    </div>
 
-                    <div class="history-list-section">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                            <h4 class="section-title" style="margin: 0;" id="my-records-section-title">📜 최근 승부처 작전 기록</h4>
-                            <span id="my-records-count-tag" style="font-size: 0.78rem; color: #38bdf8; font-weight: 700;">전체</span>
-                        </div>
-                        <div id="tactics-history-list" class="history-list-grid">
-                            <!-- Rendered via JS -->
+                        <div class="history-list-section">
+                            <div
+                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                <h4 class="section-title" style="margin: 0;" id="my-records-section-title">📜 최근 승부처 작전
+                                    기록</h4>
+                                <span id="my-records-count-tag"
+                                    style="font-size: 0.78rem; color: #38bdf8; font-weight: 700;">전체</span>
+                            </div>
+                            <div id="tactics-history-list" class="history-list-grid">
+                                <!-- Rendered via JS -->
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
         </section>
 
 
@@ -443,12 +458,13 @@
 
                 <div class="scoreboard-sub">
                     <div class="inning-badge" id="sb-inning">1회초</div>
-                    
+
                     <!-- BSO LEDs -->
                     <div class="bso-container">
                         <div class="bso-row">
                             <span class="bso-label label-b">B</span>
-                            <div class="leds" id="led-b"><span class="led"></span><span class="led"></span><span class="led"></span></div>
+                            <div class="leds" id="led-b"><span class="led"></span><span class="led"></span><span
+                                    class="led"></span></div>
                         </div>
                         <div class="bso-row">
                             <span class="bso-label label-s">S</span>
@@ -530,15 +546,18 @@
                             <div class="mini-bso-row">
                                 <div class="bso-line">
                                     <span class="bso-label font-b">B</span>
-                                    <div id="mini-led-b" class="bso-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                                    <div id="mini-led-b" class="bso-dots"><span class="dot"></span><span
+                                            class="dot"></span><span class="dot"></span></div>
                                 </div>
                                 <div class="bso-line">
                                     <span class="bso-label font-s">S</span>
-                                    <div id="mini-led-s" class="bso-dots"><span class="dot"></span><span class="dot"></span></div>
+                                    <div id="mini-led-s" class="bso-dots"><span class="dot"></span><span
+                                            class="dot"></span></div>
                                 </div>
                                 <div class="bso-line">
                                     <span class="bso-label font-o">O</span>
-                                    <div id="mini-led-o" class="bso-dots"><span class="dot"></span><span class="dot"></span></div>
+                                    <div id="mini-led-o" class="bso-dots"><span class="dot"></span><span
+                                            class="dot"></span></div>
                                 </div>
                             </div>
                             <div class="mini-pitcher-info" id="mini-pitcher-info">
@@ -570,14 +589,17 @@
                             <span class="live-indicator-dot"></span>
                             <span class="feed-title">집감독 실시간 라이브 분석 스트림</span>
                         </div>
-                        <button class="btn-sm btn-pitch-step" id="btn-pitch-step" onclick="handleNextPitch()">⏩ 1구 투구</button>
+                        <button class="btn-sm btn-pitch-step" id="btn-pitch-step" onclick="handleNextPitch()">⏩ 1구
+                            투구</button>
                     </div>
 
                     <!-- Horizontally Scrollable Inning Tab Navigation Bar -->
                     <div class="inning-tab-scroll-wrapper">
                         <div class="inning-tab-scroll-bar" id="inning-tab-bar">
-                            <button class="inning-tab-pill" data-tab="score" onclick="selectInningTab('score')">득점 🔴</button>
-                            <button class="inning-tab-pill active" data-tab="all" onclick="selectInningTab('all')">전체</button>
+                            <button class="inning-tab-pill" data-tab="score" onclick="selectInningTab('score')">득점
+                                🔴</button>
+                            <button class="inning-tab-pill active" data-tab="all"
+                                onclick="selectInningTab('all')">전체</button>
                             <button class="inning-tab-pill" data-tab="1" onclick="selectInningTab(1)">1회</button>
                             <button class="inning-tab-pill" data-tab="2" onclick="selectInningTab(2)">2회</button>
                             <button class="inning-tab-pill" data-tab="3" onclick="selectInningTab(3)">3회</button>
@@ -660,7 +682,7 @@
         <div id="login-modal" class="modal-overlay">
             <div class="modal-card auth-modal-card">
                 <div class="modal-header">
-                    <h3>🔑 집감독 로그인</h3>
+                    <h3>집감독 로그인</h3>
                     <button type="button" class="btn-close-modal" onclick="closeLoginModal()">✕</button>
                 </div>
                 <form onsubmit="event.preventDefault(); submitLogin();" class="auth-form">
@@ -668,7 +690,7 @@
                         <label for="login-username">아이디 (ID)</label>
                         <input type="text" id="login-username" placeholder="아이디 입력" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="login-password">비밀번호 (Password)</label>
                         <input type="password" id="login-password" placeholder="비밀번호 입력" required>
@@ -691,7 +713,7 @@
         <div id="register-modal" class="modal-overlay">
             <div class="modal-card auth-modal-card">
                 <div class="modal-header">
-                    <h3>📝 일반 회원가입</h3>
+                    <h3>일반 회원가입</h3>
                     <button type="button" class="btn-close-modal" onclick="closeRegisterModal()">✕</button>
                 </div>
                 <form onsubmit="event.preventDefault(); submitRegister();" class="auth-form">
@@ -699,7 +721,7 @@
                         <label for="reg-username">아이디 (ID)</label>
                         <input type="text" id="reg-username" placeholder="영문/숫자 4자 이상" required minlength="4">
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="reg-password">비밀번호 (Password)</label>
                         <input type="password" id="reg-password" placeholder="비밀번호 6자 이상" required minlength="6">
@@ -714,8 +736,9 @@
                     <div class="form-group identity-box">
                         <label>본인인증 (간편 인증)</label>
                         <div class="verify-status-wrapper">
-                            <button type="button" id="btn-do-verify" class="btn-verify" onclick="triggerIdentityVerify()">
-                                🔒 PASS / 통신사 간편 본인인증
+                            <button type="button" id="btn-do-verify" class="btn-verify"
+                                onclick="triggerIdentityVerify()">
+                                PASS / 통신사 간편 본인인증
                             </button>
                             <div id="verify-badge" class="verify-badge hidden">
                                 <span class="check-icon">✓</span> 본인인증 완료 (010-****-5678)
@@ -733,7 +756,7 @@
                     </div>
 
                     <button type="submit" class="btn-primary-glow btn-auth-submit">
-                        ✨ 회원가입 완료 & 닉네임/구단 설정 이동
+                        회원가입 완료 & 닉네임/구단 설정 이동
                     </button>
                     <button type="button" class="btn-modal-cancel" onclick="closeRegisterModal()">
                         닫기 / 취소
@@ -894,4 +917,5 @@
 
     <script src="app.js?v=20260929_10"></script>
 </body>
+
 </html>
