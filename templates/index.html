@@ -20,6 +20,7 @@
         <!-- ========================================== -->
         <script>
             window.CURRENT_SESSION_USER = {{ username | tojson if username else 'null' }};
+            window.CURRENT_SESSION_TEAM = {{ favorite_team | tojson if favorite_team else 'null' }};
             window.dismissSplash = function () {
                 try {
                     var splash = document.getElementById('splash-screen');
@@ -214,7 +215,12 @@
                 <div class="session-welcome-card" id="session-welcome-banner" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(16, 185, 129, 0.45); border-radius: 16px; padding: 14px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px);">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 1.35rem;">👋</span>
-                        <span class="user-welcome-text" style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">{{ username }}님 반갑습니다</span>
+                        <div>
+                            <span class="user-welcome-text" style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">{{ username }}님 반갑습니다</span>
+                            <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 2px;">
+                                ⚾ 나의 응원 구단: <strong style="color: #10b981;">{{ favorite_team if favorite_team else '한화' }}</strong>
+                            </div>
+                        </div>
                     </div>
                     <a href="/logout" id="btn-session-logout" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; padding: 8px 16px; border-radius: 10px; font-size: 0.88rem; font-weight: 700; text-decoration: none; transition: all 0.2s ease;">로그아웃</a>
                 </div>
@@ -228,12 +234,14 @@
                 </div>
 
                 <!-- Header Bar -->
-                <header class="lobby-header">
+                <header class="lobby-header" id="lobby-header-bar">
                     <div class="user-profile-badge">
-                        <span class="user-avatar" id="lobby-user-avatar">👑</span>
+                        <span class="user-avatar" id="lobby-user-avatar">
+                            {% if favorite_team == '삼성' %}🦁{% elif favorite_team == '한화' %}🦅{% elif favorite_team == 'KIA' %}🐯{% elif favorite_team == 'LG' %}🧢{% elif favorite_team == '두산' %}🐻{% elif favorite_team == '롯데' %}⚓{% elif favorite_team == 'SSG' %}🚀{% elif favorite_team == 'KT' %}🧙{% elif favorite_team == 'NC' %}🦖{% elif favorite_team == '키움' %}🦸{% else %}👑{% endif %}
+                        </span>
                         <div class="user-info">
-                            <span id="lobby-user-name" class="user-name">김명장 감독</span>
-                            <span id="lobby-login-type" class="login-tag kakao">일반 회원 계정</span>
+                            <span id="lobby-user-name" class="user-name">{{ username if username else '김명장' }} 감독</span>
+                            <span id="lobby-login-type" class="login-tag kakao">{{ favorite_team if favorite_team else '한화' }} 팬클럽 감독</span>
                         </div>
                     </div>
                     <div class="lobby-score-box">

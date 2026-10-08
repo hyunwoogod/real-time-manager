@@ -88,11 +88,27 @@
             box-sizing: border-box;
             transition: all 0.2s ease;
         }
-        .form-group input:focus {
+        .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: #10b981;
             box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
             background: rgba(30, 41, 59, 1);
+        }
+        .form-group select {
+            width: 100%;
+            padding: 13px 16px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .form-group select option {
+            background-color: #0f172a;
+            color: #ffffff;
         }
         .btn-submit {
             margin-top: 8px;
@@ -169,6 +185,22 @@
             <div class="form-group">
                 <label for="password">비밀번호 (Password)</label>
                 <input type="password" id="password" name="password" placeholder="비밀번호 입력 (2자 이상)" required minlength="2">
+            </div>
+
+            <div class="form-group">
+                <label for="favorite_team">응원 구단 선택 (KBO 팀)</label>
+                <select id="favorite_team" name="favorite_team" required>
+                    <option value="KIA">🐯 KIA 타이거즈</option>
+                    <option value="삼성">🦁 삼성 라이온즈</option>
+                    <option value="LG">🧢 LG 트윈스</option>
+                    <option value="두산">🐻 두산 베어스</option>
+                    <option value="KT">🧙 KT 위즈</option>
+                    <option value="SSG">🚀 SSG 랜더스</option>
+                    <option value="롯데">⚓ 롯데 자이언츠</option>
+                    <option value="한화" selected>🦅 한화 이글스</option>
+                    <option value="NC">🦖 NC 다이노스</option>
+                    <option value="키움">🦸 키움 히어로즈</option>
+                </select>
             </div>
 
             <button type="submit" class="btn-submit" id="btn-submit-signup">회원가입 완료</button>

@@ -234,6 +234,10 @@ function showInitialLandingScreen() {
 
     if (window.CURRENT_SESSION_USER) {
         userNickname = window.CURRENT_SESSION_USER;
+        if (window.CURRENT_SESSION_TEAM) {
+            selectedTeamCode = window.CURRENT_SESSION_TEAM;
+            localStorage.setItem('antigravity_favorite_team', selectedTeamCode);
+        }
         try {
             hideOverlay('login-screen');
             switchView('pregame-view');
@@ -404,7 +408,8 @@ function submitLogin() {
     function proceedToLobby(user) {
         currentUserId = user ? user.id : 1;
         userNickname = user ? user.nickname : (username ? (username + " 감독") : "김명장 감독");
-        selectedTeamCode = user ? (user.team || '롯데') : '롯데';
+        selectedTeamCode = user ? (user.favorite_team || user.team || '한화') : '한화';
+        localStorage.setItem('antigravity_favorite_team', selectedTeamCode);
 
         const nameEl = document.getElementById('lobby-user-name');
         if (nameEl) nameEl.innerText = userNickname;
@@ -1019,6 +1024,33 @@ function loadLobbyData() {
 
             const nameEl = document.getElementById('lobby-user-name');
             if (nameEl && userNickname) nameEl.innerText = userNickname;
+
+            // 응원 팀 정보 및 로고/컬러 동기화
+            if (data.favorite_team) {
+                selectedTeamCode = data.favorite_team;
+            } else if (data.user_info && (data.user_info.favorite_team || data.user_info.team)) {
+                selectedTeamCode = data.user_info.favorite_team || data.user_info.team;
+            }
+            const teamBadge = document.getElementById('lobby-login-type');
+            if (teamBadge && selectedTeamCode) {
+                teamBadge.innerText = `${selectedTeamCode} 팬클럽 감독`;
+            }
+            const avatarEl = document.getElementById('lobby-user-avatar');
+            const teamLogos = {
+                '삼성': '🦁', '한화': '🦅', 'KIA': '🐯', 'LG': '🧢', '두산': '🐻',
+                '롯데': '⚓', 'SSG': '🚀', 'KT': '🧙', 'NC': '🦖', '키움': '🦸'
+            };
+            if (avatarEl && teamLogos[selectedTeamCode]) {
+                avatarEl.innerText = teamLogos[selectedTeamCode];
+            }
+            const headerBar = document.getElementById('lobby-header-bar');
+            const teamColors = {
+                '삼성': '#005CB9', '한화': '#FF6600', 'KIA': '#EA0029', 'LG': '#C30452', '두산': '#131230',
+                '롯데': '#041E42', 'SSG': '#CE0E2D', 'KT': '#000000', 'NC': '#315288', '키움': '#570514'
+            };
+            if (headerBar && teamColors[selectedTeamCode]) {
+                headerBar.style.borderLeft = `5px solid ${teamColors[selectedTeamCode]}`;
+            }
 
             // Stats grid in records pane
             const statScore = document.getElementById('stat-total-score');

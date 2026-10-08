@@ -22,7 +22,8 @@ def init_db():
             password TEXT NOT NULL,
             email TEXT NOT NULL,
             nickname TEXT NOT NULL,
-            team TEXT NOT NULL DEFAULT '롯데',
+            team TEXT NOT NULL DEFAULT '한화',
+            favorite_team TEXT NOT NULL DEFAULT '한화',
             avatar TEXT NOT NULL DEFAULT '👑',
             score INTEGER NOT NULL DEFAULT 2000,
             grade TEXT NOT NULL DEFAULT 'B',
@@ -30,6 +31,14 @@ def init_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # favorite_team 컬럼 존재 여부 확인 및 자동 마이그레이션
+    cursor.execute("PRAGMA table_info(users)")
+    user_cols = [row['name'] for row in cursor.fetchall()]
+    if 'favorite_team' not in user_cols:
+        cursor.execute("ALTER TABLE users ADD COLUMN favorite_team TEXT DEFAULT '한화'")
+        cursor.execute("UPDATE users SET favorite_team = team WHERE favorite_team IS NULL OR favorite_team = ''")
+        conn.commit()
 
     # 친구 관계 테이블
     cursor.execute('''
@@ -142,22 +151,21 @@ def seed_mock_users():
     conn.commit()
     conn.close()
 
-def register_user(username, password, email=None, marketing_agreed=False, nickname=None, team='한화'):
+def register_user(username, password, email=None, marketing_agreed=False, nickname=None, team=None, favorite_team=None):
     conn = get_db()
     cursor = conn.cursor()
 
+    fav_team = favorite_team or team or '한화'
     if not email:
         email = f"{username}@zipgamdok.com"
     if not nickname:
         nickname = username
-    if not team:
-        team = '한화'
 
     try:
         cursor.execute('''
-            INSERT INTO users (username, password, email, nickname, team, avatar, score, grade, marketing_agreed)
-            VALUES (?, ?, ?, ?, ?, '👑', 2000, 'B', ?)
-        ''', (username, password, email, nickname, team, 1 if marketing_agreed else 0))
+            INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed)
+            VALUES (?, ?, ?, ?, ?, ?, '👑', 2000, 'B', ?)
+        ''', (username, password, email, nickname, fav_team, fav_team, 1 if marketing_agreed else 0))
         conn.commit()
         user_id = cursor.lastrowid
 
@@ -203,7 +211,7 @@ def get_user_by_id(user_id):
 def update_user_profile(user_id, nickname, team):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET nickname = ?, team = ? WHERE id = ?", (nickname, team, user_id))
+    cursor.execute("UPDATE users SET nickname = ?, team = ?, favorite_team = ? WHERE id = ?", (nickname, team, team, user_id))
     conn.commit()
     conn.close()
 

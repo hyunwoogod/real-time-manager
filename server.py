@@ -24,22 +24,25 @@ engine = GameEngine("한화", "롯데")
 
 @app.route('/')
 def index():
-    """메인 페이지: 세션 로그인 상태에 따라 환영 문구 및 화면 표시"""
+    """메인 페이지: 세션 로그인 상태 및 응원 팀에 따라 맞춤 화면 표시"""
     username = session.get('username')
-    return render_template('index.html', username=username)
+    favorite_team = session.get('favorite_team', '한화')
+    return render_template('index.html', username=username, favorite_team=favorite_team)
 
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    """회원가입 기능: 아이디와 비밀번호를 입력받아 SQLite users 테이블에 저장"""
+    """회원가입 기능: 아이디, 비밀번호, 응원 구단을 입력받아 SQLite users 테이블에 저장"""
     if request.method == 'POST':
         if request.is_json:
             data = request.get_json(silent=True) or {}
             username = data.get('username', '').strip()
             password = data.get('password', '').strip()
+            favorite_team = data.get('favorite_team') or data.get('team') or '한화'
         else:
             username = request.form.get('username', '').strip()
             password = request.form.get('password', '').strip()
+            favorite_team = request.form.get('favorite_team') or request.form.get('team') or '한화'
 
         if not username or not password:
             error_msg = "아이디와 비밀번호를 모두 입력해주세요."
@@ -47,15 +50,18 @@ def signup():
                 return jsonify({"status": "error", "message": error_msg}), 400
             return render_template('signup.html', error=error_msg)
 
-        res = database.register_user(username=username, password=password)
+        res = database.register_user(username=username, password=password, favorite_team=favorite_team, team=favorite_team)
         if res.get('status') == 'success':
             if request.is_json:
                 return jsonify({
                     "status": "success",
-                    "message": "회원가입이 완료되었습니다. 로그인해 주세요.",
+                    "message": "회원가입되었습니다! 로그인 화면으로 가기",
+                    "username": username,
+                    "favorite_team": favorite_team,
                     "redirect": url_for('login')
                 })
-            return redirect(url_for('login'))
+            # 안내 화면: "회원가입되었습니다! 로그인 화면으로 가기" 버튼 및 문구 제공
+            return render_template('signup_success.html', username=username, favorite_team=favorite_team)
         else:
             error_msg = res.get('message', '회원가입 처리 중 오류가 발생했습니다.')
             if request.is_json:
@@ -70,7 +76,7 @@ def signup():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """로그인 기능: SQLite 일치 확인 후 Flask session에 사용자 이름 저장 및 세션 유지"""
+    """로그인 기능: SQLite 일치 확인 후 Flask session에 사용자 이름 및 응원 구단 저장 및 세션 유지"""
     if request.method == 'POST':
         if request.is_json:
             data = request.get_json(silent=True) or {}
@@ -88,14 +94,16 @@ def login():
 
         res = database.login_user(username, password)
         if res.get('status') == 'success':
-            session['username'] = username
             user_info = res.get('user', {})
+            session['username'] = username
             session['user_id'] = user_info.get('id', 1)
+            session['favorite_team'] = user_info.get('favorite_team') or user_info.get('team') or '한화'
 
             if request.is_json:
                 return jsonify({
                     "status": "success",
                     "username": username,
+                    "favorite_team": session['favorite_team'],
                     "user": user_info,
                     "redirect": url_for('index')
                 })
@@ -117,6 +125,7 @@ def logout():
     """로그아웃 기능: 세션 삭제 후 메인 페이지 또는 로그인 화면으로 이동"""
     session.pop('username', None)
     session.pop('user_id', None)
+    session.pop('favorite_team', None)
     if request.is_json:
         return jsonify({"status": "success", "message": "로그아웃되었습니다.", "redirect": url_for('index')})
     return redirect(url_for('index'))
@@ -134,6 +143,7 @@ def api_session():
     return jsonify({
         "logged_in": bool(username),
         "username": username,
+        "favorite_team": session.get('favorite_team', '한화'),
         "user_id": session.get('user_id')
     })
 
@@ -177,7 +187,7 @@ def api_lobby():
     
     user_score = user_info['score'] if user_info else engine.manager_score
     user_grade = user_info['grade'] if user_info else engine.manager_grade
-    user_team = user_info['team'] if user_info else "한화"
+    user_team = (user_info.get('favorite_team') or user_info.get('team')) if user_info else session.get('favorite_team', "한화")
 
     today_str = datetime.date.today().strftime('%Y-%m-%d')
     today_info = database.get_today_schedule_info(today_str, user_team)
@@ -188,6 +198,7 @@ def api_lobby():
         "user_score": user_score,
         "user_grade": user_grade,
         "user_info": user_info,
+        "favorite_team": user_team,
         "today_schedule": today_info,
         "countdown": "14분 30초",
         "current_username": session.get('username')
@@ -220,15 +231,16 @@ def api_register():
     email = data.get('email', '').strip()
     marketing_agreed = data.get('marketing_agreed', False)
     nickname = data.get('nickname', '김명장').strip()
-    team = data.get('team', '한화').strip()
+    favorite_team = data.get('favorite_team') or data.get('team', '한화').strip()
 
     if not username or not password:
         return jsonify({"status": "error", "message": "필수 정보를 모두 입력해주세요."}), 400
 
-    res = database.register_user(username, password, email, marketing_agreed, nickname, team)
+    res = database.register_user(username, password, email, marketing_agreed, nickname, team=favorite_team, favorite_team=favorite_team)
     if res.get('status') == 'success':
         session['username'] = username
         session['user_id'] = res.get('user', {}).get('id', 1)
+        session['favorite_team'] = favorite_team
     return jsonify(res)
 
 
@@ -243,8 +255,10 @@ def api_login():
 
     res = database.login_user(username, password)
     if res.get('status') == 'success':
+        user_info = res.get('user', {})
         session['username'] = username
-        session['user_id'] = res.get('user', {}).get('id', 1)
+        session['user_id'] = user_info.get('id', 1)
+        session['favorite_team'] = user_info.get('favorite_team') or user_info.get('team') or '한화'
     return jsonify(res)
 
 
