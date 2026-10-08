@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try { loadUserState(); } catch(e) { console.warn('loadUserState error:', e); }
     try { initCanvas(); } catch(e) { console.warn('initCanvas error:', e); }
     try { switchView('pregame-view'); } catch(e) { console.warn('switchView error:', e); }
+    try { updateBottomNavVisibility(); } catch(e) {}
     try { runSplashScreen(); } catch(e) { dismissSplash(); }
     try { startLiveClock(); } catch(e) {}
     try { setupSmartAutoScroll(); } catch(e) {}
@@ -248,6 +249,7 @@ function showInitialLandingScreen() {
             showOverlay('login-screen');
         } catch(e) {}
     }
+    try { updateBottomNavVisibility(); } catch(e) {}
 }
 
 function dismissSplash() {
@@ -408,6 +410,7 @@ function submitLogin() {
     function proceedToLobby(user) {
         currentUserId = user ? user.id : 1;
         userNickname = user ? user.nickname : (username ? (username + " 감독") : "김명장 감독");
+        window.CURRENT_SESSION_USER = userNickname;
         selectedTeamCode = user ? (user.favorite_team || user.team || '한화') : '한화';
         localStorage.setItem('antigravity_favorite_team', selectedTeamCode);
 
@@ -424,6 +427,7 @@ function submitLogin() {
         closeLoginModal();
         hideOverlay('login-screen');
         switchView('pregame-view');
+        try { updateBottomNavVisibility(); } catch(e) {}
     }
 
     if (!username || !password) {
@@ -452,6 +456,7 @@ function submitLogin() {
 // Direct Screen Routing & Seamless Entrance Handlers (Ensures 2000pt & Main Screen Routing)
 function enterMainLobbyDirect(loginType = 'Existing', customNick = '김명장 감독') {
     userNickname = customNick || '김명장 감독';
+    window.CURRENT_SESSION_USER = userNickname;
     currentUserId = 1;
     selectedTeamCode = selectedTeamCode || '롯데';
 
@@ -460,6 +465,7 @@ function enterMainLobbyDirect(loginType = 'Existing', customNick = '김명장 �
     hideOverlay('team-select-screen');
     closeLoginModal();
     closeRegisterModal();
+    try { updateBottomNavVisibility(); } catch(e) {}
 
     // 2. Set score UI elements to 2,000 pts
     const scoreEl = document.getElementById('lobby-my-score');
@@ -721,14 +727,49 @@ function forceLiveMatchStart() {
         .catch(() => switchView('ingame-view'));
 }
 
+// 하단 네비게이션 바 노출/숨김 제어 함수: 로그인 완료 후 메인 로비 화면이나 게임 화면 진입 시에만 노출
+function updateBottomNavVisibility() {
+    const bottomNav = document.getElementById('bottom-nav-bar');
+    if (!bottomNav) return;
+
+    const loginScreen = document.getElementById('login-screen');
+    const isLoginActive = loginScreen && 
+        (loginScreen.classList.contains('active') || loginScreen.style.display === 'flex') && 
+        loginScreen.style.display !== 'none';
+        
+    const teamSelectScreen = document.getElementById('team-select-screen');
+    const isTeamSelectActive = teamSelectScreen && teamSelectScreen.classList.contains('active');
+
+    // 로그인 여부 확인: 세션 사용자 변수 존재 또는 login-screen 비활성화 상태
+    const isLoggedIn = Boolean(window.CURRENT_SESSION_USER);
+
+    // 메인 로비(pregame-view) 또는 게임 화면(ingame-view)에 진입했는지 확인
+    const pregame = document.getElementById('pregame-view');
+    const ingame = document.getElementById('ingame-view');
+    const isLobbyOrGame = (pregame && pregame.classList.contains('active')) || 
+                          (ingame && ingame.classList.contains('active'));
+
+    if (isLoggedIn && !isLoginActive && !isTeamSelectActive && isLobbyOrGame) {
+        bottomNav.style.setProperty('display', 'flex', 'important');
+        bottomNav.classList.remove('hidden');
+        bottomNav.classList.add('visible');
+    } else {
+        bottomNav.style.setProperty('display', 'none', 'important');
+        bottomNav.classList.remove('visible');
+        bottomNav.classList.add('hidden');
+    }
+}
+
 function showOverlay(id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('active');
+    try { updateBottomNavVisibility(); } catch(e) {}
 }
 
 function hideOverlay(id) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
+    try { updateBottomNavVisibility(); } catch(e) {}
 }
 
 function switchView(viewId) {
@@ -763,15 +804,13 @@ function switchView(viewId) {
                     }
                 }
             });
-        const bottomNav = document.getElementById('bottom-nav-bar');
-        if (bottomNav) bottomNav.style.display = 'none';
+        try { updateBottomNavVisibility(); } catch(e) {}
         startSSEStream();
         if (!autoPitchInterval) {
             startAutoPitchTimer();
         }
     } else if (viewId === 'pregame-view') {
-        const bottomNav = document.getElementById('bottom-nav-bar');
-        if (bottomNav) bottomNav.style.display = 'flex';
+        try { updateBottomNavVisibility(); } catch(e) {}
         stopSSEStream();
         // Maintain simulation timer running in background!
         if (!autoPitchInterval) {
@@ -780,10 +819,17 @@ function switchView(viewId) {
         loadLobbyData();
         startLobbyCountdown();
         switchLobbyTab('home');
+    } else {
+        try { updateBottomNavVisibility(); } catch(e) {}
     }
 }
 
 function switchLobbyTab(tabName, btnEl) {
+    const pregame = document.getElementById('pregame-view');
+    if (pregame && !pregame.classList.contains('active')) {
+        switchView('pregame-view');
+    }
+
     document.querySelectorAll('.lobby-tab-pane').forEach(pane => {
         pane.classList.remove('active');
     });

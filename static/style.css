@@ -3359,7 +3359,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Bottom Navigation Bar (Strict 52px Fixed Height, Always Pinned & Visible at Bottom of App Container) */
+/* Bottom Navigation Bar (Strict 52px Fixed Height, Hidden before Login, Pinned when logged in) */
 .bottom-nav-bar {
     position: absolute !important;
     bottom: 0 !important;
@@ -3374,14 +3374,28 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     backdrop-filter: blur(16px) !important;
     -webkit-backdrop-filter: blur(16px) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
-    display: flex !important;
+    display: none;
     justify-content: space-around !important;
     align-items: center !important;
-    z-index: 9999 !important;
+    z-index: 9000 !important;
     box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.7) !important;
     padding: 0 8px !important;
     margin: 0 !important;
     box-sizing: border-box !important;
+}
+
+/* 로그인 화면 또는 오버레이 표시 중에는 하단 바 강제 숨김 */
+.screen-overlay.active ~ .bottom-nav-bar,
+#login-screen.active ~ .bottom-nav-bar,
+.bottom-nav-bar.hidden {
+    display: none !important;
+}
+
+/* 로그인 완료 후 메인 로비 또는 게임 화면 진입 시 하단 바 표시 */
+.bottom-nav-bar.visible,
+#pregame-view.active ~ .bottom-nav-bar:not(.hidden),
+#ingame-view.active ~ .bottom-nav-bar:not(.hidden) {
+    display: flex !important;
 }
 
 .bottom-nav-item {

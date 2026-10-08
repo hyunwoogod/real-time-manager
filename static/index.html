@@ -38,15 +38,26 @@
                 } catch (e) { }
                 try {
                     var loginScr = document.getElementById('login-screen');
+                    var bottomNav = document.getElementById('bottom-nav-bar');
                     if (loginScr) {
                         if (window.CURRENT_SESSION_USER) {
                             loginScr.style.display = 'none';
                             loginScr.classList.remove('active');
+                            if (bottomNav) {
+                                bottomNav.style.setProperty('display', 'flex', 'important');
+                                bottomNav.classList.remove('hidden');
+                                bottomNav.classList.add('visible');
+                            }
                         } else {
                             loginScr.style.display = 'flex';
                             loginScr.style.opacity = '1';
                             loginScr.style.pointerEvents = 'auto';
                             loginScr.classList.add('active');
+                            if (bottomNav) {
+                                bottomNav.style.setProperty('display', 'none', 'important');
+                                bottomNav.classList.remove('visible');
+                                bottomNav.classList.add('hidden');
+                            }
                         }
                     }
                 } catch (e) { }
@@ -917,7 +928,7 @@
         </div>
 
         <!-- BOTTOM FIXED NAVIGATION BAR (Pinned to bottom of app container) -->
-        <nav id="bottom-nav-bar" class="bottom-nav-bar">
+        <nav id="bottom-nav-bar" class="bottom-nav-bar {% if username %}visible{% else %}hidden{% endif %}" {% if not username %}style="display: none !important;"{% endif %}>
             <button class="bottom-nav-item active" onclick="switchLobbyTab('home', this)">
                 <span class="nav-icon">🏠</span>
                 <span class="nav-label">홈</span>
