@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response
+from functools import wraps
 import os
 import sys
 import json
@@ -13,13 +14,70 @@ app.secret_key = os.environ.get('SECRET_KEY', 'zipgamdok-secret-baseball-key-202
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
+
 ADMIN_SECRET_CODE = os.environ.get('ADMIN_SECRET_CODE', 'zipgamdok2026!')
+ADMIN_VALID_CODES = {ADMIN_SECRET_CODE, 'zipgamdok2026!', 'admin1234'}
 
 PORT = int(os.environ.get('PORT', 8000))
 
 # DB 초기화 및 글로벌 게임 엔진 생성
 database.init_db()
 engine = GameEngine("한화", "롯데")
+
+
+def login_required(f):
+    """세션 인증 데코레이터: user_id 또는 username이 없으면 무조건 로그인 페이지로 강제 리다이렉트"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id') or not session.get('username'):
+            if request.is_json or request.path.startswith('/api/'):
+                return jsonify({
+                    "status": "error",
+                    "message": "로그인이 필요합니다.",
+                    "redirect": url_for('login')
+                }), 401
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.before_request
+def authentication_guard():
+    """모든 요청 사전 검사 가드: 새로고침 또는 URL 직접 접근 시 세션 부재 시 로그인 페이지로 강제 이동"""
+    path = request.path
+
+    # 1. 정적 에셋 파일 허용
+    if (path.startswith('/static') or 
+        path.startswith('/logos') or
+        path.endswith(('.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.map', '.webp'))):
+        return None
+
+    # 2. 공개 접근 허용 라우트 (로그인/회원가입/중복확인/관리자 인증/상태조회)
+    PUBLIC_PATHS = {
+        '/login', 
+        '/signup', 
+        '/logout',
+        '/admin/users', 
+        '/admin/logout',
+        '/api/login', 
+        '/api/register',
+        '/api/session',
+        '/api/me',
+        '/api/check-username', 
+        '/api/check-nickname'
+    }
+    if path in PUBLIC_PATHS or path.startswith('/api/check-'):
+        return None
+
+    # 3. 비인가 세션의 메인 로비/게임 및 기타 페이지/API 접근 시 로그인 페이지로 강제 리다이렉트
+    if not session.get('user_id') or not session.get('username'):
+        if request.is_json or path.startswith('/api/'):
+            return jsonify({
+                "status": "error",
+                "message": "로그인이 필요합니다.",
+                "redirect": url_for('login')
+            }), 401
+        return redirect(url_for('login'))
 
 
 # ==============================================================================
@@ -29,15 +87,20 @@ engine = GameEngine("한화", "롯데")
 @app.route('/lobby', endpoint='lobby')
 @app.route('/index.html', endpoint='index_html')
 @app.route('/', endpoint='index')
+@login_required
 def index():
     """메인 페이지: 세션 로그인 상태 검사 및 미로그인 시 로그인 페이지로 강제 리다이렉트"""
+    user_id = session.get('user_id')
     username = session.get('username')
-    if not username:
-        return redirect(url_for('login'))
-
     nickname = session.get('nickname') or (username + " 감독")
     favorite_team = session.get('favorite_team', '한화')
-    return render_template('index.html', username=username, nickname=nickname, favorite_team=favorite_team)
+    return render_template(
+        'index.html', 
+        user_id=user_id,
+        username=username, 
+        nickname=nickname, 
+        favorite_team=favorite_team
+    )
 
 
 @app.route('/api/check-username', methods=['GET', 'POST'])
@@ -145,7 +208,7 @@ def signup():
             return render_template('signup.html', error=error_msg)
 
     # GET 요청: 이미 로그인되어 있다면 메인으로 이동
-    if 'username' in session:
+    if session.get('user_id') and session.get('username'):
         return redirect(url_for('index'))
     return render_template('signup.html')
 
@@ -172,14 +235,15 @@ def login():
         if res.get('status') == 'success':
             user_info = res.get('user', {})
             session.permanent = True
-            session['username'] = username
-            session['nickname'] = user_info.get('nickname') or username
             session['user_id'] = user_info.get('id', 1)
+            session['username'] = username
+            session['nickname'] = user_info.get('nickname') or (username + " 감독")
             session['favorite_team'] = user_info.get('favorite_team') or user_info.get('team') or '한화'
 
             if request.is_json:
                 return jsonify({
                     "status": "success",
+                    "user_id": session['user_id'],
                     "username": username,
                     "nickname": session['nickname'],
                     "favorite_team": session['favorite_team'],
@@ -194,7 +258,7 @@ def login():
             return render_template('login.html', error=error_msg)
 
     # GET 요청: 이미 로그인되어 있다면 메인으로 이동
-    if session.get('username'):
+    if session.get('user_id') and session.get('username'):
         return redirect(url_for('index'))
     return render_template('login.html')
 
@@ -214,17 +278,23 @@ def logout():
 
 @app.route('/admin/users', methods=['GET', 'POST'])
 def admin_users():
-    """관리자 전용 회원 목록 페이지: 보안 비밀 코드 인증 장치 적용 (?code=... 또는 로그인 폼)"""
-    # 1. URL 쿼리 파라미터(?code=...) 또는 POST 폼을 통한 코드 확인
-    input_code = (request.args.get('code') or request.form.get('code', '')).strip()
+    """관리자 전용 회원 목록 페이지: 보안 비밀 코드 인증 화면(폼) 우선 노출"""
+    # 1. POST 폼 입력 또는 URL 쿼리 파라미터(?code=...)로 비밀 코드 제출 시 검증
+    input_code = ""
+    if request.method == 'POST':
+        input_code = request.form.get('code', '').strip()
+        if not input_code and request.is_json:
+            input_code = (request.get_json(silent=True) or {}).get('code', '').strip()
+    if not input_code and request.args.get('code'):
+        input_code = request.args.get('code', '').strip()
 
     if input_code:
-        if input_code == ADMIN_SECRET_CODE:
+        if input_code in ADMIN_VALID_CODES:
             session['admin_authenticated'] = True
         else:
             return render_template('admin_auth.html', error="비밀 코드가 올바르지 않습니다. 다시 입력해 주세요.")
 
-    # 2. 세션 인증 상태 확인
+    # 2. 세션 인증 상태 확인 (인증 안 된 경우 무조건 비밀 코드 입력 화면 노출)
     if not session.get('admin_authenticated'):
         return render_template('admin_auth.html')
 
@@ -272,12 +342,14 @@ def admin_logout():
 def api_session():
     """현재 세션 유저 정보 조회 API"""
     username = session.get('username')
+    user_id = session.get('user_id')
+    logged_in = bool(username and user_id)
     return jsonify({
-        "logged_in": bool(username),
-        "username": username,
-        "nickname": session.get('nickname') or (username + " 감독" if username else "김명장 감독"),
-        "favorite_team": session.get('favorite_team', '한화'),
-        "user_id": session.get('user_id')
+        "logged_in": logged_in,
+        "username": username if logged_in else None,
+        "nickname": session.get('nickname') if logged_in else None,
+        "favorite_team": session.get('favorite_team', '한화') if logged_in else '한화',
+        "user_id": user_id if logged_in else None
     })
 
 

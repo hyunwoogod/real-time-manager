@@ -236,7 +236,12 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
         user_id = cursor.lastrowid
 
         cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        user = dict(cursor.fetchone())
+        row = cursor.fetchone()
+        user = dict(row) if row else {}
+        try:
+            conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
+        except Exception:
+            pass
         conn.close()
         return {"status": "success", "user": user}
     except sqlite3.IntegrityError:

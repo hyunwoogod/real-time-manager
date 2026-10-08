@@ -22,6 +22,9 @@
             window.CURRENT_SESSION_USER = {{ username | tojson if username else 'null' }};
             window.CURRENT_SESSION_NICKNAME = {{ nickname | tojson if nickname else 'null' }};
             window.CURRENT_SESSION_TEAM = {{ favorite_team | tojson if favorite_team else 'null' }};
+            if (!window.CURRENT_SESSION_USER) {
+                window.location.replace('/login');
+            }
             window.dismissSplash = function () {
                 try {
                     var splash = document.getElementById('splash-screen');
