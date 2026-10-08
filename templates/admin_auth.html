@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 보안 인증 - 집감독</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #070d19;
+            background-image: 
+                radial-gradient(circle at 50% 15%, rgba(14, 165, 233, 0.18) 0%, transparent 55%),
+                radial-gradient(circle at 80% 85%, rgba(99, 102, 241, 0.15) 0%, transparent 50%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Noto Sans KR', sans-serif;
+            color: #f8fafc;
+            padding: 20px;
+        }
+        .auth-card {
+            width: 100%;
+            max-width: 440px;
+            background: rgba(15, 23, 42, 0.94);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 24px;
+            padding: 42px 32px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(14, 165, 233, 0.2);
+            backdrop-filter: blur(20px);
+            text-align: center;
+            animation: fadeInCard 0.4s ease-out;
+        }
+        @keyframes fadeInCard {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .badge-security {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(14, 165, 233, 0.15);
+            border: 1px solid rgba(14, 165, 233, 0.4);
+            color: #38bdf8;
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .shield-icon {
+            font-size: 2.8rem;
+            margin-bottom: 12px;
+        }
+        h1 {
+            font-size: 1.55rem;
+            font-weight: 900;
+            color: #ffffff;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        p.subtitle {
+            font-size: 0.92rem;
+            color: #94a3b8;
+            line-height: 1.5;
+            margin-bottom: 28px;
+        }
+        .error-banner {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+        }
+        .input-code {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 14px;
+            color: #ffffff;
+            font-size: 1rem;
+            font-family: inherit;
+            letter-spacing: 2px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .input-code:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+            background: rgba(30, 41, 59, 1);
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            color: #ffffff;
+            border: none;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+            transition: all 0.2s ease;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(14, 165, 233, 0.6);
+        }
+        .hint-box {
+            margin-top: 24px;
+            padding: 12px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 10px;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            font-size: 0.82rem;
+            color: #64748b;
+            line-height: 1.5;
+        }
+        .hint-box code {
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 600;
+            transition: color 0.2s ease;
+        }
+        .back-link:hover {
+            color: #f8fafc;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-card">
+        <div class="shield-icon">🛡️</div>
+        <div class="badge-security">ADMIN SECURITY</div>
+        <h1>관리자 보안 인증</h1>
+        <p class="subtitle">SQLite 회원 명부 데이터에 접근하기 위해<br>관리자 전용 비밀 코드를 입력해 주세요.</p>
+
+        {% if error %}
+        <div class="error-banner">
+            <span>⚠️</span>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/admin/users">
+            <div class="form-group">
+                <label for="admin-code-input">비밀 코드 (Admin Secret Code)</label>
+                <input type="password" id="admin-code-input" name="code" class="input-code" placeholder="비밀 코드를 입력하세요" required autofocus autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn-submit" id="btn-submit-code">인증 및 회원 목록 조회 ➔</button>
+        </form>
+
+        <div class="hint-box">
+            💡 URL 뒤에 <code>?code=비밀코드</code>를 입력하여 직접 인증 후 접속하실 수도 있습니다.
+        </div>
+
+        <a href="/" class="back-link">← 집감독 서비스 메인으로 돌아가기</a>
+    </div>
+</body>
+</html>

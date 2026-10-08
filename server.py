@@ -10,6 +10,7 @@ from game_engine import GameEngine
 
 app = Flask(__name__, static_folder='static', static_url_path='', template_folder='templates')
 app.secret_key = os.environ.get('SECRET_KEY', 'zipgamdok-secret-baseball-key-2026')
+ADMIN_SECRET_CODE = os.environ.get('ADMIN_SECRET_CODE', 'zipgamdok2026!')
 
 PORT = int(os.environ.get('PORT', 8000))
 
@@ -129,6 +130,53 @@ def logout():
     if request.is_json:
         return jsonify({"status": "success", "message": "로그아웃되었습니다.", "redirect": url_for('index')})
     return redirect(url_for('index'))
+
+
+# ==============================================================================
+# ADMIN ROUTES (보안 비밀 코드 인증)
+# ==============================================================================
+
+@app.route('/admin/users', methods=['GET', 'POST'])
+def admin_users():
+    """관리자 전용 회원 목록 페이지: 보안 비밀 코드 인증 장치 적용 (?code=... 또는 로그인 폼)"""
+    # 1. URL 쿼리 파라미터(?code=...) 또는 POST 폼을 통한 코드 확인
+    input_code = (request.args.get('code') or request.form.get('code', '')).strip()
+
+    if input_code:
+        if input_code == ADMIN_SECRET_CODE:
+            session['admin_authenticated'] = True
+        else:
+            return render_template('admin_auth.html', error="비밀 코드가 올바르지 않습니다. 다시 입력해 주세요.")
+
+    # 2. 세션 인증 상태 확인
+    if not session.get('admin_authenticated'):
+        return render_template('admin_auth.html')
+
+    # 3. 모든 회원 목록 조회
+    users = database.get_all_users()
+
+    # 응원 구단 통계 집계
+    team_counts = {}
+    for u in users:
+        team = u.get('favorite_team') or '한화'
+        team_counts[team] = team_counts.get(team, 0) + 1
+
+    popular_team = max(team_counts.items(), key=lambda x: x[1])[0] if team_counts else '-'
+
+    return render_template(
+        'admin_users.html',
+        users=users,
+        total_users=len(users),
+        popular_team=popular_team
+    )
+
+
+@app.route('/admin/logout')
+def admin_logout():
+    """관리자 세션 로그아웃"""
+    session.pop('admin_authenticated', None)
+    return redirect(url_for('admin_users'))
+
 
 
 # ==============================================================================

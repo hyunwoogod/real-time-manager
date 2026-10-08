@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 콘솔 - 집감독 회원 목록</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #060b14;
+            background-image: 
+                radial-gradient(circle at 15% 10%, rgba(14, 165, 233, 0.12) 0%, transparent 45%),
+                radial-gradient(circle at 85% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 45%),
+                radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+            min-height: 100vh;
+            font-family: 'Noto Sans KR', sans-serif;
+            color: #f8fafc;
+            padding: 24px 20px 60px 20px;
+        }
+        .admin-container {
+            max-width: 1240px;
+            margin: 0 auto;
+        }
+
+        /* Top Header */
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 20px 28px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            margin-bottom: 24px;
+        }
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .header-logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
+        }
+        .header-title-box h1 {
+            font-size: 1.35rem;
+            font-weight: 900;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: -0.5px;
+        }
+        .header-title-box p {
+            font-size: 0.84rem;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .security-status-tag {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #34d399;
+            font-size: 0.72rem;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 0.8px;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .btn-home {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #f1f5f9;
+        }
+        .btn-home:hover {
+            background: rgba(255, 255, 255, 0.16);
+            transform: translateY(-1px);
+        }
+        .btn-logout {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #f87171;
+        }
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* Stat Metric Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .metric-card {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            padding: 20px 24px;
+            backdrop-filter: blur(14px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+        .metric-info .label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .metric-info .value {
+            font-size: 1.7rem;
+            font-weight: 900;
+            color: #ffffff;
+            font-family: 'Orbitron', 'Noto Sans KR', sans-serif;
+        }
+        .metric-icon-box {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.7rem;
+        }
+        .icon-blue { background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.3); }
+        .icon-green { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .icon-amber { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
+
+        /* Controls: Search and Filter */
+        .controls-card {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            padding: 18px 24px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            backdrop-filter: blur(14px);
+        }
+        .search-box-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 260px;
+            max-width: 440px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 42px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 0.92rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .search-input:focus {
+            border-color: #38bdf8;
+            background: rgba(30, 41, 59, 1);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+        }
+        .search-icon-svg {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: #64748b;
+        }
+        .team-filter-buttons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .filter-btn:hover {
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+        .filter-btn.active {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: #38bdf8;
+            color: #38bdf8;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+        }
+
+        /* Users Table Card */
+        .table-card {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+        }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.92rem;
+        }
+        thead {
+            background: rgba(30, 41, 59, 0.95);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+        }
+        th {
+            padding: 16px 20px;
+            font-weight: 800;
+            color: #94a3b8;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            white-space: nowrap;
+        }
+        tbody tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            transition: background 0.15s ease;
+        }
+        tbody tr:hover {
+            background: rgba(56, 189, 248, 0.05);
+        }
+        td {
+            padding: 16px 20px;
+            vertical-align: middle;
+            color: #e2e8f0;
+            white-space: nowrap;
+        }
+        .td-id {
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            color: #64748b;
+        }
+        .td-username {
+            font-weight: 800;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .user-avatar-badge {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+        }
+
+        /* Team Badges */
+        .team-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.84rem;
+            font-weight: 800;
+            border: 1px solid transparent;
+        }
+        .team-badge-kia { background: rgba(234, 0, 41, 0.15); border-color: rgba(234, 0, 41, 0.4); color: #ff4d6d; }
+        .team-badge-samsung { background: rgba(0, 92, 185, 0.15); border-color: rgba(0, 92, 185, 0.4); color: #38bdf8; }
+        .team-badge-lg { background: rgba(195, 4, 82, 0.15); border-color: rgba(195, 4, 82, 0.4); color: #f43f5e; }
+        .team-badge-doosan { background: rgba(19, 18, 48, 0.5); border-color: rgba(99, 102, 241, 0.4); color: #a5b4fc; }
+        .team-badge-kt { background: rgba(15, 23, 42, 0.6); border-color: rgba(255, 255, 255, 0.3); color: #e2e8f0; }
+        .team-badge-ssg { background: rgba(206, 14, 45, 0.15); border-color: rgba(206, 14, 45, 0.4); color: #fb7185; }
+        .team-badge-lotte { background: rgba(4, 30, 66, 0.5); border-color: rgba(14, 165, 233, 0.4); color: #38bdf8; }
+        .team-badge-hanwha { background: rgba(255, 102, 0, 0.15); border-color: rgba(255, 102, 0, 0.4); color: #fb923c; }
+        .team-badge-nc { background: rgba(49, 82, 136, 0.2); border-color: rgba(49, 82, 136, 0.5); color: #93c5fd; }
+        .team-badge-kiwoom { background: rgba(87, 5, 20, 0.25); border-color: rgba(87, 5, 20, 0.5); color: #f472b6; }
+        .team-badge-default { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); color: #cbd5e1; }
+
+        .score-pill {
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.1);
+            padding: 4px 10px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+        .grade-badge-sm {
+            display: inline-block;
+            font-weight: 900;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-family: 'Orbitron', sans-serif;
+            background: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+        }
+        .grade-badge-sm.grade-s { background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .grade-badge-sm.grade-a { background: rgba(16, 185, 129, 0.25); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+        .grade-badge-sm.grade-b { background: rgba(14, 165, 233, 0.25); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4); }
+
+        .date-text {
+            color: #94a3b8;
+            font-size: 0.84rem;
+        }
+        .empty-row td {
+            text-align: center;
+            padding: 48px 20px;
+            color: #64748b;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- TOP HEADER -->
+        <header class="admin-header">
+            <div class="header-brand">
+                <div class="header-logo-icon">⚾</div>
+                <div class="header-title-box">
+                    <h1>
+                        집감독 관리자 콘솔
+                        <span class="security-status-tag">SECURED</span>
+                    </h1>
+                    <p>SQLite users 테이블 실시간 회원 명부 및 응원 구단 현황</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="/" class="btn-nav btn-home">
+                    <span>🏠</span>
+                    <span>서비스 메인</span>
+                </a>
+                <a href="/admin/logout" class="btn-nav btn-logout" id="btn-admin-logout">
+                    <span>🚪</span>
+                    <span>관리자 로그아웃</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- KPI STAT METRICS -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-info">
+                    <div class="label">총 가입 회원 수</div>
+                    <div class="value" id="stat-total-users">{{ total_users }}명</div>
+                </div>
+                <div class="metric-icon-box icon-blue">👥</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-info">
+                    <div class="label">최다 선택 응원 구단</div>
+                    <div class="value" id="stat-popular-team">{{ popular_team }}</div>
+                </div>
+                <div class="metric-icon-box icon-green">🏆</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-info">
+                    <div class="label">보안 인증 상태</div>
+                    <div class="value" style="font-size: 1.25rem; color: #34d399;">정상 인증 (PIN OK)</div>
+                </div>
+                <div class="metric-icon-box icon-amber">🛡️</div>
+            </div>
+        </section>
+
+        <!-- SEARCH & FILTER TOOLBAR -->
+        <section class="controls-card">
+            <div class="search-box-wrapper">
+                <span class="search-icon-svg">🔍</span>
+                <input type="text" id="user-search-input" class="search-input" placeholder="회원 아이디, 닉네임, 응원팀 검색..." oninput="filterUserTable()">
+            </div>
+            <div class="team-filter-buttons">
+                <button class="filter-btn active" data-team="ALL" onclick="setTeamFilter('ALL', this)">전체 구단</button>
+                <button class="filter-btn" data-team="KIA" onclick="setTeamFilter('KIA', this)">KIA</button>
+                <button class="filter-btn" data-team="삼성" onclick="setTeamFilter('삼성', this)">삼성</button>
+                <button class="filter-btn" data-team="LG" onclick="setTeamFilter('LG', this)">LG</button>
+                <button class="filter-btn" data-team="두산" onclick="setTeamFilter('두산', this)">두산</button>
+                <button class="filter-btn" data-team="KT" onclick="setTeamFilter('KT', this)">KT</button>
+                <button class="filter-btn" data-team="SSG" onclick="setTeamFilter('SSG', this)">SSG</button>
+                <button class="filter-btn" data-team="롯데" onclick="setTeamFilter('롯데', this)">롯데</button>
+                <button class="filter-btn" data-team="한화" onclick="setTeamFilter('한화', this)">한화</button>
+                <button class="filter-btn" data-team="NC" onclick="setTeamFilter('NC', this)">NC</button>
+                <button class="filter-btn" data-team="키움" onclick="setTeamFilter('키움', this)">키움</button>
+            </div>
+        </section>
+
+        <!-- USERS TABLE -->
+        <main class="table-card">
+            <div class="table-responsive">
+                <table id="admin-users-table">
+                    <thead>
+                        <tr>
+                            <th>No.</th>
+                            <th>회원 아이디</th>
+                            <th>감독 닉네임</th>
+                            <th>응원 구단</th>
+                            <th>이메일</th>
+                            <th>감독 포인트</th>
+                            <th>등급</th>
+                            <th>가입 일시</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        {% for user in users %}
+                        <tr class="user-row" 
+                            data-username="{{ user.username }}" 
+                            data-nickname="{{ user.nickname }}" 
+                            data-team="{{ user.favorite_team }}">
+                            <td class="td-id">#{{ user.id }}</td>
+                            <td>
+                                <div class="td-username">
+                                    <div class="user-avatar-badge">{{ user.avatar or '👑' }}</div>
+                                    <span>{{ user.username }}</span>
+                                </div>
+                            </td>
+                            <td><strong>{{ user.nickname }}</strong></td>
+                            <td>
+                                {% set ft = user.favorite_team %}
+                                {% if ft == 'KIA' %}
+                                    <span class="team-badge team-badge-kia">🐯 KIA 타이거즈</span>
+                                {% elif ft == '삼성' %}
+                                    <span class="team-badge team-badge-samsung">🦁 삼성 라이온즈</span>
+                                {% elif ft == 'LG' %}
+                                    <span class="team-badge team-badge-lg">🧢 LG 트윈스</span>
+                                {% elif ft == '두산' %}
+                                    <span class="team-badge team-badge-doosan">🐻 두산 베어스</span>
+                                {% elif ft == 'KT' %}
+                                    <span class="team-badge team-badge-kt">🧙 KT 위즈</span>
+                                {% elif ft == 'SSG' %}
+                                    <span class="team-badge team-badge-ssg">🚀 SSG 랜더스</span>
+                                {% elif ft == '롯데' %}
+                                    <span class="team-badge team-badge-lotte">⚓ 롯데 자이언츠</span>
+                                {% elif ft == '한화' %}
+                                    <span class="team-badge team-badge-hanwha">🦅 한화 이글스</span>
+                                {% elif ft == 'NC' %}
+                                    <span class="team-badge team-badge-nc">🦖 NC 다이노스</span>
+                                {% elif ft == '키움' %}
+                                    <span class="team-badge team-badge-kiwoom">🦸 키움 히어로즈</span>
+                                {% else %}
+                                    <span class="team-badge team-badge-default">⚾ {{ ft or '한화' }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.email or '-' }}</td>
+                            <td><span class="score-pill">{{ "{:,}".format(user.score) if user.score is number else user.score }} pt</span></td>
+                            <td>
+                                {% set gr = user.grade or 'B' %}
+                                <span class="grade-badge-sm grade-{{ gr.lower() }}">{{ gr }}급</span>
+                            </td>
+                            <td class="date-text">{{ user.created_at or '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr class="empty-row">
+                            <td colspan="8">등록된 회원이 없습니다.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let currentTeamFilter = 'ALL';
+
+        function setTeamFilter(team, btn) {
+            currentTeamFilter = team;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            filterUserTable();
+        }
+
+        function filterUserTable() {
+            const query = (document.getElementById('user-search-input').value || '').trim().toLowerCase();
+            const rows = document.querySelectorAll('.user-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const username = (row.dataset.username || '').toLowerCase();
+                const nickname = (row.dataset.nickname || '').toLowerCase();
+                const team = (row.dataset.team || '').toLowerCase();
+
+                const matchesQuery = !query || username.includes(query) || nickname.includes(query) || team.includes(query);
+                const matchesTeam = currentTeamFilter === 'ALL' || team === currentTeamFilter.toLowerCase();
+
+                if (matchesQuery && matchesTeam) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            let noResultRow = document.getElementById('no-search-results-row');
+            if (visibleCount === 0 && rows.length > 0) {
+                if (!noResultRow) {
+                    const tbody = document.getElementById('users-table-body');
+                    noResultRow = document.createElement('tr');
+                    noResultRow.id = 'no-search-results-row';
+                    noResultRow.className = 'empty-row';
+                    noResultRow.innerHTML = '<td colspan="8">검색 조건과 일치하는 회원이 없습니다.</td>';
+                    tbody.appendChild(noResultRow);
+                }
+                noResultRow.style.display = '';
+            } else if (noResultRow) {
+                noResultRow.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

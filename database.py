@@ -576,6 +576,26 @@ def get_today_schedule_info(date_str=None, team_name="롯데"):
         "all_matches": schedules
     }
 
+def get_all_users():
+    """모든 회원 목록 조회 (관리자 전용)"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, username, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed, created_at
+        FROM users
+        ORDER BY id DESC
+    ''')
+    rows = cursor.fetchall()
+    users = []
+    for r in rows:
+        item = dict(r)
+        if not item.get('favorite_team'):
+            item['favorite_team'] = item.get('team') or '한화'
+        users.append(item)
+    conn.close()
+    return users
+
 if __name__ == '__main__':
     init_db()
     print("Database initialized successfully.")
+
