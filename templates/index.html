@@ -50,15 +50,8 @@
                                 bottomNav.classList.add('visible');
                             }
                         } else {
-                            loginScr.style.display = 'flex';
-                            loginScr.style.opacity = '1';
-                            loginScr.style.pointerEvents = 'auto';
-                            loginScr.classList.add('active');
-                            if (bottomNav) {
-                                bottomNav.style.setProperty('display', 'none', 'important');
-                                bottomNav.classList.remove('visible');
-                                bottomNav.classList.add('hidden');
-                            }
+                            window.location.href = '/login';
+                            return;
                         }
                     }
                 } catch (e) { }

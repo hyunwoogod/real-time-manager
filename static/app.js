@@ -253,9 +253,8 @@ function showInitialLandingScreen() {
             loadLobbyData();
         } catch(e) {}
     } else {
-        try {
-            showOverlay('login-screen');
-        } catch(e) {}
+        window.location.href = '/login';
+        return;
     }
     try { updateBottomNavVisibility(); } catch(e) {}
 }

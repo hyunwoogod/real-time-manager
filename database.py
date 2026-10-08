@@ -4,11 +4,16 @@ import os
 import re
 import datetime
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'baseball.db')
+DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'baseball.db'))
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=20.0)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+    except Exception:
+        pass
     return conn
 
 def init_db():
@@ -242,9 +247,11 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
         return {"status": "error", "message": str(e)}
 
 def login_user(username, password):
+    u = username.strip() if username else ''
+    p = password.strip() if password else ''
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
+    cursor.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?) AND password = ?", (u, p))
     row = cursor.fetchone()
     conn.close()
     if row:
@@ -643,6 +650,8 @@ def get_all_users():
         item = dict(r)
         if not item.get('favorite_team'):
             item['favorite_team'] = item.get('team') or '한화'
+        if not item.get('nickname'):
+            item['nickname'] = item.get('username') or '감독'
         users.append(item)
     conn.close()
     return users

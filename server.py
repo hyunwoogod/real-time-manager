@@ -10,6 +10,9 @@ from game_engine import GameEngine
 
 app = Flask(__name__, static_folder='static', static_url_path='', template_folder='templates')
 app.secret_key = os.environ.get('SECRET_KEY', 'zipgamdok-secret-baseball-key-2026')
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
 ADMIN_SECRET_CODE = os.environ.get('ADMIN_SECRET_CODE', 'zipgamdok2026!')
 
 PORT = int(os.environ.get('PORT', 8000))
@@ -23,11 +26,16 @@ engine = GameEngine("한화", "롯데")
 # AUTH & PAGE ROUTES
 # ==============================================================================
 
-@app.route('/')
+@app.route('/lobby', endpoint='lobby')
+@app.route('/index.html', endpoint='index_html')
+@app.route('/', endpoint='index')
 def index():
-    """메인 페이지: 세션 로그인 상태 및 응원 팀에 따라 맞춤 화면 표시"""
+    """메인 페이지: 세션 로그인 상태 검사 및 미로그인 시 로그인 페이지로 강제 리다이렉트"""
     username = session.get('username')
-    nickname = session.get('nickname') or (username + " 감독" if username else None)
+    if not username:
+        return redirect(url_for('login'))
+
+    nickname = session.get('nickname') or (username + " 감독")
     favorite_team = session.get('favorite_team', '한화')
     return render_template('index.html', username=username, nickname=nickname, favorite_team=favorite_team)
 
@@ -163,6 +171,7 @@ def login():
         res = database.login_user(username, password)
         if res.get('status') == 'success':
             user_info = res.get('user', {})
+            session.permanent = True
             session['username'] = username
             session['nickname'] = user_info.get('nickname') or username
             session['user_id'] = user_info.get('id', 1)
@@ -185,21 +194,18 @@ def login():
             return render_template('login.html', error=error_msg)
 
     # GET 요청: 이미 로그인되어 있다면 메인으로 이동
-    if 'username' in session:
+    if session.get('username'):
         return redirect(url_for('index'))
     return render_template('login.html')
 
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
-    """로그아웃 기능: 세션 삭제 후 메인 페이지 또는 로그인 화면으로 이동"""
-    session.pop('username', None)
-    session.pop('nickname', None)
-    session.pop('user_id', None)
-    session.pop('favorite_team', None)
+    """로그아웃 기능: 세션 완전 파기 후 로그인 화면으로 강제 이동"""
+    session.clear()
     if request.is_json:
-        return jsonify({"status": "success", "message": "로그아웃되었습니다.", "redirect": url_for('index')})
-    return redirect(url_for('index'))
+        return jsonify({"status": "success", "message": "로그아웃되었습니다.", "redirect": url_for('login')})
+    return redirect(url_for('login'))
 
 
 # ==============================================================================
@@ -222,7 +228,7 @@ def admin_users():
     if not session.get('admin_authenticated'):
         return render_template('admin_auth.html')
 
-    # 3. 모든 회원 목록 조회
+    # 3. 모든 회원 목록 조회 (SQLite baseball.db의 users 테이블 실시간 조회)
     users = database.get_all_users()
 
     # 응원 구단 통계 집계
@@ -232,6 +238,14 @@ def admin_users():
         team_counts[team] = team_counts.get(team, 0) + 1
 
     popular_team = max(team_counts.items(), key=lambda x: x[1])[0] if team_counts else '없음 (0명)'
+
+    if request.is_json or request.args.get('format') == 'json':
+        return jsonify({
+            "status": "success",
+            "total_users": len(users),
+            "popular_team": popular_team,
+            "users": users
+        })
 
     return render_template(
         'admin_users.html',
