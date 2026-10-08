@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import os
+import re
 import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'baseball.db')
@@ -133,6 +134,34 @@ def clear_all_users():
     conn.close()
     return {"status": "success", "message": "모든 회원 데이터가 성공적으로 초기화되었습니다."}
 
+def validate_username_format(username):
+    """아이디 유효성 검사: 영문 + 숫자 조합으로 8자 이상"""
+    if not username:
+        return False, "아이디를 입력해 주세요."
+    u = username.strip()
+    if len(u) < 8:
+        return False, "아이디는 영문과 숫자를 조합하여 8자 이상 입력해 주세요."
+    has_letter = any(c.isalpha() for c in u)
+    has_digit = any(c.isdigit() for c in u)
+    if not (has_letter and has_digit):
+        return False, "아이디는 영문과 숫자를 반드시 모두 포함해야 합니다 (8자 이상)."
+    if not u.isalnum():
+        return False, "아이디는 영문과 숫자만 사용 가능합니다."
+    return True, ""
+
+def validate_password_format(password):
+    """비밀번호 유효성 검사: 영문, 숫자, 특수기호 모두 포함하여 8자 이상"""
+    if not password:
+        return False, "비밀번호를 입력해 주세요."
+    if len(password) < 8:
+        return False, "비밀번호는 영문, 숫자, 특수기호를 모두 포함하여 8자 이상 입력해 주세요."
+    has_letter = any(c.isalpha() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    has_special = bool(re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?`~]', password))
+    if not (has_letter and has_digit and has_special):
+        return False, "비밀번호는 영문, 숫자, 특수기호를 반드시 모두 포함해야 합니다 (8자 이상)."
+    return True, ""
+
 def check_username_exists(username):
     """아이디 중복 여부 확인"""
     if not username:
@@ -162,9 +191,15 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
     cursor = conn.cursor()
 
     username = username.strip() if username else ''
-    if not username:
+    valid_u, msg_u = validate_username_format(username)
+    if not valid_u:
         conn.close()
-        return {"status": "error", "message": "아이디를 입력해 주세요."}
+        return {"status": "error", "message": msg_u}
+
+    valid_p, msg_p = validate_password_format(password)
+    if not valid_p:
+        conn.close()
+        return {"status": "error", "message": msg_p}
 
     # 아이디 중복 확인
     cursor.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,))

@@ -34,17 +34,16 @@ def index():
 
 @app.route('/api/check-username', methods=['GET', 'POST'])
 def api_check_username():
-    """아이디 중복 확인 API: 실시간 또는 버튼 클릭 검증 지원"""
+    """아이디 중복 확인 API: 영문 + 숫자 조합 8자 이상 및 중복 검증"""
     if request.method == 'POST' and request.is_json:
         data = request.get_json(silent=True) or {}
         username = data.get('username', '').strip()
     else:
         username = (request.args.get('username') or request.form.get('username', '')).strip()
 
-    if not username:
-        return jsonify({"status": "error", "message": "아이디를 입력해 주세요.", "available": False}), 400
-    if len(username) < 2:
-        return jsonify({"status": "error", "message": "아이디는 2자 이상 입력해 주세요.", "available": False}), 400
+    valid, msg = database.validate_username_format(username)
+    if not valid:
+        return jsonify({"status": "error", "message": msg, "available": False}), 400
 
     exists = database.check_username_exists(username)
     if exists:
@@ -88,11 +87,17 @@ def signup():
             nickname = request.form.get('nickname', '').strip()
             favorite_team = request.form.get('favorite_team') or request.form.get('team') or '한화'
 
-        if not username or not password:
-            error_msg = "아이디와 비밀번호를 모두 입력해주세요."
+        valid_u, msg_u = database.validate_username_format(username)
+        if not valid_u:
             if request.is_json:
-                return jsonify({"status": "error", "message": error_msg}), 400
-            return render_template('signup.html', error=error_msg)
+                return jsonify({"status": "error", "message": msg_u}), 400
+            return render_template('signup.html', error=msg_u)
+
+        valid_p, msg_p = database.validate_password_format(password)
+        if not valid_p:
+            if request.is_json:
+                return jsonify({"status": "error", "message": msg_p}), 400
+            return render_template('signup.html', error=msg_p)
 
         if not nickname:
             error_msg = "감독 닉네임을 입력해 주세요."

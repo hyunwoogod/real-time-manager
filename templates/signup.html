@@ -229,42 +229,43 @@
         {% endif %}
 
         <form method="POST" action="/signup" class="auth-form" id="signup-form" onsubmit="return handleSignupSubmit(event)">
-            <!-- 1. 아이디 및 중복 확인 -->
+            <!-- 1) 아이디(ID) (중복 확인 버튼 포함) -->
             <div class="form-group">
                 <label for="username">
                     <span>아이디 (ID)</span>
-                    <span class="label-hint">영문/숫자 2자 이상</span>
+                    <span class="label-hint">영문+숫자 8자 이상</span>
                 </label>
                 <div class="input-with-btn">
-                    <input type="text" id="username" name="username" placeholder="아이디 입력" required minlength="2" autofocus autocomplete="username" oninput="onUsernameChanged()">
+                    <input type="text" id="username" name="username" placeholder="영문, 숫자 조합 8자 이상" required minlength="8" autofocus autocomplete="username" oninput="onUsernameChanged()">
                     <button type="button" class="btn-check" id="btn-check-username" onclick="checkUsernameAvailability()">중복 확인</button>
                 </div>
                 <div id="username-msg" class="field-feedback"></div>
             </div>
 
-            <!-- 2. 감독 닉네임 및 중복 확인 -->
+            <!-- 2) 비밀번호(Password) -->
+            <div class="form-group">
+                <label for="password">
+                    <span>비밀번호 (Password)</span>
+                    <span class="label-hint">영문+숫자+특수기호 8자 이상</span>
+                </label>
+                <input type="password" id="password" name="password" placeholder="영문, 숫자, 특수기호 포함 8자 이상" required minlength="8" autocomplete="new-password" oninput="onPasswordChanged()">
+                <div id="password-msg" class="field-feedback"></div>
+            </div>
+
+            <!-- 3) 감독 닉네임 (중복 확인 버튼 포함) -->
             <div class="form-group">
                 <label for="nickname">
                     <span>감독 닉네임</span>
                     <span class="label-hint">2~10자 자유 입력</span>
                 </label>
                 <div class="input-with-btn">
-                    <input type="text" id="nickname" name="nickname" placeholder="감독 이름 (예: 김명장)" required minlength="2" maxlength="10" oninput="onNicknameChanged()">
+                    <input type="text" id="nickname" name="nickname" placeholder="감독 이름 입력 (예: 김명장)" required minlength="2" maxlength="10" oninput="onNicknameChanged()">
                     <button type="button" class="btn-check" id="btn-check-nickname" onclick="checkNicknameAvailability()">중복 확인</button>
                 </div>
                 <div id="nickname-msg" class="field-feedback"></div>
             </div>
 
-            <!-- 3. 비밀번호 -->
-            <div class="form-group">
-                <label for="password">
-                    <span>비밀번호 (Password)</span>
-                    <span class="label-hint">2자 이상</span>
-                </label>
-                <input type="password" id="password" name="password" placeholder="비밀번호 입력" required minlength="2" autocomplete="new-password">
-            </div>
-
-            <!-- 4. 응원 구단 선택 -->
+            <!-- 4) 응원 구단 선택 (KBO 10개 구단 드롭다운) -->
             <div class="form-group">
                 <label for="favorite_team">
                     <span>응원 구단 선택</span>
@@ -305,6 +306,38 @@
         let nicknameChecked = false;
         let checkedNickname = "";
 
+        // 아이디 형식 유효성 검사 (영문+숫자 8자 이상)
+        function validateUsernameRule(u) {
+            if (!u) return { valid: false, msg: "아이디를 입력해 주세요." };
+            if (u.length < 8) return { valid: false, msg: "아이디는 8자 이상 입력해 주세요." };
+            const hasLetter = /[a-zA-Z]/.test(u);
+            const hasDigit = /\d/.test(u);
+            if (!hasLetter || !hasDigit) return { valid: false, msg: "아이디는 영문과 숫자를 반드시 모두 포함해야 합니다." };
+            if (!/^[a-zA-Z0-9]+$/.test(u)) return { valid: false, msg: "아이디는 영문과 숫자만 사용할 수 있습니다." };
+            return { valid: true, msg: "" };
+        }
+
+        // 비밀번호 형식 유효성 검사 (영문, 숫자, 특수기호 8자 이상)
+        function validatePasswordRule(p) {
+            if (!p) return { valid: false, msg: "비밀번호를 입력해 주세요." };
+            if (p.length < 8) return { valid: false, msg: "비밀번호는 8자 이상 입력해 주세요." };
+            const hasLetter = /[a-zA-Z]/.test(p);
+            const hasDigit = /\d/.test(p);
+            const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(p);
+            if (!hasLetter || !hasDigit || !hasSpecial) {
+                return { valid: false, msg: "비밀번호는 영문, 숫자, 특수기호를 모두 포함하여 8자 이상 입력해 주세요." };
+            }
+            return { valid: true, msg: "" };
+        }
+
+        // 감독 닉네임 유효성 검사 (2~10자)
+        function validateNicknameRule(n) {
+            if (!n) return { valid: false, msg: "감독 닉네임을 입력해 주세요." };
+            if (n.length < 2) return { valid: false, msg: "닉네임은 2자 이상 입력해 주세요." };
+            if (n.length > 10) return { valid: false, msg: "닉네임은 10자 이하로 입력해 주세요." };
+            return { valid: true, msg: "" };
+        }
+
         function onUsernameChanged() {
             usernameChecked = false;
             checkedUsername = "";
@@ -313,12 +346,33 @@
             if (!u) {
                 msgEl.innerText = "";
                 msgEl.className = "field-feedback";
-            } else if (u.length < 2) {
-                msgEl.innerText = "아이디는 2자 이상 입력해 주세요.";
+                return;
+            }
+            const check = validateUsernameRule(u);
+            if (!check.valid) {
+                msgEl.innerText = `⚠️ ${check.msg}`;
                 msgEl.className = "field-feedback error";
             } else {
-                msgEl.innerText = "아이디 중복 확인 버튼을 눌러주세요.";
+                msgEl.innerText = "💡 중복 확인 버튼을 눌러주세요.";
                 msgEl.className = "field-feedback info";
+            }
+        }
+
+        function onPasswordChanged() {
+            const msgEl = document.getElementById('password-msg');
+            const p = document.getElementById('password').value;
+            if (!p) {
+                msgEl.innerText = "";
+                msgEl.className = "field-feedback";
+                return;
+            }
+            const check = validatePasswordRule(p);
+            if (!check.valid) {
+                msgEl.innerText = `⚠️ ${check.msg}`;
+                msgEl.className = "field-feedback error";
+            } else {
+                msgEl.innerText = "✅ 안전한 비밀번호입니다 (영문+숫자+특수기호 8자 이상).";
+                msgEl.className = "field-feedback success";
             }
         }
 
@@ -330,14 +384,14 @@
             if (!n) {
                 msgEl.innerText = "";
                 msgEl.className = "field-feedback";
-            } else if (n.length < 2) {
-                msgEl.innerText = "닉네임은 2자 이상 입력해 주세요.";
-                msgEl.className = "field-feedback error";
-            } else if (n.length > 10) {
-                msgEl.innerText = "닉네임은 10자 이하로 입력해 주세요.";
+                return;
+            }
+            const check = validateNicknameRule(n);
+            if (!check.valid) {
+                msgEl.innerText = `⚠️ ${check.msg}`;
                 msgEl.className = "field-feedback error";
             } else {
-                msgEl.innerText = "닉네임 중복 확인 버튼을 눌러주세요.";
+                msgEl.innerText = "💡 닉네임 중복 확인 버튼을 눌러주세요.";
                 msgEl.className = "field-feedback info";
             }
         }
@@ -347,14 +401,9 @@
             const username = input.value.trim();
             const msgEl = document.getElementById('username-msg');
 
-            if (!username) {
-                msgEl.innerText = "⚠️ 아이디를 입력해 주세요.";
-                msgEl.className = "field-feedback error";
-                input.focus();
-                return false;
-            }
-            if (username.length < 2) {
-                msgEl.innerText = "⚠️ 아이디는 2자 이상 입력해 주세요.";
+            const check = validateUsernameRule(username);
+            if (!check.valid) {
+                msgEl.innerText = `⚠️ ${check.msg}`;
                 msgEl.className = "field-feedback error";
                 input.focus();
                 return false;
@@ -388,14 +437,9 @@
             const nickname = input.value.trim();
             const msgEl = document.getElementById('nickname-msg');
 
-            if (!nickname) {
-                msgEl.innerText = "⚠️ 감독 닉네임을 입력해 주세요.";
-                msgEl.className = "field-feedback error";
-                input.focus();
-                return false;
-            }
-            if (nickname.length < 2 || nickname.length > 10) {
-                msgEl.innerText = "⚠️ 닉네임은 2자 이상 10자 이하로 입력해 주세요.";
+            const check = validateNicknameRule(nickname);
+            if (!check.valid) {
+                msgEl.innerText = `⚠️ ${check.msg}`;
                 msgEl.className = "field-feedback error";
                 input.focus();
                 return false;
@@ -426,27 +470,41 @@
 
         async function handleSignupSubmit(event) {
             const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
             const nicknameInput = document.getElementById('nickname');
+
             const currentUsername = usernameInput.value.trim();
+            const currentPassword = passwordInput.value;
             const currentNickname = nicknameInput.value.trim();
 
-            // 1. 아이디 검증
-            if (!currentUsername || currentUsername.length < 2) {
+            // 1. 아이디 형식 검증
+            const uCheck = validateUsernameRule(currentUsername);
+            if (!uCheck.valid) {
                 event.preventDefault();
-                alert("아이디를 2자 이상 입력해 주세요.");
+                alert(uCheck.msg);
                 usernameInput.focus();
                 return false;
             }
 
-            // 2. 닉네임 글자 수 검증
-            if (!currentNickname || currentNickname.length < 2 || currentNickname.length > 10) {
+            // 2. 비밀번호 형식 검증
+            const pCheck = validatePasswordRule(currentPassword);
+            if (!pCheck.valid) {
                 event.preventDefault();
-                alert("감독 닉네임은 2자 이상 10자 이하로 입력해 주세요.");
+                alert(pCheck.msg);
+                passwordInput.focus();
+                return false;
+            }
+
+            // 3. 감독 닉네임 형식 검증
+            const nCheck = validateNicknameRule(currentNickname);
+            if (!nCheck.valid) {
+                event.preventDefault();
+                alert(nCheck.msg);
                 nicknameInput.focus();
                 return false;
             }
 
-            // 3. 닉네임 중복 확인 완료 여부 검증 (미완료 시 방어)
+            // 4. 감독 닉네임 중복 확인 완료 여부 검증
             if (!nicknameChecked || checkedNickname !== currentNickname) {
                 event.preventDefault();
                 alert("감독 닉네임 중복 확인을 먼저 완료해 주세요.");
@@ -456,12 +514,11 @@
                 return false;
             }
 
-            // 4. 아이디 중복 확인 여부 검증 (미완료 시 자동 검증 실행)
+            // 5. 아이디 중복 확인 완료 여부 검증
             if (!usernameChecked || checkedUsername !== currentUsername) {
                 event.preventDefault();
                 const ok = await checkUsernameAvailability();
                 if (ok) {
-                    // 확인 완료되었으므로 양식 제출
                     document.getElementById('signup-form').submit();
                 } else {
                     alert("아이디 중복 확인 결과 이미 사용 중인 아이디입니다.");
