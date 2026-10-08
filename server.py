@@ -161,7 +161,7 @@ def admin_users():
         team = u.get('favorite_team') or '한화'
         team_counts[team] = team_counts.get(team, 0) + 1
 
-    popular_team = max(team_counts.items(), key=lambda x: x[1])[0] if team_counts else '-'
+    popular_team = max(team_counts.items(), key=lambda x: x[1])[0] if team_counts else '없음 (0명)'
 
     return render_template(
         'admin_users.html',

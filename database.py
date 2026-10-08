@@ -107,49 +107,27 @@ def init_db():
     conn.commit()
     conn.close()
 
-    # 테스트 및 검색용 초기 가상 유저 데이터 시딩
-    seed_mock_users()
+    # KBO 경기 일정 시딩 (회원 시딩은 데이터 초기화 요청에 따라 비활성화)
     seed_kbo_schedules()
 
 def seed_mock_users():
+    """테스트용 가상 유저 시딩 (데이터 초기화 요청에 따라 비활성화)"""
+    pass
+
+def clear_all_users():
+    """모든 회원 데이터 및 관련 친구 데이터 초기화 (완전 빈 상태로 초기화)"""
     conn = get_db()
     cursor = conn.cursor()
-    
-    mock_users = [
-        ("master", "pass123", "master@zipgamdok.com", "김명장", "롯데", "👑", 2000, "B", 1),
-        ("haeseol", "pass123", "haeseol@zipgamdok.com", "이해설", "LG", "🧢", 1950, "B", 1),
-        ("yagoo", "pass123", "yagoo@zipgamdok.com", "박야구", "KIA", "⚾", 1900, "C", 1),
-        ("jigwan", "pass123", "jigwan@zipgamdok.com", "최직관", "SSG", "🍿", 1820, "C", 1),
-        ("bunseok", "pass123", "bunseok@zipgamdok.com", "정분석", "삼성", "📊", 1750, "F", 0),
-        ("fanner", "pass123", "fanner@zipgamdok.com", "강패너", "롯데", "🎺", 1680, "F", 1),
-        ("chobo", "pass123", "chobo@zipgamdok.com", "윤초보", "두산", "🐥", 1550, "F", 0)
-    ]
-
-    for username, password, email, nickname, team, avatar, score, grade, mkt in mock_users:
-        try:
-            cursor.execute('''
-                INSERT INTO users (username, password, email, nickname, team, avatar, score, grade, marketing_agreed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (username, password, email, nickname, team, avatar, score, grade, mkt))
-        except sqlite3.IntegrityError:
-            pass  # 이미 존재하면 패스
-
-    # 기본 master 유저(id=1)에게 이해설(2), 박야구(3), 최직관(4)을 친구로 기본 연동
-    cursor.execute("SELECT id FROM users WHERE username = 'master'")
-    master = cursor.fetchone()
-    if master:
-        master_id = master['id']
-        for f_username in ['haeseol', 'yagoo', 'jigwan', 'bunseok']:
-            cursor.execute("SELECT id FROM users WHERE username = ?", (f_username,))
-            f_row = cursor.fetchone()
-            if f_row:
-                try:
-                    cursor.execute("INSERT INTO user_friends (user_id, friend_id) VALUES (?, ?)", (master_id, f_row['id']))
-                except sqlite3.IntegrityError:
-                    pass
-
+    cursor.execute("DELETE FROM user_friends")
+    cursor.execute("DELETE FROM users")
+    try:
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('users', 'user_friends')")
+    except Exception:
+        pass
     conn.commit()
+    cursor.execute("VACUUM")
     conn.close()
+    return {"status": "success", "message": "모든 회원 데이터가 성공적으로 초기화되었습니다."}
 
 def register_user(username, password, email=None, marketing_agreed=False, nickname=None, team=None, favorite_team=None):
     conn = get_db()

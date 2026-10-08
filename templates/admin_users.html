@@ -505,7 +505,11 @@
                         </tr>
                         {% else %}
                         <tr class="empty-row">
-                            <td colspan="8">등록된 회원이 없습니다.</td>
+                            <td colspan="8" style="text-align: center; padding: 50px 20px;">
+                                <div style="font-size: 2.2rem; margin-bottom: 10px;">⚾</div>
+                                <div style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin-bottom: 4px;">등록된 회원이 없습니다</div>
+                                <p style="font-size: 0.85rem; color: #64748b;">현재 회원 데이터가 초기화되어 0명입니다. 신규 회원이 가입하면 실시간으로 표시됩니다.</p>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
