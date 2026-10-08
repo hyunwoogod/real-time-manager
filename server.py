@@ -20,6 +20,55 @@ ADMIN_VALID_CODES = {ADMIN_SECRET_CODE, 'zipgamdok2026!', 'admin1234'}
 
 PORT = int(os.environ.get('PORT', 8000))
 
+# KBO 10개 구단 메타데이터 및 도우미 함수
+TEAM_FULL_NAMES = {
+    '삼성': '삼성 라이온즈',
+    '한화': '한화 이글스',
+    'KIA': 'KIA 타이거즈',
+    'LG': 'LG 트윈스',
+    '두산': '두산 베어스',
+    '롯데': '롯데 자이언츠',
+    'SSG': 'SSG 랜더스',
+    'KT': 'KT 위즈',
+    'NC': 'NC 다이노스',
+    '키움': '키움 히어로즈'
+}
+
+TEAM_LOGOS = {
+    '삼성': '🦁',
+    '한화': '🦅',
+    'KIA': '🐯',
+    'LG': '🧢',
+    '두산': '🐻',
+    '롯데': '⚓',
+    'SSG': '🚀',
+    'KT': '🧙',
+    'NC': '🦖',
+    '키움': '🦸'
+}
+
+TEAM_COLORS = {
+    '삼성': '#005CB9',
+    '한화': '#FF6600',
+    'KIA': '#EA0029',
+    'LG': '#C30452',
+    '두산': '#131230',
+    '롯데': '#041E42',
+    'SSG': '#CE0E2D',
+    'KT': '#000000',
+    'NC': '#315288',
+    '키움': '#570514'
+}
+
+def normalize_team_short(name):
+    if not name:
+        return '한화'
+    name = str(name).strip()
+    for short in TEAM_FULL_NAMES:
+        if short in name:
+            return short
+    return name
+
 # DB 초기화 및 글로벌 게임 엔진 생성
 database.init_db()
 engine = GameEngine("한화", "롯데")
@@ -166,7 +215,7 @@ def authentication_guard():
 
     # 세션 정보 동기화
     session['nickname'] = db_user.get('nickname') or (username + " 감독")
-    session['favorite_team'] = db_user.get('favorite_team') or db_user.get('team') or '한화'
+    session['favorite_team'] = normalize_team_short(db_user.get('favorite_team') or db_user.get('team') or '한화')
     return None
 
 
@@ -191,15 +240,45 @@ def index():
     """메인 페이지: 세션 로그인 상태 및 SQLite 대조 검사 후 로비 렌더링 (캐시 완전 차단 적용)"""
     user_id = session.get('user_id')
     username = session.get('username')
-    nickname = session.get('nickname') or (username + " 감독")
-    favorite_team = session.get('favorite_team', '한화')
+
+    db_user = database.get_user_by_id(user_id) if user_id else None
+    if db_user:
+        nickname = db_user.get('nickname') or session.get('nickname') or (username + " 감독")
+        raw_team = db_user.get('favorite_team') or db_user.get('team') or session.get('favorite_team') or '한화'
+    else:
+        nickname = session.get('nickname') or (username + " 감독")
+        raw_team = session.get('favorite_team', '한화')
+
+    favorite_team = normalize_team_short(raw_team)
+    favorite_team_full = TEAM_FULL_NAMES.get(favorite_team, favorite_team + ' 야구단')
+    favorite_team_logo = TEAM_LOGOS.get(favorite_team, '👑')
+    favorite_team_color = TEAM_COLORS.get(favorite_team, '#10b981')
+
+    session['nickname'] = nickname
+    session['favorite_team'] = favorite_team
+
+    today_str = datetime.date.today().strftime('%Y-%m-%d')
+    today_schedule_info = database.get_today_schedule_info(today_str, favorite_team)
+    match_data = today_schedule_info.get('match')
+    is_rest_day = today_schedule_info.get('is_rest_day', False)
+
+    match_away_full = TEAM_FULL_NAMES.get(match_data.get('away_team'), match_data.get('away_team')) if match_data else ''
+    match_home_full = TEAM_FULL_NAMES.get(match_data.get('home_team'), match_data.get('home_team')) if match_data else ''
 
     response = make_response(render_template(
         'index.html', 
         user_id=user_id,
         username=username, 
         nickname=nickname, 
-        favorite_team=favorite_team
+        favorite_team=favorite_team,
+        favorite_team_full=favorite_team_full,
+        favorite_team_logo=favorite_team_logo,
+        favorite_team_color=favorite_team_color,
+        match=match_data,
+        is_rest_day=is_rest_day,
+        match_away_full=match_away_full,
+        match_home_full=match_home_full,
+        today_schedule=today_schedule_info
     ))
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
@@ -255,12 +334,12 @@ def signup():
             username = data.get('username', '').strip()
             password = data.get('password', '').strip()
             nickname = data.get('nickname', '').strip()
-            favorite_team = data.get('favorite_team') or data.get('team') or '한화'
+            favorite_team = normalize_team_short(data.get('favorite_team') or data.get('team') or '한화')
         else:
             username = request.form.get('username', '').strip()
             password = request.form.get('password', '').strip()
             nickname = request.form.get('nickname', '').strip()
-            favorite_team = request.form.get('favorite_team') or request.form.get('team') or '한화'
+            favorite_team = normalize_team_short(request.form.get('favorite_team') or request.form.get('team') or '한화')
 
         valid_u, msg_u = database.validate_username_format(username)
         if not valid_u:
@@ -346,7 +425,7 @@ def login():
             session['user_id'] = user_info.get('id', 1)
             session['username'] = username
             session['nickname'] = user_info.get('nickname') or (username + " 감독")
-            session['favorite_team'] = user_info.get('favorite_team') or user_info.get('team') or '한화'
+            session['favorite_team'] = normalize_team_short(user_info.get('favorite_team') or user_info.get('team') or '한화')
 
             if request.is_json:
                 return jsonify({
@@ -485,11 +564,13 @@ def api_session():
             session.modified = True
 
     logged_in = bool(db_user)
+    fav_team = normalize_team_short((db_user.get('favorite_team') or db_user.get('team') or '한화') if logged_in else '한화')
     return jsonify({
         "logged_in": logged_in,
         "username": db_user['username'] if logged_in else None,
         "nickname": (db_user.get('nickname') or (db_user['username'] + " 감독")) if logged_in else None,
-        "favorite_team": (db_user.get('favorite_team') or db_user.get('team') or '한화') if logged_in else '한화',
+        "favorite_team": fav_team,
+        "favorite_team_full": TEAM_FULL_NAMES.get(fav_team, fav_team + ' 야구단'),
         "user_id": db_user['id'] if logged_in else None
     })
 
@@ -524,16 +605,23 @@ def api_state():
 
 @app.route('/api/lobby')
 def api_lobby():
-    user_id = request.args.get('user_id', type=int)
-    if not user_id:
-        user_id = session.get('user_id', 1)
+    # 세션 로그인 사용자 최우선 적용 (유저 ID 왜곡 및 기본값 덮어쓰기 원천 차단)
+    user_id = session.get('user_id')
+    req_uid = request.args.get('user_id', type=int)
+    if not user_id and req_uid:
+        user_id = req_uid
+    elif not user_id:
+        user_id = 1
 
     rankings = database.get_user_friends_ranking(user_id)
     user_info = database.get_user_by_id(user_id)
     
-    user_score = user_info['score'] if user_info else engine.manager_score
-    user_grade = user_info['grade'] if user_info else engine.manager_grade
-    user_team = (user_info.get('favorite_team') or user_info.get('team')) if user_info else session.get('favorite_team', "한화")
+    user_score = user_info['score'] if user_info and 'score' in user_info else engine.manager_score
+    user_grade = user_info['grade'] if user_info and 'grade' in user_info else engine.manager_grade
+    
+    raw_team = (user_info.get('favorite_team') or user_info.get('team')) if user_info else session.get('favorite_team')
+    user_team = normalize_team_short(raw_team or '한화')
+    team_full = TEAM_FULL_NAMES.get(user_team, user_team + ' 야구단')
 
     today_str = datetime.date.today().strftime('%Y-%m-%d')
     today_info = database.get_today_schedule_info(today_str, user_team)
@@ -545,9 +633,10 @@ def api_lobby():
         "user_grade": user_grade,
         "user_info": user_info,
         "favorite_team": user_team,
+        "favorite_team_full": team_full,
         "today_schedule": today_info,
         "countdown": "14분 30초",
-        "current_username": session.get('username')
+        "current_username": session.get('username') or (user_info.get('username') if user_info else '')
     })
 
 
@@ -577,7 +666,7 @@ def api_register():
     email = data.get('email', '').strip()
     marketing_agreed = data.get('marketing_agreed', False)
     nickname = data.get('nickname', '김명장').strip()
-    favorite_team = data.get('favorite_team') or data.get('team', '한화').strip()
+    favorite_team = normalize_team_short(data.get('favorite_team') or data.get('team', '한화'))
 
     if not username or not password:
         return jsonify({"status": "error", "message": "필수 정보를 모두 입력해주세요."}), 400
@@ -586,6 +675,7 @@ def api_register():
     if res.get('status') == 'success':
         session['username'] = username
         session['user_id'] = res.get('user', {}).get('id', 1)
+        session['nickname'] = nickname
         session['favorite_team'] = favorite_team
     return jsonify(res)
 
@@ -604,7 +694,8 @@ def api_login():
         user_info = res.get('user', {})
         session['username'] = username
         session['user_id'] = user_info.get('id', 1)
-        session['favorite_team'] = user_info.get('favorite_team') or user_info.get('team') or '한화'
+        session['nickname'] = user_info.get('nickname') or (username + " 감독")
+        session['favorite_team'] = normalize_team_short(user_info.get('favorite_team') or user_info.get('team') or '한화')
     return jsonify(res)
 
 

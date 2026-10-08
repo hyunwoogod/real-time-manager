@@ -8,11 +8,69 @@ let crisisTimerInterval = null;
 let crisisTimeLeft = 15;
 
 let currentUserId = 1;
-let selectedTeamCode = '롯데';
-let selectedTeamFull = '⚓ 롯데 자이언츠';
+let selectedTeamCode = '한화';
+let selectedTeamFull = '한화 이글스';
 let userLoginProvider = 'General';
 let userNickname = '김명장 감독';
 let isIdentityVerified = false;
+
+// KBO 10개 구단 메타데이터 매핑 및 도우미 함수
+const teamLogos = {
+    '삼성': '🦁', '한화': '🦅', 'KIA': '🐯', 'LG': '🧢', '두산': '🐻',
+    '롯데': '⚓', 'SSG': '🚀', 'KT': '🧙', 'NC': '🦖', '키움': '🦸'
+};
+const teamFullMap = {
+    '삼성': '삼성 라이온즈', '한화': '한화 이글스', 'KIA': 'KIA 타이거즈', 'LG': 'LG 트윈스',
+    '두산': '두산 베어스', '롯데': '롯데 자이언츠', 'SSG': 'SSG 랜더스', 'KT': 'KT 위즈',
+    'NC': 'NC 다이노스', '키움': '키움 히어로즈'
+};
+const teamColorMap = {
+    '삼성': '#005CB9', '한화': '#FF6600', 'KIA': '#EA0029', 'LG': '#C30452', '두산': '#131230',
+    '롯데': '#041E42', 'SSG': '#CE0E2D', 'KT': '#000000', 'NC': '#315288', '키움': '#570514'
+};
+
+function normalizeTeamShort(name) {
+    if (!name) return '한화';
+    const str = String(name).trim();
+    for (const code of Object.keys(teamFullMap)) {
+        if (str.includes(code)) return code;
+    }
+    return str;
+}
+
+function syncUserTeamUI(teamCode, teamFullName) {
+    teamCode = normalizeTeamShort(teamCode || selectedTeamCode || '한화');
+    selectedTeamCode = teamCode;
+    selectedTeamFull = teamFullName || teamFullMap[teamCode] || (teamCode + ' 야구단');
+    
+    try {
+        localStorage.setItem('antigravity_favorite_team', selectedTeamCode);
+        localStorage.setItem('antigravity_favorite_team_full', selectedTeamFull);
+    } catch(e) {}
+
+    // 1. Welcome Card
+    const sessTeamEl = document.getElementById('session-disp-team');
+    if (sessTeamEl) sessTeamEl.innerText = selectedTeamFull;
+
+    // 2. Profile Badge & Header
+    const teamBadge = document.getElementById('lobby-login-type');
+    if (teamBadge) teamBadge.innerText = `${selectedTeamCode} 팬클럽 감독`;
+
+    const avatarEl = document.getElementById('lobby-user-avatar');
+    if (avatarEl && teamLogos[selectedTeamCode]) avatarEl.innerText = teamLogos[selectedTeamCode];
+
+    const headerBar = document.getElementById('lobby-header-bar');
+    if (headerBar && teamColorMap[selectedTeamCode]) {
+        headerBar.style.borderLeft = `5px solid ${teamColorMap[selectedTeamCode]}`;
+    }
+
+    // 3. Settings Modal
+    const setAvatar = document.getElementById('settings-disp-avatar');
+    if (setAvatar && teamLogos[selectedTeamCode]) setAvatar.innerText = teamLogos[selectedTeamCode];
+
+    const setTeam = document.getElementById('settings-disp-team');
+    if (setTeam) setTeam.innerText = `⚾ ${selectedTeamFull} 응원 구단`;
+}
 
 let matchCountdownInterval = null;
 let matchCountdownTime = 15;
@@ -181,18 +239,38 @@ function saveUserState() {
 
 function loadUserState() {
     try {
-        const savedId = localStorage.getItem('antigravity_user_id');
-        const savedNick = localStorage.getItem('antigravity_user_nickname');
-        const savedTeam = localStorage.getItem('antigravity_favorite_team');
-        const savedTeamFull = localStorage.getItem('antigravity_favorite_team_full');
+        if (window.CURRENT_SESSION_USER_ID) {
+            currentUserId = window.CURRENT_SESSION_USER_ID;
+        } else {
+            const savedId = localStorage.getItem('antigravity_user_id');
+            if (savedId) currentUserId = parseInt(savedId);
+        }
 
-        if (savedId) currentUserId = parseInt(savedId);
-        if (savedNick) userNickname = savedNick;
-        if (savedTeam) selectedTeamCode = savedTeam;
-        if (savedTeamFull) selectedTeamFull = savedTeamFull;
+        if (window.CURRENT_SESSION_NICKNAME) {
+            userNickname = window.CURRENT_SESSION_NICKNAME;
+        } else {
+            const savedNick = localStorage.getItem('antigravity_user_nickname');
+            if (savedNick) userNickname = savedNick;
+        }
+
+        if (window.CURRENT_SESSION_TEAM) {
+            selectedTeamCode = normalizeTeamShort(window.CURRENT_SESSION_TEAM);
+        } else {
+            const savedTeam = localStorage.getItem('antigravity_favorite_team');
+            if (savedTeam) selectedTeamCode = normalizeTeamShort(savedTeam);
+        }
+
+        if (window.CURRENT_SESSION_TEAM_FULL) {
+            selectedTeamFull = window.CURRENT_SESSION_TEAM_FULL;
+        } else {
+            const savedTeamFull = localStorage.getItem('antigravity_favorite_team_full');
+            if (savedTeamFull) selectedTeamFull = savedTeamFull;
+        }
 
         const nameEl = document.getElementById('lobby-user-name');
         if (nameEl && userNickname) nameEl.innerText = userNickname;
+
+        syncUserTeamUI(selectedTeamCode, selectedTeamFull);
     } catch(e) {}
 }
 
@@ -234,6 +312,10 @@ function showInitialLandingScreen() {
     } catch(e) {}
 
     if (window.CURRENT_SESSION_USER) {
+        if (window.CURRENT_SESSION_USER_ID) {
+            currentUserId = window.CURRENT_SESSION_USER_ID;
+            localStorage.setItem('antigravity_user_id', currentUserId);
+        }
         let nick = window.CURRENT_SESSION_NICKNAME || window.CURRENT_SESSION_USER;
         if (nick && !nick.endsWith('감독')) {
             nick = nick + ' 감독';
@@ -244,8 +326,9 @@ function showInitialLandingScreen() {
         if (nameEl) nameEl.innerText = userNickname;
 
         if (window.CURRENT_SESSION_TEAM) {
-            selectedTeamCode = window.CURRENT_SESSION_TEAM;
-            localStorage.setItem('antigravity_favorite_team', selectedTeamCode);
+            selectedTeamCode = normalizeTeamShort(window.CURRENT_SESSION_TEAM);
+            selectedTeamFull = window.CURRENT_SESSION_TEAM_FULL || teamFullMap[selectedTeamCode] || (selectedTeamCode + ' 야구단');
+            syncUserTeamUI(selectedTeamCode, selectedTeamFull);
         }
         try {
             hideOverlay('login-screen');
@@ -344,16 +427,19 @@ function openSettingsModal() {
     if (!modal) return;
 
     // 현재 사용자 및 구단 정보 동기화
-    const nick = window.CURRENT_SESSION_NICKNAME || window.CURRENT_SESSION_USER || localStorage.getItem('antigravity_user_nickname') || '김명장 감독';
-    const team = window.CURRENT_SESSION_TEAM || localStorage.getItem('antigravity_favorite_team') || '한화';
+    const nick = window.CURRENT_SESSION_NICKNAME || window.CURRENT_SESSION_USER || userNickname || localStorage.getItem('antigravity_user_nickname') || '김명장 감독';
+    const teamCode = normalizeTeamShort(selectedTeamCode || window.CURRENT_SESSION_TEAM || localStorage.getItem('antigravity_favorite_team') || '한화');
+    const teamFull = teamFullMap[teamCode] || (teamCode + ' 야구단');
     const user = window.CURRENT_SESSION_USER || '';
 
     const nickEl = document.getElementById('settings-disp-nickname');
     const teamEl = document.getElementById('settings-disp-team');
+    const avatarEl = document.getElementById('settings-disp-avatar');
     const idEl = document.getElementById('settings-disp-id');
 
     if (nickEl) nickEl.innerText = nick.endsWith('감독') ? nick : `${nick} 감독`;
-    if (teamEl) teamEl.innerText = `⚾ ${team} 응원 구단`;
+    if (teamEl) teamEl.innerText = `⚾ ${teamFull} 응원 구단`;
+    if (avatarEl && teamLogos[teamCode]) avatarEl.innerText = teamLogos[teamCode];
     if (idEl) {
         if (user) {
             idEl.innerText = `계정: ${user}`;
@@ -469,17 +555,9 @@ function submitLogin() {
         window.CURRENT_SESSION_USER = username || userNickname;
         window.CURRENT_SESSION_NICKNAME = nick;
         localStorage.setItem('antigravity_user_nickname', userNickname);
-        selectedTeamCode = user ? (user.favorite_team || user.team || '한화') : '한화';
-        localStorage.setItem('antigravity_favorite_team', selectedTeamCode);
-
-        const nameEl = document.getElementById('lobby-user-name');
-        if (nameEl) nameEl.innerText = userNickname;
-        
-        const tag = document.getElementById('lobby-login-type');
-        if (tag) {
-            tag.innerText = "회원 계정 인증됨";
-            tag.className = "login-tag kakao";
-        }
+        selectedTeamCode = normalizeTeamShort(user ? (user.favorite_team || user.team || '한화') : '한화');
+        selectedTeamFull = teamFullMap[selectedTeamCode] || (selectedTeamCode + ' 야구단');
+        syncUserTeamUI(selectedTeamCode, selectedTeamFull);
 
         showToast(`🔑 환영합니다, ${userNickname}님!`);
         closeLoginModal();
@@ -628,34 +706,40 @@ function updateLobbyBannerForUserTeam(allMatches) {
     const countdownEl = document.getElementById('match-countdown');
     const btn = document.getElementById('btn-enter-ingame');
 
+    const teamCode = normalizeTeamShort(selectedTeamCode || '한화');
+    const teamFull = teamFullMap[teamCode] || (teamCode + ' 야구단');
+
     // 동일 구단 매칭 원천 차단 필터
     allMatches = (allMatches || []).filter(m => m.is_rest_day === 1 || m.home_team !== m.away_team);
 
     if (!allMatches || allMatches.length === 0) {
         currentMatchIsLive = false;
         if (tagEl) tagEl.innerText = "MONDAY REST DAY";
-        if (titleEl) titleEl.innerText = `⚾ 오늘은 ${selectedTeamCode} 경기가 없는 KBO 정기 휴식일입니다`;
+        if (titleEl) titleEl.innerText = `⚾ 오늘은 ${teamFull} 경기가 없는 KBO 정기 휴식일입니다`;
         if (countdownEl) countdownEl.innerText = `오늘은 응원 구단의 경기가 없는 휴식일입니다. 아래 소셜 랭킹 리더보드를 확인하세요!`;
         if (btn) {
             btn.disabled = true;
             btn.className = 'btn-primary-glow btn-locked';
-            btn.innerText = `🔒 💤 오늘은 ${selectedTeamCode} 정기 휴식일입니다 (경기 없음)`;
+            btn.innerText = `🔒 💤 오늘은 ${teamFull} 정기 휴식일입니다 (경기 없음)`;
         }
         return;
     }
 
     // 오늘 일정 중 유저의 응원 구단(selectedTeamCode)이 포함된 경기 탐색
-    let userMatch = allMatches.find(m => (m.home_team === selectedTeamCode || m.away_team === selectedTeamCode) && m.is_rest_day === 0);
+    let userMatch = allMatches.find(m => 
+        (normalizeTeamShort(m.home_team) === teamCode || normalizeTeamShort(m.away_team) === teamCode) && 
+        m.is_rest_day === 0
+    );
 
     if (!userMatch) {
         currentMatchIsLive = false;
         if (tagEl) tagEl.innerText = "REST DAY";
-        if (titleEl) titleEl.innerText = `⚾ 오늘은 [${selectedTeamCode}] 경기가 없는 KBO 휴식일입니다`;
-        if (countdownEl) countdownEl.innerText = `오늘은 응원 구단(${selectedTeamCode})의 경기가 없는 휴식일입니다. 아래 소셜 랭킹에서 다른 경기 일정을 확인하세요!`;
+        if (titleEl) titleEl.innerText = `⚾ 오늘은 [${teamFull}] 경기가 없는 KBO 휴식일입니다`;
+        if (countdownEl) countdownEl.innerText = `오늘은 응원 구단(${teamFull})의 경기가 없는 휴식일입니다. 아래 소셜 랭킹에서 다른 경기 일정을 확인하세요!`;
         if (btn) {
             btn.disabled = true;
             btn.className = 'btn-primary-glow btn-locked';
-            btn.innerText = `🔒 💤 오늘은 ${selectedTeamCode} 경기가 없는 휴식일입니다`;
+            btn.innerText = `🔒 💤 오늘은 ${teamFull} 경기가 없는 휴식일입니다`;
         }
         return;
     }
@@ -673,17 +757,19 @@ function updateLobbyBannerForUserTeam(allMatches) {
         currentAwayTeam = (currentHomeTeam === '삼성') ? '한화' : '삼성';
     }
 
-    const isHome = (userMatch.home_team === selectedTeamCode);
-    const homeAwayTag = isHome ? `🔥 [MY TEAM] ${selectedTeamCode} 홈 경기` : `✈️ [MY TEAM] ${selectedTeamCode} 원정 경기`;
+    const isHome = (normalizeTeamShort(userMatch.home_team) === teamCode);
+    const homeAwayTag = isHome ? `🔥 [MY TEAM] ${teamFull} 홈 경기` : `✈️ [MY TEAM] ${teamFull} 원정 경기`;
+    const awayFull = teamFullMap[normalizeTeamShort(userMatch.away_team)] || userMatch.away_team;
+    const homeFull = teamFullMap[normalizeTeamShort(userMatch.home_team)] || userMatch.home_team;
 
     if (tagEl) tagEl.innerText = homeAwayTag;
-    if (titleEl) titleEl.innerHTML = `⚾ ${getTeamLogoHtml(userMatch.away_team)} ${userMatch.away_team} vs ${getTeamLogoHtml(userMatch.home_team)} ${userMatch.home_team} [${userMatch.stadium}]`;
+    if (titleEl) titleEl.innerHTML = `⚾ ${getTeamLogoHtml(userMatch.away_team)} ${awayFull} vs ${getTeamLogoHtml(userMatch.home_team)} ${homeFull} [${userMatch.stadium}]`;
     if (countdownEl) countdownEl.innerText = `KBO ${userMatch.start_time} 라이브 경기 개시 대기 중 (${matchCountdownTime}초... 수동 클릭으로 언제든 입장 가능)`;
     
     if (btn) {
         btn.disabled = false;
         btn.className = 'btn-live-entry-glow';
-        btn.innerText = `🚨 [${selectedTeamCode} 경기 입장] 실시간 세컨드 스크린 직행하기`;
+        btn.innerText = `🚨 [${teamFull} 경기 입장] 실시간 세컨드 스크린 직행하기`;
     }
 }
 
@@ -720,11 +806,13 @@ function triggerLiveMatchReady() {
     const btn = document.getElementById('btn-enter-ingame');
     const countdownEl = document.getElementById('match-countdown');
     const tagEl = document.getElementById('banner-live-tag');
+    const teamCode = normalizeTeamShort(selectedTeamCode || '한화');
+    const teamFull = teamFullMap[teamCode] || (teamCode + ' 야구단');
 
     if (btn) {
         btn.disabled = false;
         btn.className = 'btn-live-entry-glow';
-        btn.innerText = `🚨 [${selectedTeamCode} 경기 입장] 실시간 세컨드 스크린 직행하기`;
+        btn.innerText = `🚨 [${teamFull} 경기 입장] 실시간 세컨드 스크린 직행하기`;
     }
     if (countdownEl) countdownEl.innerText = `🚨 KBO ${currentStartTimeStr} 라이브 경기 준비 완료! [입장하기] 버튼을 누르면 경기로 이동합니다.`;
     if (tagEl) tagEl.innerText = "🔴 LIVE BROADCASTING";
@@ -748,13 +836,16 @@ function forceLiveMatchStart() {
                 !serverState.game_over &&
                 ((serverState.totalPitcherCount && serverState.totalPitcherCount > 0) || serverState.inning > 1 || serverState.score_home > 0 || serverState.score_away > 0 || serverState.balls > 0 || serverState.strikes > 0);
 
+            const teamCode = normalizeTeamShort(selectedTeamCode || '한화');
+            const teamFull = teamFullMap[teamCode] || (teamCode + ' 야구단');
+
             if (isOngoing) {
                 currentGameState = serverState;
                 saveGameStateToStorage(serverState);
-                showToast(`🚨 [${selectedTeamCode} 경기 직행] ${userNickname}님, 진행 중인 ${currentHomeTeam} vs ${currentAwayTeam} 경기 관전에 재입장합니다!`);
+                showToast(`🚨 [${teamFull} 경기 직행] ${userNickname}님, 진행 중인 ${currentHomeTeam} vs ${currentAwayTeam} 경기 관전에 재입장합니다!`);
                 switchView('ingame-view');
             } else {
-                showToast(`🚨 [${selectedTeamCode} 경기 직행] ${userNickname}님, ${currentHomeTeam} vs ${currentAwayTeam} [${currentStadium}] 덕아웃 감독석으로 진입합니다!`);
+                showToast(`🚨 [${teamFull} 경기 직행] ${userNickname}님, ${currentHomeTeam} vs ${currentAwayTeam} [${currentStadium}] 덕아웃 감독석으로 진입합니다!`);
                 fetch('/api/reset', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1118,7 +1209,8 @@ function selectTeam(home, away) {
 }
 
 function loadLobbyData() {
-    fetch(`/api/lobby?user_id=${currentUserId}`)
+    const uid = window.CURRENT_SESSION_USER_ID || currentUserId || 1;
+    fetch(`/api/lobby?user_id=${uid}`)
         .then(res => res.json())
         .then(data => {
             const scoreEl = document.getElementById('lobby-my-score');
@@ -1134,30 +1226,11 @@ function loadLobbyData() {
             if (nameEl && userNickname) nameEl.innerText = userNickname;
 
             // 응원 팀 정보 및 로고/컬러 동기화
-            if (data.favorite_team) {
-                selectedTeamCode = data.favorite_team;
-            } else if (data.user_info && (data.user_info.favorite_team || data.user_info.team)) {
-                selectedTeamCode = data.user_info.favorite_team || data.user_info.team;
-            }
-            const teamBadge = document.getElementById('lobby-login-type');
-            if (teamBadge && selectedTeamCode) {
-                teamBadge.innerText = `${selectedTeamCode} 팬클럽 감독`;
-            }
-            const avatarEl = document.getElementById('lobby-user-avatar');
-            const teamLogos = {
-                '삼성': '🦁', '한화': '🦅', 'KIA': '🐯', 'LG': '🧢', '두산': '🐻',
-                '롯데': '⚓', 'SSG': '🚀', 'KT': '🧙', 'NC': '🦖', '키움': '🦸'
-            };
-            if (avatarEl && teamLogos[selectedTeamCode]) {
-                avatarEl.innerText = teamLogos[selectedTeamCode];
-            }
-            const headerBar = document.getElementById('lobby-header-bar');
-            const teamColors = {
-                '삼성': '#005CB9', '한화': '#FF6600', 'KIA': '#EA0029', 'LG': '#C30452', '두산': '#131230',
-                '롯데': '#041E42', 'SSG': '#CE0E2D', 'KT': '#000000', 'NC': '#315288', '키움': '#570514'
-            };
-            if (headerBar && teamColors[selectedTeamCode]) {
-                headerBar.style.borderLeft = `5px solid ${teamColors[selectedTeamCode]}`;
+            const serverTeam = data.favorite_team || (data.user_info && (data.user_info.favorite_team || data.user_info.team)) || window.CURRENT_SESSION_TEAM;
+            if (serverTeam) {
+                const teamCode = normalizeTeamShort(serverTeam);
+                const teamFull = data.favorite_team_full || teamFullMap[teamCode] || (teamCode + ' 야구단');
+                syncUserTeamUI(teamCode, teamFull);
             }
 
             // Stats grid in records pane
@@ -1439,7 +1512,7 @@ function selectMatchFromSchedule(dateStr, home, away, stadium, timeStr, homePitc
         showToast("⚠️ 동일 구단 간의 대진은 선택할 수 없습니다.");
         return;
     }
-    selectedTeamCode = home;
+    // 유저의 고유 응원 구단(selectedTeamCode)은 변경하지 않고, 선택한 경기 관전 정보만 갱신
     currentHomeTeam = home;
     currentAwayTeam = away;
     currentHomePitcher = homePitcher || teamPitcherMap[home] || '페덱';
@@ -1448,7 +1521,9 @@ function selectMatchFromSchedule(dateStr, home, away, stadium, timeStr, homePitc
     currentStartTimeStr = timeStr;
 
     selectTeam(home, away, currentHomePitcher, currentAwayPitcher);
-    document.getElementById('match-title').innerText = `⚾ ${away} vs ${home} [${stadium}]`;
+    const homeFull = teamFullMap[normalizeTeamShort(home)] || home;
+    const awayFull = teamFullMap[normalizeTeamShort(away)] || away;
+    document.getElementById('match-title').innerText = `⚾ ${awayFull} vs ${homeFull} [${stadium}]`;
     showToast(`🎯 [${away} vs ${home}] ${dateStr} ${stadium} 대진이 로비 메인 매치업으로 선택되었습니다.`);
 }
 
@@ -1461,6 +1536,8 @@ function renderFriendRankings(rankings) {
         const isMe = user.is_me ? 'my-rank' : '';
         const nameDisplay = user.is_me ? `${userNickname} (나)` : user.name;
         const crown = rankNum === 1 ? '👑 ' : '';
+        const userTeamCode = normalizeTeamShort(user.is_me ? selectedTeamCode : (user.favorite_team || user.team));
+        const userTeamFull = teamFullMap[userTeamCode] || userTeamCode;
         
         const cardHtml = `
             <div class="rank-item ${isMe}">
@@ -1469,7 +1546,7 @@ function renderFriendRankings(rankings) {
                     <span class="rank-avatar">${user.avatar || '👑'}</span>
                     <div class="rank-info">
                         <span class="rank-name">${crown}${nameDisplay}</span>
-                        <span class="rank-team">응원구단: ${user.is_me ? selectedTeamCode : user.team}</span>
+                        <span class="rank-team">응원구단: ${userTeamFull}</span>
                     </div>
                 </div>
                 <div class="rank-right">

@@ -326,7 +326,14 @@ def get_user_by_id(user_id):
     cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    return dict(row) if row else None
+    if not row:
+        return None
+    user_dict = dict(row)
+    if not user_dict.get('favorite_team'):
+        user_dict['favorite_team'] = user_dict.get('team') or '한화'
+    if not user_dict.get('nickname'):
+        user_dict['nickname'] = user_dict.get('username') or '감독'
+    return user_dict
 
 def verify_session_user(user_id, username):
     """세션에 담긴 유저 ID 및 username이 실제 SQLite users 테이블에 유효하게 존재하는지 검증"""
@@ -434,10 +441,12 @@ def get_user_friends_ranking(user_id=1):
     me = dict(me_row)
     me['is_me'] = True
     me['name'] = f"{me['nickname']} (나)"
+    me['team'] = me.get('favorite_team') or me.get('team') or '한화'
+    me['favorite_team'] = me['team']
 
     # 친구들의 정보
     cursor.execute('''
-        SELECT u.id, u.nickname as name, u.team, u.avatar, u.score, u.grade
+        SELECT u.id, u.nickname as name, COALESCE(u.favorite_team, u.team, '한화') as team, COALESCE(u.favorite_team, u.team, '한화') as favorite_team, u.avatar, u.score, u.grade
         FROM user_friends f
         JOIN users u ON f.friend_id = u.id
         WHERE f.user_id = ?
@@ -668,9 +677,20 @@ def get_schedules_by_date(date_str):
     conn.close()
     return rows
 
-def get_today_schedule_info(date_str=None, team_name="롯데"):
+def normalize_team_name(name):
+    if not name:
+        return '한화'
+    name = str(name).strip()
+    kbo_teams = ['삼성', '한화', 'KIA', 'LG', '두산', '롯데', 'SSG', 'KT', 'NC', '키움']
+    for t in kbo_teams:
+        if t in name:
+            return t
+    return name
+
+def get_today_schedule_info(date_str=None, team_name="한화"):
     if not date_str:
         date_str = datetime.date.today().strftime('%Y-%m-%d')
+    norm_team = normalize_team_name(team_name)
     schedules = get_schedules_by_date(date_str)
     if not schedules:
         conn = get_db()
@@ -681,35 +701,53 @@ def get_today_schedule_info(date_str=None, team_name="롯데"):
         if row and row['game_date']:
             date_str = row['game_date']
             schedules = get_schedules_by_date(date_str)
-    if not schedules:
-        fallback_away = "LG" if team_name != "LG" else "한화"
-        return {
-            "game_date": date_str,
-            "is_rest_day": False,
-            "start_time": "18:30",
-            "match": {"home_team": team_name, "away_team": fallback_away, "stadium": "대전"},
-            "all_matches": []
-        }
     
-    is_rest = any(s['is_rest_day'] == 1 for s in schedules)
+    is_rest = any(s['is_rest_day'] == 1 for s in schedules) if schedules else False
     if is_rest:
         return {
             "game_date": date_str,
             "is_rest_day": True,
             "start_time": "휴식일",
             "match": None,
-            "all_matches": schedules
+            "all_matches": schedules or []
         }
 
     # 유저 팀이 포함된 경기 검색
     selected_match = None
-    for s in schedules:
-        if s['home_team'] == team_name or s['away_team'] == team_name:
-            selected_match = s
-            break
-    
+    if schedules:
+        for s in schedules:
+            if normalize_team_name(s['home_team']) == norm_team or normalize_team_name(s['away_team']) == norm_team:
+                selected_match = s
+                break
+
+    # 해당 날짜에 유저 팀 경기가 없다면, DB에서 해당 팀의 가장 가까운 유효 경기 검색
+    if not selected_match:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM kbo_schedules 
+            WHERE (home_team = ? OR away_team = ?) AND is_rest_day = 0
+            ORDER BY ABS(JULIANDAY(game_date) - JULIANDAY(?)) LIMIT 1
+        """, (norm_team, norm_team, date_str))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            selected_match = dict(row)
+            date_str = selected_match['game_date']
+            schedules = get_schedules_by_date(date_str)
+
     if not selected_match and schedules:
         selected_match = schedules[0]
+
+    if not selected_match:
+        fallback_away = "LG" if norm_team != "LG" else "한화"
+        return {
+            "game_date": date_str,
+            "is_rest_day": False,
+            "start_time": "18:30",
+            "match": {"home_team": norm_team, "away_team": fallback_away, "stadium": "대전"},
+            "all_matches": []
+        }
 
     return {
         "game_date": date_str,
