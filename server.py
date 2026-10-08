@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, make_response
 from functools import wraps
 import os
 import sys
@@ -80,6 +80,24 @@ def authentication_guard():
         return redirect(url_for('login'))
 
 
+@app.after_request
+def add_cache_control_headers(response):
+    """브라우저 캐시 및 뒤로 가기(BFCache) 방지: HTML 페이지 및 주요 라우트에 Cache-Control 헤더 주입"""
+    content_type = response.headers.get('Content-Type', '')
+    path = request.path
+
+    if (
+        'text/html' in content_type or 
+        path in ('/', '/lobby', '/index.html', '/login', '/signup', '/logout', '/admin/users') or 
+        path.startswith('/api/')
+    ):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
+    return response
+
+
 # ==============================================================================
 # AUTH & PAGE ROUTES
 # ==============================================================================
@@ -89,18 +107,23 @@ def authentication_guard():
 @app.route('/', endpoint='index')
 @login_required
 def index():
-    """메인 페이지: 세션 로그인 상태 검사 및 미로그인 시 로그인 페이지로 강제 리다이렉트"""
+    """메인 페이지: 세션 로그인 상태 검사 및 미로그인 시 로그인 페이지로 강제 리다이렉트 (캐시 차단 적용)"""
     user_id = session.get('user_id')
     username = session.get('username')
     nickname = session.get('nickname') or (username + " 감독")
     favorite_team = session.get('favorite_team', '한화')
-    return render_template(
+
+    response = make_response(render_template(
         'index.html', 
         user_id=user_id,
         username=username, 
         nickname=nickname, 
         favorite_team=favorite_team
-    )
+    ))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @app.route('/api/check-username', methods=['GET', 'POST'])
@@ -265,11 +288,33 @@ def login():
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
-    """로그아웃 기능: 세션 완전 파기 후 로그인 화면으로 강제 이동"""
+    """로그아웃 기능: 세션 완전 파기, 브라우저 세션 쿠키 삭제 및 로그인 화면으로 강제 이동"""
     session.clear()
+    session.modified = True
+
     if request.is_json:
-        return jsonify({"status": "success", "message": "로그아웃되었습니다.", "redirect": url_for('login')})
-    return redirect(url_for('login'))
+        response = jsonify({
+            "status": "success", 
+            "message": "로그아웃되었습니다.", 
+            "redirect": url_for('login')
+        })
+    else:
+        response = make_response(redirect(url_for('login')))
+
+    # 브라우저 세션 쿠키 명시적 만료/삭제
+    cookie_name = app.config.get('SESSION_COOKIE_NAME', 'session')
+    response.delete_cookie(
+        cookie_name,
+        path=app.config.get('APPLICATION_ROOT', '/'),
+        domain=app.config.get('SESSION_COOKIE_DOMAIN', None),
+        samesite=app.config.get('SESSION_COOKIE_SAMESITE', 'Lax')
+    )
+
+    # 캐시 방지 헤더 주입
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 # ==============================================================================

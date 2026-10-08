@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>집감독 - 프로 라이브 야구 감독 매니지먼트</title>
     <link rel="stylesheet" href="style.css?v=20260929_01">
     <!-- Google Fonts for Professional Sports Platform -->
@@ -23,8 +26,21 @@
             window.CURRENT_SESSION_NICKNAME = {{ nickname | tojson if nickname else 'null' }};
             window.CURRENT_SESSION_TEAM = {{ favorite_team | tojson if favorite_team else 'null' }};
             if (!window.CURRENT_SESSION_USER) {
+                try {
+                    localStorage.removeItem('antigravity_user_id');
+                    localStorage.removeItem('antigravity_user_nickname');
+                    localStorage.removeItem('antigravity_favorite_team');
+                    localStorage.removeItem('antigravity_favorite_team_full');
+                    localStorage.removeItem('zipgamdok_active_match');
+                    sessionStorage.clear();
+                } catch(e) {}
                 window.location.replace('/login');
             }
+            window.addEventListener('pageshow', function (event) {
+                if (event.persisted) {
+                    window.location.reload();
+                }
+            });
             window.dismissSplash = function () {
                 try {
                     var splash = document.getElementById('splash-screen');
@@ -851,10 +867,24 @@
 
                 <!-- 로그아웃 기능 버튼 -->
                 <div style="margin-top: 14px; margin-bottom: 10px;">
-                    <a href="/logout" class="btn-settings-logout" id="btn-settings-logout">
+                    <a href="/logout" class="btn-settings-logout" id="btn-settings-logout" onclick="handleUserLogout(event)">
                         🚪 로그아웃
                     </a>
                 </div>
+                <script>
+                    function handleUserLogout(event) {
+                        if (event) event.preventDefault();
+                        try {
+                            localStorage.removeItem('antigravity_user_id');
+                            localStorage.removeItem('antigravity_user_nickname');
+                            localStorage.removeItem('antigravity_favorite_team');
+                            localStorage.removeItem('antigravity_favorite_team_full');
+                            localStorage.removeItem('zipgamdok_active_match');
+                            sessionStorage.clear();
+                        } catch (err) {}
+                        window.location.replace('/logout');
+                    }
+                </script>
 
                 <button type="button" class="btn-modal-cancel" onclick="closeSettingsModal()" style="width: 100%;">
                     닫기

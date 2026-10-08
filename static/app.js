@@ -800,8 +800,8 @@ function updateBottomNavVisibility() {
         teamSelectScreen.classList.contains('active') &&
         teamSelectScreen.style.display !== 'none';
 
-    // 로그인 여부 확인: 세션 사용자 변수 존재 또는 로컬스토리지 닉네임 정보
-    const isLoggedIn = Boolean(window.CURRENT_SESSION_USER || localStorage.getItem('antigravity_user_nickname'));
+    // 로그인 여부 확인: 서버가 제공한 세션 사용자 변수 존재 여부로 엄격히 판정
+    const isLoggedIn = Boolean(window.CURRENT_SESSION_USER);
 
     if (isLoggedIn && !isLoginActive && !isTeamSelectActive) {
         bottomNav.style.setProperty('display', 'flex', 'important');
