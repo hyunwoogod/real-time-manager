@@ -8,8 +8,9 @@ let crisisTimerInterval = null;
 let crisisTimeLeft = 15;
 
 let currentUserId = 1;
-let selectedTeamCode = '한화';
-let selectedTeamFull = '한화 이글스';
+// 응원 구단은 서버 세션(DB) 값만 사용 (기본 구단 없음)
+let selectedTeamCode = window.CURRENT_SESSION_TEAM || null;
+let selectedTeamFull = window.CURRENT_SESSION_TEAM_FULL || null;
 let userLoginProvider = 'General';
 let userNickname = '김명장 감독';
 let isIdentityVerified = false;
@@ -30,18 +31,19 @@ const teamColorMap = {
 };
 
 function normalizeTeamShort(name) {
-    if (!name) return '한화';
+    if (!name) return null;
     const str = String(name).trim();
     for (const code of Object.keys(teamFullMap)) {
         if (str.includes(code)) return code;
     }
-    return str;
+    return null;
 }
 
 function syncUserTeamUI(teamCode, teamFullName) {
-    teamCode = normalizeTeamShort(teamCode || selectedTeamCode || '한화');
+    teamCode = normalizeTeamShort(teamCode || selectedTeamCode);
+    if (!teamCode) return;
     selectedTeamCode = teamCode;
-    selectedTeamFull = teamFullName || teamFullMap[teamCode] || (teamCode + ' 야구단');
+    selectedTeamFull = teamFullName || teamFullMap[teamCode];
     
     try {
         localStorage.setItem('antigravity_favorite_team', selectedTeamCode);
@@ -287,7 +289,8 @@ function startLiveClock() {
         const dateEl = document.getElementById('lobby-date-text');
         const timeEl = document.getElementById('lobby-time-text');
 
-        if (dateEl) dateEl.innerText = '2026년 9월 29일 (화)';
+        const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+        if (dateEl) dateEl.innerText = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 (${weekdays[now.getDay()]})`;
         if (timeEl) timeEl.innerText = `${hours}:${minutes}:${seconds}`;
     }
 
@@ -327,7 +330,7 @@ function showInitialLandingScreen() {
 
         if (window.CURRENT_SESSION_TEAM) {
             selectedTeamCode = normalizeTeamShort(window.CURRENT_SESSION_TEAM);
-            selectedTeamFull = window.CURRENT_SESSION_TEAM_FULL || teamFullMap[selectedTeamCode] || (selectedTeamCode + ' 야구단');
+            selectedTeamFull = window.CURRENT_SESSION_TEAM_FULL || teamFullMap[selectedTeamCode];
             syncUserTeamUI(selectedTeamCode, selectedTeamFull);
         }
         try {
@@ -428,8 +431,8 @@ function openSettingsModal() {
 
     // 현재 사용자 및 구단 정보 동기화
     const nick = window.CURRENT_SESSION_NICKNAME || window.CURRENT_SESSION_USER || userNickname || localStorage.getItem('antigravity_user_nickname') || '김명장 감독';
-    const teamCode = normalizeTeamShort(selectedTeamCode || window.CURRENT_SESSION_TEAM || localStorage.getItem('antigravity_favorite_team') || '한화');
-    const teamFull = teamFullMap[teamCode] || (teamCode + ' 야구단');
+    const teamCode = normalizeTeamShort(selectedTeamCode || window.CURRENT_SESSION_TEAM);
+    const teamFull = teamFullMap[teamCode] || '응원 구단 미설정';
     const user = window.CURRENT_SESSION_USER || '';
 
     const nickEl = document.getElementById('settings-disp-nickname');
@@ -555,8 +558,8 @@ function submitLogin() {
         window.CURRENT_SESSION_USER = username || userNickname;
         window.CURRENT_SESSION_NICKNAME = nick;
         localStorage.setItem('antigravity_user_nickname', userNickname);
-        selectedTeamCode = normalizeTeamShort(user ? (user.favorite_team || user.team || '한화') : '한화');
-        selectedTeamFull = teamFullMap[selectedTeamCode] || (selectedTeamCode + ' 야구단');
+        if (user) selectedTeamCode = normalizeTeamShort(user.favorite_team || user.team) || selectedTeamCode;
+        selectedTeamFull = teamFullMap[selectedTeamCode] || selectedTeamFull;
         syncUserTeamUI(selectedTeamCode, selectedTeamFull);
 
         showToast(`🔑 환영합니다, ${userNickname}님!`);
@@ -594,7 +597,6 @@ function enterMainLobbyDirect(loginType = 'Existing', customNick = '김명장 �
     userNickname = customNick || '김명장 감독';
     window.CURRENT_SESSION_USER = userNickname;
     currentUserId = 1;
-    selectedTeamCode = selectedTeamCode || '롯데';
 
     // 1. Immediately dismiss all blocking overlays and modals
     hideOverlay('login-screen');
@@ -700,17 +702,36 @@ function getStartTimeByDayOfWeek(dayOfWeek) {
     return { timeStr: "18:30", isRest: false };
 }
 
-function updateLobbyBannerForUserTeam(allMatches) {
+function formatMatchDateLabel(dateStr) {
+    const parts = (dateStr || '').split('-');
+    return parts.length === 3 ? `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}` : '';
+}
+
+function updateLobbyBannerForUserTeam(allMatches, scheduleInfo = {}) {
     const tagEl = document.getElementById('banner-live-tag');
     const titleEl = document.getElementById('match-title');
     const countdownEl = document.getElementById('match-countdown');
     const btn = document.getElementById('btn-enter-ingame');
 
-    const teamCode = normalizeTeamShort(selectedTeamCode || '한화');
-    const teamFull = teamFullMap[teamCode] || (teamCode + ' 야구단');
+    const teamCode = normalizeTeamShort(selectedTeamCode);
+    const teamFull = teamFullMap[teamCode] || '응원 구단 미설정';
 
     // 동일 구단 매칭 원천 차단 필터
     allMatches = (allMatches || []).filter(m => m.is_rest_day === 1 || m.home_team !== m.away_team);
+
+    // 응원 구단 경기가 DB에 없음 (휴식일 아님)
+    if (allMatches.length === 0 && !scheduleInfo.is_rest_day) {
+        currentMatchIsLive = false;
+        if (tagEl) tagEl.innerText = `🔥 [MY TEAM] ${teamFull} 경기`;
+        if (titleEl) titleEl.innerText = `⚾ ${teamFull} 경기 일정 준비 중`;
+        if (countdownEl) countdownEl.innerText = `등록된 ${teamFull} 경기 일정이 없습니다.`;
+        if (btn) {
+            btn.disabled = true;
+            btn.className = 'btn-primary-glow btn-locked';
+            btn.innerText = `🔒 ${teamFull} 경기 일정 준비 중`;
+        }
+        return;
+    }
 
     if (!allMatches || allMatches.length === 0) {
         currentMatchIsLive = false;
@@ -762,8 +783,11 @@ function updateLobbyBannerForUserTeam(allMatches) {
     const awayFull = teamFullMap[normalizeTeamShort(userMatch.away_team)] || userMatch.away_team;
     const homeFull = teamFullMap[normalizeTeamShort(userMatch.home_team)] || userMatch.home_team;
 
+    // 오늘 경기가 아니라 가장 가까운 날짜의 경기라면 날짜를 함께 표시
+    const dateLabel = scheduleInfo.is_today === false ? `[${formatMatchDateLabel(userMatch.game_date)}] ` : '';
+
     if (tagEl) tagEl.innerText = homeAwayTag;
-    if (titleEl) titleEl.innerHTML = `⚾ ${getTeamLogoHtml(userMatch.away_team)} ${awayFull} vs ${getTeamLogoHtml(userMatch.home_team)} ${homeFull} [${userMatch.stadium}]`;
+    if (titleEl) titleEl.innerHTML = `⚾ ${dateLabel}${getTeamLogoHtml(userMatch.away_team)} ${awayFull} vs ${getTeamLogoHtml(userMatch.home_team)} ${homeFull} [${userMatch.stadium}]`;
     if (countdownEl) countdownEl.innerText = `KBO ${userMatch.start_time} 라이브 경기 개시 대기 중 (${matchCountdownTime}초... 수동 클릭으로 언제든 입장 가능)`;
     
     if (btn) {
@@ -806,8 +830,8 @@ function triggerLiveMatchReady() {
     const btn = document.getElementById('btn-enter-ingame');
     const countdownEl = document.getElementById('match-countdown');
     const tagEl = document.getElementById('banner-live-tag');
-    const teamCode = normalizeTeamShort(selectedTeamCode || '한화');
-    const teamFull = teamFullMap[teamCode] || (teamCode + ' 야구단');
+    const teamCode = normalizeTeamShort(selectedTeamCode);
+    const teamFull = teamFullMap[teamCode] || '응원 구단 미설정';
 
     if (btn) {
         btn.disabled = false;
@@ -836,8 +860,8 @@ function forceLiveMatchStart() {
                 !serverState.game_over &&
                 ((serverState.totalPitcherCount && serverState.totalPitcherCount > 0) || serverState.inning > 1 || serverState.score_home > 0 || serverState.score_away > 0 || serverState.balls > 0 || serverState.strikes > 0);
 
-            const teamCode = normalizeTeamShort(selectedTeamCode || '한화');
-            const teamFull = teamFullMap[teamCode] || (teamCode + ' 야구단');
+            const teamCode = normalizeTeamShort(selectedTeamCode);
+            const teamFull = teamFullMap[teamCode] || '응원 구단 미설정';
 
             if (isOngoing) {
                 currentGameState = serverState;
@@ -1229,7 +1253,7 @@ function loadLobbyData() {
             const serverTeam = data.favorite_team || (data.user_info && (data.user_info.favorite_team || data.user_info.team)) || window.CURRENT_SESSION_TEAM;
             if (serverTeam) {
                 const teamCode = normalizeTeamShort(serverTeam);
-                const teamFull = data.favorite_team_full || teamFullMap[teamCode] || (teamCode + ' 야구단');
+                const teamFull = data.favorite_team_full || teamFullMap[teamCode];
                 syncUserTeamUI(teamCode, teamFull);
             }
 
@@ -1243,9 +1267,7 @@ function loadLobbyData() {
                 if (data.today_schedule.game_date) {
                     currentSystemDate = data.today_schedule.game_date;
                 }
-                if (data.today_schedule.all_matches) {
-                    updateLobbyBannerForUserTeam(data.today_schedule.all_matches);
-                }
+                updateLobbyBannerForUserTeam(data.today_schedule.all_matches || [], data.today_schedule);
                 if (data.today_schedule.match) {
                     const match = data.today_schedule.match;
                     currentHomeTeam = match.home_team;

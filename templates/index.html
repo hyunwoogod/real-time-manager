@@ -303,7 +303,7 @@
                         {% if is_rest_day %}
                             ⚾ 오늘은 {{ favorite_team_full }} 경기가 없는 KBO 정기 휴식일입니다
                         {% elif match %}
-                            ⚾ {{ match_away_full }} vs {{ match_home_full }} [{{ match.stadium }}]
+                            ⚾ {% if not today_schedule.is_today %}[{{ match.game_date[5:].replace('-', '/') }}] {% endif %}{{ match_away_full }} vs {{ match_home_full }} [{{ match.stadium }}]
                         {% else %}
                             ⚾ {{ favorite_team_full }} 경기 일정 준비 중
                         {% endif %}
@@ -873,7 +873,7 @@
                     <div class="settings-user-details">
                         {% set disp_nick = nickname if nickname else username %}
                         <div class="settings-user-name" id="settings-disp-nickname">{{ disp_nick if disp_nick else '김명장 감독' }}</div>
-                        <div class="settings-user-team" id="settings-disp-team">⚾ {{ favorite_team_full if favorite_team_full else (favorite_team if favorite_team else '한화') }} 응원 구단</div>
+                        <div class="settings-user-team" id="settings-disp-team">⚾ {{ favorite_team_full }} 응원 구단</div>
                         {% if username %}
                         <div class="settings-user-id" id="settings-disp-id">계정: {{ username }}</div>
                         {% else %}
@@ -1072,7 +1072,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20260929_10"></script>
+    <script src="app.js?v=20261010_1"></script>
 </body>
 
 </html>

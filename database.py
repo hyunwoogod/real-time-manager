@@ -279,7 +279,10 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
         conn.close()
         return {"status": "error", "message": "이미 사용 중인 닉네임입니다."}
 
-    fav_team = favorite_team or team or '한화'
+    fav_team = normalize_team_name(favorite_team or team)
+    if not fav_team:
+        conn.close()
+        return {"status": "error", "message": "응원 구단을 선택해 주세요."}
     if not email:
         email = f"{username}@zipgamdok.com"
 
@@ -330,7 +333,7 @@ def get_user_by_id(user_id):
         return None
     user_dict = dict(row)
     if not user_dict.get('favorite_team'):
-        user_dict['favorite_team'] = user_dict.get('team') or '한화'
+        user_dict['favorite_team'] = user_dict.get('team')
     if not user_dict.get('nickname'):
         user_dict['nickname'] = user_dict.get('username') or '감독'
     return user_dict
@@ -353,7 +356,7 @@ def verify_session_user(user_id, username):
         return None
     user_dict = dict(row)
     if not user_dict.get('favorite_team'):
-        user_dict['favorite_team'] = user_dict.get('team') or '한화'
+        user_dict['favorite_team'] = user_dict.get('team')
     if not user_dict.get('nickname'):
         user_dict['nickname'] = user_dict.get('username') or '감독'
     return user_dict
@@ -441,12 +444,12 @@ def get_user_friends_ranking(user_id=1):
     me = dict(me_row)
     me['is_me'] = True
     me['name'] = f"{me['nickname']} (나)"
-    me['team'] = me.get('favorite_team') or me.get('team') or '한화'
+    me['team'] = me.get('favorite_team') or me.get('team')
     me['favorite_team'] = me['team']
 
     # 친구들의 정보
     cursor.execute('''
-        SELECT u.id, u.nickname as name, COALESCE(u.favorite_team, u.team, '한화') as team, COALESCE(u.favorite_team, u.team, '한화') as favorite_team, u.avatar, u.score, u.grade
+        SELECT u.id, u.nickname as name, COALESCE(u.favorite_team, u.team) as team, COALESCE(u.favorite_team, u.team) as favorite_team, u.avatar, u.score, u.grade
         FROM user_friends f
         JOIN users u ON f.friend_id = u.id
         WHERE f.user_id = ?
@@ -678,19 +681,28 @@ def get_schedules_by_date(date_str):
     return rows
 
 def normalize_team_name(name):
+    """KBO 10개 구단 단축명 또는 정식 명칭을 단축명으로 변환. 유효한 구단이 아니면 None"""
     if not name:
-        return '한화'
+        return None
     name = str(name).strip()
-    kbo_teams = ['삼성', '한화', 'KIA', 'LG', '두산', '롯데', 'SSG', 'KT', 'NC', '키움']
-    for t in kbo_teams:
-        if t in name:
-            return t
-    return name
+    kbo_teams = {
+        '삼성': '삼성 라이온즈', '한화': '한화 이글스', 'KIA': 'KIA 타이거즈', 'LG': 'LG 트윈스', '두산': '두산 베어스',
+        '롯데': '롯데 자이언츠', 'SSG': 'SSG 랜더스', 'KT': 'KT 위즈', 'NC': 'NC 다이노스', '키움': '키움 히어로즈'
+    }
+    for short, full in kbo_teams.items():
+        if name in (short, full):
+            return short
+    return None
 
-def get_today_schedule_info(date_str=None, team_name="한화"):
+def get_today_schedule_info(date_str=None, team_name=None):
+    """응원 구단 기준 로비 경기 정보. 오늘 경기가 없으면 해당 구단의 가장 가까운 경기를 반환하고,
+    is_today로 그 경기가 오늘 경기인지 알려준다. 다른 구단 경기로 대체하지 않는다."""
     if not date_str:
         date_str = datetime.date.today().strftime('%Y-%m-%d')
+    requested_date = date_str
     norm_team = normalize_team_name(team_name)
+    if not norm_team:
+        return {"game_date": date_str, "is_today": True, "is_rest_day": False, "start_time": None, "match": None, "all_matches": []}
     schedules = get_schedules_by_date(date_str)
     if not schedules:
         conn = get_db()
@@ -706,6 +718,7 @@ def get_today_schedule_info(date_str=None, team_name="한화"):
     if is_rest:
         return {
             "game_date": date_str,
+            "is_today": date_str == requested_date,
             "is_rest_day": True,
             "start_time": "휴식일",
             "match": None,
@@ -720,15 +733,15 @@ def get_today_schedule_info(date_str=None, team_name="한화"):
                 selected_match = s
                 break
 
-    # 해당 날짜에 유저 팀 경기가 없다면, DB에서 해당 팀의 가장 가까운 유효 경기 검색
+    # 해당 날짜에 유저 팀 경기가 없다면, 해당 팀의 다음 경기(없으면 가장 최근 경기) 검색
     if not selected_match:
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT * FROM kbo_schedules 
             WHERE (home_team = ? OR away_team = ?) AND is_rest_day = 0
-            ORDER BY ABS(JULIANDAY(game_date) - JULIANDAY(?)) LIMIT 1
-        """, (norm_team, norm_team, date_str))
+            ORDER BY (game_date < ?), ABS(JULIANDAY(game_date) - JULIANDAY(?)) LIMIT 1
+        """, (norm_team, norm_team, requested_date, requested_date))
         row = cursor.fetchone()
         conn.close()
         if row:
@@ -736,23 +749,22 @@ def get_today_schedule_info(date_str=None, team_name="한화"):
             date_str = selected_match['game_date']
             schedules = get_schedules_by_date(date_str)
 
-    if not selected_match and schedules:
-        selected_match = schedules[0]
-
+    # 응원 구단 경기가 DB에 하나도 없으면 다른 구단 경기로 대체하지 않고 '일정 없음'으로 반환
     if not selected_match:
-        fallback_away = "LG" if norm_team != "LG" else "한화"
         return {
-            "game_date": date_str,
+            "game_date": requested_date,
+            "is_today": True,
             "is_rest_day": False,
-            "start_time": "18:30",
-            "match": {"home_team": norm_team, "away_team": fallback_away, "stadium": "대전"},
+            "start_time": None,
+            "match": None,
             "all_matches": []
         }
 
     return {
         "game_date": date_str,
+        "is_today": date_str == requested_date,
         "is_rest_day": False,
-        "start_time": selected_match['start_time'] if selected_match else "18:30",
+        "start_time": selected_match['start_time'],
         "match": selected_match,
         "all_matches": schedules
     }
@@ -771,7 +783,7 @@ def get_all_users():
     for r in rows:
         item = dict(r)
         if not item.get('favorite_team'):
-            item['favorite_team'] = item.get('team') or '한화'
+            item['favorite_team'] = item.get('team')
         if not item.get('nickname'):
             item['nickname'] = item.get('username') or '감독'
         users.append(item)

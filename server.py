@@ -61,13 +61,34 @@ TEAM_COLORS = {
 }
 
 def normalize_team_short(name):
+    """'한화 이글스', '한화' 등을 KBO 10개 구단 단축명으로 변환. 유효한 구단이 아니면 None"""
     if not name:
-        return '한화'
+        return None
     name = str(name).strip()
-    for short in TEAM_FULL_NAMES:
-        if short in name:
+    for short, full in TEAM_FULL_NAMES.items():
+        if name in (short, full):
             return short
-    return name
+    return None
+
+
+def team_full_name(team):
+    return TEAM_FULL_NAMES.get(team, '응원 구단 미설정')
+
+
+def resolve_user_team(user):
+    """DB 사용자 레코드에서 응원 구단을 단축명('한화', 'KIA' 등)으로 정규화해 반환"""
+    if not user:
+        return normalize_team_short(None)
+    return normalize_team_short(user.get('favorite_team') or user.get('team'))
+
+
+def sync_session_from_user(user):
+    """DB 사용자 레코드 기준으로 세션의 사용자 정보를 갱신하는 유일한 진입점"""
+    username = user.get('username') or ''
+    session['user_id'] = user.get('id')
+    session['username'] = username
+    session['nickname'] = user.get('nickname') or (username + " 감독")
+    session['favorite_team'] = resolve_user_team(user)
 
 # DB 초기화 및 글로벌 게임 엔진 생성
 database.init_db()
@@ -130,8 +151,7 @@ def login_required(f):
             return resp
 
         # 최신 DB 정보로 세션 상태 갱신
-        session['nickname'] = db_user.get('nickname') or (username + " 감독")
-        session['favorite_team'] = db_user.get('favorite_team') or db_user.get('team') or '한화'
+        sync_session_from_user(db_user)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -214,8 +234,7 @@ def authentication_guard():
         return resp
 
     # 세션 정보 동기화
-    session['nickname'] = db_user.get('nickname') or (username + " 감독")
-    session['favorite_team'] = normalize_team_short(db_user.get('favorite_team') or db_user.get('team') or '한화')
+    sync_session_from_user(db_user)
     return None
 
 
@@ -241,21 +260,12 @@ def index():
     user_id = session.get('user_id')
     username = session.get('username')
 
-    db_user = database.get_user_by_id(user_id) if user_id else None
-    if db_user:
-        nickname = db_user.get('nickname') or session.get('nickname') or (username + " 감독")
-        raw_team = db_user.get('favorite_team') or db_user.get('team') or session.get('favorite_team') or '한화'
-    else:
-        nickname = session.get('nickname') or (username + " 감독")
-        raw_team = session.get('favorite_team', '한화')
-
-    favorite_team = normalize_team_short(raw_team)
-    favorite_team_full = TEAM_FULL_NAMES.get(favorite_team, favorite_team + ' 야구단')
+    # login_required가 방금 DB 기준으로 세션을 동기화했으므로 세션 값을 그대로 사용
+    nickname = session['nickname']
+    favorite_team = session['favorite_team']
+    favorite_team_full = team_full_name(favorite_team)
     favorite_team_logo = TEAM_LOGOS.get(favorite_team, '👑')
     favorite_team_color = TEAM_COLORS.get(favorite_team, '#10b981')
-
-    session['nickname'] = nickname
-    session['favorite_team'] = favorite_team
 
     today_str = datetime.date.today().strftime('%Y-%m-%d')
     today_schedule_info = database.get_today_schedule_info(today_str, favorite_team)
@@ -334,12 +344,12 @@ def signup():
             username = data.get('username', '').strip()
             password = data.get('password', '').strip()
             nickname = data.get('nickname', '').strip()
-            favorite_team = normalize_team_short(data.get('favorite_team') or data.get('team') or '한화')
+            favorite_team = normalize_team_short(data.get('favorite_team') or data.get('team'))
         else:
             username = request.form.get('username', '').strip()
             password = request.form.get('password', '').strip()
             nickname = request.form.get('nickname', '').strip()
-            favorite_team = normalize_team_short(request.form.get('favorite_team') or request.form.get('team') or '한화')
+            favorite_team = normalize_team_short(request.form.get('favorite_team') or request.form.get('team'))
 
         valid_u, msg_u = database.validate_username_format(username)
         if not valid_u:
@@ -361,6 +371,12 @@ def signup():
 
         if len(nickname) < 2 or len(nickname) > 10:
             error_msg = "감독 닉네임은 2자 이상 10자 이하로 입력해 주세요."
+            if request.is_json:
+                return jsonify({"status": "error", "message": error_msg}), 400
+            return render_template('signup.html', error=error_msg)
+
+        if not favorite_team:
+            error_msg = "응원 구단을 선택해 주세요."
             if request.is_json:
                 return jsonify({"status": "error", "message": error_msg}), 400
             return render_template('signup.html', error=error_msg)
@@ -422,16 +438,13 @@ def login():
         if res.get('status') == 'success':
             user_info = res.get('user', {})
             session.permanent = True
-            session['user_id'] = user_info.get('id', 1)
-            session['username'] = username
-            session['nickname'] = user_info.get('nickname') or (username + " 감독")
-            session['favorite_team'] = normalize_team_short(user_info.get('favorite_team') or user_info.get('team') or '한화')
+            sync_session_from_user(user_info)
 
             if request.is_json:
                 return jsonify({
                     "status": "success",
                     "user_id": session['user_id'],
-                    "username": username,
+                    "username": session['username'],
                     "nickname": session['nickname'],
                     "favorite_team": session['favorite_team'],
                     "user": user_info,
@@ -517,7 +530,7 @@ def admin_users():
     # 응원 구단 통계 집계
     team_counts = {}
     for u in users:
-        team = u.get('favorite_team') or '한화'
+        team = u.get('favorite_team') or '미설정'
         team_counts[team] = team_counts.get(team, 0) + 1
 
     popular_team = max(team_counts.items(), key=lambda x: x[1])[0] if team_counts else '없음 (0명)'
@@ -564,13 +577,13 @@ def api_session():
             session.modified = True
 
     logged_in = bool(db_user)
-    fav_team = normalize_team_short((db_user.get('favorite_team') or db_user.get('team') or '한화') if logged_in else '한화')
+    fav_team = resolve_user_team(db_user) if logged_in else None
     return jsonify({
         "logged_in": logged_in,
         "username": db_user['username'] if logged_in else None,
         "nickname": (db_user.get('nickname') or (db_user['username'] + " 감독")) if logged_in else None,
         "favorite_team": fav_team,
-        "favorite_team_full": TEAM_FULL_NAMES.get(fav_team, fav_team + ' 야구단'),
+        "favorite_team_full": team_full_name(fav_team) if logged_in else None,
         "user_id": db_user['id'] if logged_in else None
     })
 
@@ -619,9 +632,8 @@ def api_lobby():
     user_score = user_info['score'] if user_info and 'score' in user_info else engine.manager_score
     user_grade = user_info['grade'] if user_info and 'grade' in user_info else engine.manager_grade
     
-    raw_team = (user_info.get('favorite_team') or user_info.get('team')) if user_info else session.get('favorite_team')
-    user_team = normalize_team_short(raw_team or '한화')
-    team_full = TEAM_FULL_NAMES.get(user_team, user_team + ' 야구단')
+    user_team = resolve_user_team(user_info) if user_info else session.get('favorite_team')
+    team_full = team_full_name(user_team)
 
     today_str = datetime.date.today().strftime('%Y-%m-%d')
     today_info = database.get_today_schedule_info(today_str, user_team)
@@ -666,17 +678,16 @@ def api_register():
     email = data.get('email', '').strip()
     marketing_agreed = data.get('marketing_agreed', False)
     nickname = data.get('nickname', '김명장').strip()
-    favorite_team = normalize_team_short(data.get('favorite_team') or data.get('team', '한화'))
+    favorite_team = normalize_team_short(data.get('favorite_team') or data.get('team'))
 
     if not username or not password:
         return jsonify({"status": "error", "message": "필수 정보를 모두 입력해주세요."}), 400
+    if not favorite_team:
+        return jsonify({"status": "error", "message": "응원 구단을 선택해 주세요."}), 400
 
     res = database.register_user(username, password, email, marketing_agreed, nickname, team=favorite_team, favorite_team=favorite_team)
     if res.get('status') == 'success':
-        session['username'] = username
-        session['user_id'] = res.get('user', {}).get('id', 1)
-        session['nickname'] = nickname
-        session['favorite_team'] = favorite_team
+        sync_session_from_user(res.get('user', {}))
     return jsonify(res)
 
 
@@ -691,11 +702,7 @@ def api_login():
 
     res = database.login_user(username, password)
     if res.get('status') == 'success':
-        user_info = res.get('user', {})
-        session['username'] = username
-        session['user_id'] = user_info.get('id', 1)
-        session['nickname'] = user_info.get('nickname') or (username + " 감독")
-        session['favorite_team'] = normalize_team_short(user_info.get('favorite_team') or user_info.get('team') or '한화')
+        sync_session_from_user(res.get('user', {}))
     return jsonify(res)
 
 
