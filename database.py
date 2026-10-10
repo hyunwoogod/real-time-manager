@@ -4,6 +4,22 @@ import os
 import re
 import datetime
 import shutil
+from werkzeug.security import generate_password_hash, check_password_hash
+
+# ==============================================================================
+# DB 연결: DATABASE_URL 환경변수가 있으면 PostgreSQL(Supabase), 없으면 로컬 SQLite
+# ==============================================================================
+DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
+USE_POSTGRES = bool(DATABASE_URL)
+
+if USE_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
+    import psycopg2.pool
+    IntegrityError = psycopg2.IntegrityError
+else:
+    IntegrityError = sqlite3.IntegrityError
+
 
 def get_db_path():
     """Render 배포 환경(Persistent Disk) 및 로컬 환경에 최적화된 SQLite 데이터베이스 경로 확인"""
@@ -23,18 +39,91 @@ def get_db_path():
     # 3. 프로젝트 루트 기본 경로
     return os.path.abspath(os.path.join(os.path.dirname(__file__), 'baseball.db'))
 
-DB_PATH = get_db_path()
+DB_PATH = None if USE_POSTGRES else get_db_path()
 
 # Render 영구 디스크로 마운트된 경우, 저장소 내 기본 DB 파일이 있으면 최초 1회 자동 동기화 복사
 repo_db = os.path.abspath(os.path.join(os.path.dirname(__file__), 'baseball.db'))
-if DB_PATH != repo_db and not os.path.exists(DB_PATH) and os.path.exists(repo_db):
+if DB_PATH and DB_PATH != repo_db and not os.path.exists(DB_PATH) and os.path.exists(repo_db):
     try:
         shutil.copy2(repo_db, DB_PATH)
         print(f"⚾ [DB] Render 영구 디스크로 초기 DB 파일 동기화 완료: {DB_PATH}")
     except Exception as e:
         print(f"⚠️ [DB] 영구 디스크 복사 안내: {e}")
 
+
+def _to_pg_sql(sql):
+    """SQLite 자리표시자(?)를 psycopg2 자리표시자(%s)로 변환"""
+    return sql.replace('%', '%%').replace('?', '%s')
+
+
+class _PGCursor:
+    """sqlite3 커서와 같은 방식(execute/fetchone/fetchall, row['col'])으로 쓰기 위한 래퍼"""
+    def __init__(self, cur):
+        self._cur = cur
+
+    def execute(self, sql, params=()):
+        self._cur.execute(_to_pg_sql(sql), tuple(params))
+        return self
+
+    def executemany(self, sql, seq):
+        psycopg2.extras.execute_batch(self._cur, _to_pg_sql(sql), [tuple(p) for p in seq])
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+
+class _PGConnection:
+    def __init__(self, pool, conn):
+        self._pool = pool
+        self._conn = conn
+
+    def cursor(self):
+        return _PGCursor(self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
+
+    def execute(self, sql, params=()):
+        if sql.strip().upper().startswith('PRAGMA'):
+            return None
+        return self.cursor().execute(sql, params)
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        if self._conn is None:
+            return
+        try:
+            # 커밋하지 않은 작업이나 오류로 중단된 트랜잭션을 정리한 뒤 풀에 반납
+            self._conn.rollback()
+            self._pool.putconn(self._conn)
+        except Exception:
+            self._pool.putconn(self._conn, close=True)
+        self._conn = None
+
+
+_pg_pool = None
+
+def _get_pg_pool():
+    global _pg_pool
+    if _pg_pool is None:
+        _pg_pool = psycopg2.pool.ThreadedConnectionPool(
+            1, 5, DATABASE_URL,
+            connect_timeout=10, keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3
+        )
+    return _pg_pool
+
+
 def get_db():
+    if USE_POSTGRES:
+        pool = _get_pg_pool()
+        conn = pool.getconn()
+        if conn.closed:
+            pool.putconn(conn, close=True)
+            conn = pool.getconn()
+        return _PGConnection(pool, conn)
+
     conn = sqlite3.connect(DB_PATH, timeout=20.0)
     conn.row_factory = sqlite3.Row
     try:
@@ -44,12 +133,74 @@ def get_db():
         pass
     return conn
 
+
+def _ddl(sql):
+    """SQLite용 CREATE TABLE 문을 PostgreSQL 문법으로 변환"""
+    if not USE_POSTGRES:
+        return sql
+    return (sql.replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY')
+               .replace('DATETIME', 'TIMESTAMP')
+               .replace('BOOLEAN NOT NULL DEFAULT 0', 'INTEGER NOT NULL DEFAULT 0'))
+
+
+def _table_columns(cursor, table):
+    if USE_POSTGRES:
+        cursor.execute(
+            "SELECT column_name AS name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ?",
+            (table,)
+        )
+    else:
+        cursor.execute(f"PRAGMA table_info({table})")
+    return [row['name'] for row in cursor.fetchall()]
+
+
+def _insert_returning_id(cursor, sql, params):
+    if USE_POSTGRES:
+        cursor.execute(sql + " RETURNING id", params)
+        return cursor.fetchone()['id']
+    cursor.execute(sql, params)
+    return cursor.lastrowid
+
+
+# ==============================================================================
+# 비밀번호 해시 (평문 저장 금지)
+# ==============================================================================
+def hash_password(password):
+    return generate_password_hash(password, method='pbkdf2:sha256')
+
+
+def _is_password_hash(stored):
+    return bool(stored) and stored.startswith(('pbkdf2:', 'scrypt:'))
+
+
+def _public_user(row):
+    """DB 사용자 레코드에서 비밀번호를 제거하고 기본값을 보정한 dict 반환 (API 응답/세션용)"""
+    if not row:
+        return None
+    user = dict(row)
+    user.pop('password', None)
+    if not user.get('favorite_team'):
+        user['favorite_team'] = user.get('team')
+    if not user.get('nickname'):
+        user['nickname'] = user.get('username') or '감독'
+    if isinstance(user.get('created_at'), datetime.datetime):
+        user['created_at'] = user['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+    return user
+
+
 def init_db():
+    if USE_POSTGRES:
+        print("⚾ [DB] PostgreSQL(DATABASE_URL) 데이터베이스 사용")
+    else:
+        print(f"⚾ [DB] SQLite 데이터베이스 사용: {DB_PATH}")
+        if os.environ.get('RENDER'):
+            print("⚠️ [DB] Render에서 SQLite를 사용 중입니다. 재배포/재시작 시 회원 데이터가 사라질 수 있으니 DATABASE_URL을 설정하세요.")
+
     conn = get_db()
     cursor = conn.cursor()
 
     # 회원가입 유저 테이블
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -64,11 +215,10 @@ def init_db():
             marketing_agreed INTEGER NOT NULL DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    '''))
 
     # favorite_team 및 nickname 컬럼 존재 여부 확인 및 자동 마이그레이션
-    cursor.execute("PRAGMA table_info(users)")
-    user_cols = [row['name'] for row in cursor.fetchall()]
+    user_cols = _table_columns(cursor, 'users')
     if 'nickname' not in user_cols:
         cursor.execute("ALTER TABLE users ADD COLUMN nickname TEXT DEFAULT ''")
         cursor.execute("UPDATE users SET nickname = username WHERE nickname IS NULL OR nickname = ''")
@@ -79,7 +229,7 @@ def init_db():
         conn.commit()
 
     # 친구 관계 테이블
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS user_friends (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -87,10 +237,10 @@ def init_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_id, friend_id)
         )
-    ''')
+    '''))
 
     # 기존 유저 랭킹 테이블 (하위 호환성 유지)
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS user_rankings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -100,10 +250,10 @@ def init_db():
             grade TEXT NOT NULL,
             is_me BOOLEAN NOT NULL DEFAULT 0
         )
-    ''')
+    '''))
 
     # 감독 작전 로그
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS tactics_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             inning TEXT NOT NULL,
@@ -114,10 +264,10 @@ def init_db():
             commentary TEXT NOT NULL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    '''))
 
     # 2026 KBO 9~10월 공식 일정 테이블
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS kbo_schedules (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_date TEXT NOT NULL,
@@ -131,16 +281,21 @@ def init_db():
             status_text TEXT DEFAULT '경기전',
             is_rest_day INTEGER NOT NULL DEFAULT 0
         )
-    ''')
+    '''))
 
-    cursor.execute("PRAGMA table_info(kbo_schedules)")
-    cols = [col[1] for col in cursor.fetchall()]
+    cols = _table_columns(cursor, 'kbo_schedules')
     if "home_pitcher" not in cols:
         cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN home_pitcher TEXT DEFAULT ''")
     if "away_pitcher" not in cols:
         cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN away_pitcher TEXT DEFAULT ''")
     if "status_text" not in cols:
         cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN status_text TEXT DEFAULT '경기전'")
+
+    if USE_POSTGRES:
+        # Supabase는 public 스키마 테이블을 공개 키(publishable/anon key)로 REST API에 노출하므로
+        # RLS를 켜서 외부 접근을 차단 (서버는 테이블 소유자 계정으로 접속하므로 영향 없음)
+        for table in ('users', 'user_friends', 'user_rankings', 'tactics_history', 'kbo_schedules'):
+            cursor.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
 
     conn.commit()
     conn.close()
@@ -149,6 +304,8 @@ def init_db():
     seed_kbo_schedules()
     # 유저 테이블이 비어있을 경우 테스트용 기본 계정 자동 생성 안전장치
     ensure_default_test_user()
+    # 예전에 평문으로 저장된 비밀번호를 해시로 일괄 전환
+    migrate_plaintext_passwords()
 
 def ensure_default_test_user():
     """서버가 시작되거나 DB가 생성될 때 users 테이블이 비어있으면 테스트용 기본 계정 자동 생성"""
@@ -162,7 +319,7 @@ def ensure_default_test_user():
             VALUES (?, ?, ?, ?, ?, ?, '👑', 2000, 'B', 1)
         ''', (
             'coach1234', 
-            'Coach2026!', 
+            hash_password('Coach2026!'), 
             'coach1234@zipgamdok.com', 
             '김명장감독', 
             '한화', 
@@ -176,6 +333,18 @@ def ensure_default_test_user():
         print("⚾ [DB] 테스트용 기본 계정 자동 생성 완료 (아이디: coach1234 / 비밀번호: Coach2026!)")
     conn.close()
 
+def migrate_plaintext_passwords():
+    """평문 비밀번호가 남아 있으면 해시로 변환 (이미 해시된 값은 건드리지 않음)"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, password FROM users")
+    targets = [(hash_password(r['password']), r['id']) for r in cursor.fetchall() if not _is_password_hash(r['password'])]
+    if targets:
+        cursor.executemany("UPDATE users SET password = ? WHERE id = ?", targets)
+        conn.commit()
+        print(f"⚾ [DB] 평문 비밀번호 {len(targets)}건을 해시로 전환했습니다.")
+    conn.close()
+
 def seed_mock_users():
     """테스트용 가상 유저 시딩 (데이터 초기화 요청에 따라 비활성화)"""
     pass
@@ -184,14 +353,18 @@ def clear_all_users():
     """모든 회원 데이터 및 관련 친구 데이터 초기화 (완전 빈 상태로 초기화)"""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM user_friends")
-    cursor.execute("DELETE FROM users")
-    try:
-        cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('users', 'user_friends')")
-    except Exception:
-        pass
-    conn.commit()
-    cursor.execute("VACUUM")
+    if USE_POSTGRES:
+        cursor.execute("TRUNCATE user_friends, users RESTART IDENTITY")
+        conn.commit()
+    else:
+        cursor.execute("DELETE FROM user_friends")
+        cursor.execute("DELETE FROM users")
+        try:
+            cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('users', 'user_friends')")
+        except Exception:
+            pass
+        conn.commit()
+        cursor.execute("VACUUM")
     conn.close()
     return {"status": "success", "message": "모든 회원 데이터가 성공적으로 초기화되었습니다."}
 
@@ -287,23 +460,21 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
         email = f"{username}@zipgamdok.com"
 
     try:
-        cursor.execute('''
+        user_id = _insert_returning_id(cursor, '''
             INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed)
             VALUES (?, ?, ?, ?, ?, ?, '👑', 2000, 'B', ?)
-        ''', (username, password, email, raw_nick, fav_team, fav_team, 1 if marketing_agreed else 0))
+        ''', (username, hash_password(password), email, raw_nick, fav_team, fav_team, 1 if marketing_agreed else 0))
         conn.commit()
-        user_id = cursor.lastrowid
 
         cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        row = cursor.fetchone()
-        user = dict(row) if row else {}
+        user = _public_user(cursor.fetchone()) or {}
         try:
             conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
         except Exception:
             pass
         conn.close()
         return {"status": "success", "user": user}
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         conn.close()
         return {"status": "error", "message": "이미 사용 중인 아이디 또는 닉네임입니다."}
     except Exception as e:
@@ -315,11 +486,20 @@ def login_user(username, password):
     p = password.strip() if password else ''
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?) AND password = ?", (u, p))
+    cursor.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", (u,))
     row = cursor.fetchone()
+    stored = row['password'] if row else ''
+    if _is_password_hash(stored):
+        ok = check_password_hash(stored, p)
+    else:
+        # 평문으로 남아 있던 비밀번호는 로그인 성공 시 해시로 교체
+        ok = bool(row) and stored == p
+        if ok:
+            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hash_password(p), row['id']))
+            conn.commit()
     conn.close()
-    if row:
-        return {"status": "success", "user": dict(row)}
+    if ok:
+        return {"status": "success", "user": _public_user(row)}
     else:
         return {"status": "error", "message": "아이디 또는 비밀번호가 일치하지 않습니다."}
 
@@ -329,17 +509,10 @@ def get_user_by_id(user_id):
     cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    if not row:
-        return None
-    user_dict = dict(row)
-    if not user_dict.get('favorite_team'):
-        user_dict['favorite_team'] = user_dict.get('team')
-    if not user_dict.get('nickname'):
-        user_dict['nickname'] = user_dict.get('username') or '감독'
-    return user_dict
+    return _public_user(row)
 
 def verify_session_user(user_id, username):
-    """세션에 담긴 유저 ID 및 username이 실제 SQLite users 테이블에 유효하게 존재하는지 검증"""
+    """세션에 담긴 유저 ID 및 username이 실제 DB users 테이블에 유효하게 존재하는지 검증"""
     if not user_id or not username:
         return None
     try:
@@ -352,14 +525,7 @@ def verify_session_user(user_id, username):
     cursor.execute("SELECT * FROM users WHERE id = ? AND LOWER(username) = LOWER(?)", (u_id, str(username).strip()))
     row = cursor.fetchone()
     conn.close()
-    if not row:
-        return None
-    user_dict = dict(row)
-    if not user_dict.get('favorite_team'):
-        user_dict['favorite_team'] = user_dict.get('team')
-    if not user_dict.get('nickname'):
-        user_dict['nickname'] = user_dict.get('username') or '감독'
-    return user_dict
+    return _public_user(row)
 
 def update_user_profile(user_id, nickname, team):
     conn = get_db()
@@ -398,7 +564,7 @@ def search_users_by_nickname(query, current_user_id=1):
     cursor.execute('''
         SELECT id, nickname, team, avatar, score, grade
         FROM users
-        WHERE nickname LIKE ? AND id != ?
+        WHERE LOWER(nickname) LIKE LOWER(?) AND id != ?
         ORDER BY score DESC
         LIMIT 20
     ''', (search_term, current_user_id))
@@ -424,7 +590,7 @@ def add_friend(user_id, friend_id):
         conn.commit()
         conn.close()
         return {"status": "success", "message": "친구로 등록되었습니다."}
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         conn.close()
         return {"status": "error", "message": "이미 등록된 친구입니다."}
 
@@ -441,7 +607,7 @@ def get_user_friends_ranking(user_id=1):
         cursor.execute("SELECT * FROM users ORDER BY id ASC LIMIT 1")
         me_row = cursor.fetchone()
 
-    me = dict(me_row)
+    me = _public_user(me_row)
     me['is_me'] = True
     me['name'] = f"{me['nickname']} (나)"
     me['team'] = me.get('favorite_team') or me.get('team')
@@ -483,6 +649,9 @@ def get_tactics_history():
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM tactics_history ORDER BY id DESC LIMIT 10")
     rows = [dict(r) for r in cursor.fetchall()]
+    for r in rows:
+        if isinstance(r.get('timestamp'), datetime.datetime):
+            r['timestamp'] = r['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
     conn.close()
     return rows
 
@@ -646,6 +815,7 @@ def seed_kbo_schedules():
         }
     }
 
+    rows = []
     for date, dow, stime, home, away, stadium, is_rest in raw_schedules:
         if is_rest == 1:
             hp = ""
@@ -655,11 +825,12 @@ def seed_kbo_schedules():
             st = "경기전"
             hp = DAILY_PITCHERS.get(date, {}).get(home, "")
             ap = DAILY_PITCHERS.get(date, {}).get(away, "")
+        rows.append((date, dow, stime, home, away, stadium, hp, ap, st, is_rest))
 
-        cursor.execute('''
-            INSERT INTO kbo_schedules (game_date, day_of_week, start_time, home_team, away_team, stadium, home_pitcher, away_pitcher, status_text, is_rest_day)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (date, dow, stime, home, away, stadium, hp, ap, st, is_rest))
+    cursor.executemany('''
+        INSERT INTO kbo_schedules (game_date, day_of_week, start_time, home_team, away_team, stadium, home_pitcher, away_pitcher, status_text, is_rest_day)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', rows)
 
     conn.commit()
     conn.close()
@@ -694,6 +865,9 @@ def normalize_team_name(name):
             return short
     return None
 
+def _days_apart(a, b):
+    return abs((datetime.date.fromisoformat(a) - datetime.date.fromisoformat(b)).days)
+
 def get_today_schedule_info(date_str=None, team_name=None):
     """응원 구단 기준 로비 경기 정보. 오늘 경기가 없으면 해당 구단의 가장 가까운 경기를 반환하고,
     is_today로 그 경기가 오늘 경기인지 알려준다. 다른 구단 경기로 대체하지 않는다."""
@@ -707,11 +881,11 @@ def get_today_schedule_info(date_str=None, team_name=None):
     if not schedules:
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT game_date FROM kbo_schedules ORDER BY ABS(JULIANDAY(game_date) - JULIANDAY(?)) LIMIT 1", (date_str,))
-        row = cursor.fetchone()
+        cursor.execute("SELECT DISTINCT game_date FROM kbo_schedules")
+        all_dates = [r['game_date'] for r in cursor.fetchall() if r['game_date']]
         conn.close()
-        if row and row['game_date']:
-            date_str = row['game_date']
+        if all_dates:
+            date_str = min(all_dates, key=lambda d: (_days_apart(d, requested_date), d))
             schedules = get_schedules_by_date(date_str)
     
     is_rest = any(s['is_rest_day'] == 1 for s in schedules) if schedules else False
@@ -740,12 +914,14 @@ def get_today_schedule_info(date_str=None, team_name=None):
         cursor.execute("""
             SELECT * FROM kbo_schedules 
             WHERE (home_team = ? OR away_team = ?) AND is_rest_day = 0
-            ORDER BY (game_date < ?), ABS(JULIANDAY(game_date) - JULIANDAY(?)) LIMIT 1
-        """, (norm_team, norm_team, requested_date, requested_date))
-        row = cursor.fetchone()
+            ORDER BY game_date ASC, id ASC
+        """, (norm_team, norm_team))
+        team_games = [dict(r) for r in cursor.fetchall()]
         conn.close()
+        upcoming = [g for g in team_games if g['game_date'] >= requested_date]
+        row = upcoming[0] if upcoming else (team_games[-1] if team_games else None)
         if row:
-            selected_match = dict(row)
+            selected_match = row
             date_str = selected_match['game_date']
             schedules = get_schedules_by_date(date_str)
 
@@ -781,12 +957,7 @@ def get_all_users():
     rows = cursor.fetchall()
     users = []
     for r in rows:
-        item = dict(r)
-        if not item.get('favorite_team'):
-            item['favorite_team'] = item.get('team')
-        if not item.get('nickname'):
-            item['nickname'] = item.get('username') or '감독'
-        users.append(item)
+        users.append(_public_user(r))
     conn.close()
     return users
 
