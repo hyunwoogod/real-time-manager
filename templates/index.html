@@ -8,7 +8,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>집감독 - 프로 라이브 야구 감독 매니지먼트</title>
-    <link rel="stylesheet" href="style.css?v=20261010_1">
+    <link rel="stylesheet" href="style.css?v=20261010_3">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -387,71 +387,34 @@
                 </div>
 
                 <div class="kbo-standings-container">
-                    <!-- Season Selector & Year Nav Header -->
-                    <div class="standings-header-row">
-                        <select class="season-select-btn">
-                            <option value="regular">정규시즌</option>
-                            <option value="ps">포스트시즌</option>
-                        </select>
-
-                        <div class="year-navigator">
-                            <button class="year-nav-btn" onclick="shiftStandingsYear(-1)">‹</button>
-                            <span id="standings-year-title" class="year-title">2026</span>
-                            <button class="year-nav-btn" onclick="shiftStandingsYear(1)">›</button>
+                    <!-- 연도 (가운데) -->
+                    <div class="st-year-nav">
+                        <button class="st-year-btn" id="st-year-prev" onclick="shiftStandingsYear(-1)" aria-label="이전 시즌">‹</button>
+                        <div class="st-year-center">
+                            <span id="standings-year-title" class="st-year">2026</span>
+                            <span class="st-year-sub">KBO 정규시즌 팀 순위</span>
                         </div>
-
-                        <span class="standings-info-btn">순위 안내 ⓘ</span>
+                        <button class="st-year-btn" id="st-year-next" onclick="shiftStandingsYear(1)" aria-label="다음 시즌">›</button>
                     </div>
 
-                    <!-- Category Sub Tabs Bar -->
-                    <div class="standings-sub-tabs">
-                        <button class="standings-tab-btn active" onclick="switchStandingsSubTab('team_rank', this)">팀
-                            순위</button>
-                        <button class="standings-tab-btn" onclick="switchStandingsSubTab('team_stats', this)">팀
-                            기록</button>
-                        <button class="standings-tab-btn" onclick="switchStandingsSubTab('batter_stats', this)">타자
-                            기록</button>
-                        <button class="standings-tab-btn" onclick="switchStandingsSubTab('pitcher_stats', this)">투수
-                            기록</button>
+                    <!-- 팀 순위 (가로 스크롤 없이 한 화면) -->
+                    <div class="st-list">
+                        <div class="st-row st-head">
+                            <span class="st-rank">순위</span>
+                            <span class="st-team">팀</span>
+                            <span class="st-num">승률</span>
+                            <span class="st-num">게임차</span>
+                            <span class="st-num">연속</span>
+                        </div>
+                        <div id="kbo-standings-tbody"></div>
                     </div>
 
-                    <!-- Section Title -->
-                    <div class="standings-section-title">
-                        팀 순위 <span style="font-size:0.85rem; color:#94a3b8; font-weight:normal;">ⓘ</span>
-                    </div>
-
-                    <!-- Table Responsive Container -->
-                    <div class="standings-table-wrap">
-                        <table class="kbo-standings-table">
-                            <thead>
-                                <tr>
-                                    <th class="col-rank">순위</th>
-                                    <th style="text-align:left; padding-left:12px;">팀명</th>
-                                    <th class="highlight">승률</th>
-                                    <th>게임차</th>
-                                    <th>경기</th>
-                                    <th>승</th>
-                                    <th>패</th>
-                                    <th>무</th>
-                                    <th>연속</th>
-                                    <th>타율</th>
-                                    <th>평균자책</th>
-                                    <th>최근 5경기</th>
-                                    <th>다음 경기</th>
-                                </tr>
-                            </thead>
-                            <tbody id="kbo-standings-tbody">
-                                <!-- Dynamic Rendered via JS -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Postseason Color Guide Legend -->
-                    <div class="ps-legend-bar">
-                        <span class="ps-legend-item ps-ks"><span class="color-box"></span> 한국시리즈 진출</span>
-                        <span class="ps-legend-item ps-po"><span class="color-box"></span> 플레이오프 진출</span>
-                        <span class="ps-legend-item ps-jpo"><span class="color-box"></span> 준플레이오프 진출</span>
-                        <span class="ps-legend-item ps-wc"><span class="color-box"></span> 와일드카드 결정전 진출</span>
+                    <!-- 가을야구 진출 표시 -->
+                    <div class="st-legend">
+                        <span><i class="st-dot ps-ks"></i>한국시리즈</span>
+                        <span><i class="st-dot ps-po"></i>플레이오프</span>
+                        <span><i class="st-dot ps-jpo"></i>준플레이오프</span>
+                        <span><i class="st-dot ps-wc"></i>와일드카드</span>
                     </div>
                 </div>
             </div>
@@ -1082,7 +1045,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261010_4"></script>
+    <script src="app.js?v=20261010_6"></script>
 </body>
 
 </html>

@@ -1060,67 +1060,49 @@ const kboTeamStandingsData = [
     { rank: 10, team: '키움', winRate: '0.355', gb: '38.5', games: 142, wins: 49, losses: 89, draws: 4, streak: '1패', avg: '0.244', era: '5.28', recent: ['패','패','승','승','패'], next: 'KT', psType: '' }
 ];
 
-let standingsYear = 2026;
+const STANDINGS_DATA_YEAR = 2026;  // 순위 데이터가 있는 시즌
+let standingsYear = STANDINGS_DATA_YEAR;
 
 function shiftStandingsYear(delta) {
-    standingsYear += delta;
-    const titleEl = document.getElementById('standings-year-title');
-    if (titleEl) titleEl.innerText = standingsYear;
-}
-
-function switchStandingsSubTab(subTabKey, btnEl) {
-    document.querySelectorAll('.standings-tab-btn').forEach(b => b.classList.remove('active'));
-    if (btnEl) btnEl.classList.add('active');
-    if (subTabKey === 'team_rank') {
-        renderKboStandingsTable();
-    } else {
-        showToast('ℹ️ 해당 카테고리 세부 데이터 준비 중입니다.');
-    }
+    const next = standingsYear + delta;
+    if (next > STANDINGS_DATA_YEAR) return;  // 아직 열리지 않은 시즌
+    standingsYear = next;
+    renderKboStandingsTable();
 }
 
 function renderKboStandingsTable() {
-    const tbody = document.getElementById('kbo-standings-tbody');
-    if (!tbody) return;
+    const list = document.getElementById('kbo-standings-tbody');
+    if (!list) return;
 
-    tbody.innerHTML = kboTeamStandingsData.map(row => {
-        const psClass = row.psType ? `ps-${row.psType}` : '';
-        const logoHtml = getTeamLogoHtml(row.team, 'standings-team-logo');
-        const nextLogoHtml = getTeamLogoHtml(row.next, 'standings-next-team-logo');
+    const titleEl = document.getElementById('standings-year-title');
+    if (titleEl) titleEl.innerText = standingsYear;
+    const nextBtn = document.getElementById('st-year-next');
+    if (nextBtn) nextBtn.disabled = standingsYear >= STANDINGS_DATA_YEAR;
 
-        const recentBadgesHtml = row.recent.map((res, idx) => {
-            const badgeClass = res === '승' ? 'badge-w' : (res === '패' ? 'badge-l' : 'badge-d');
-            if (idx === row.recent.length - 1) {
-                return `<span class="recent-last-item"><span class="badge-result ${badgeClass}">${res}</span><span class="arr">∨</span></span>`;
-            }
-            return `<span class="badge-result ${badgeClass}">${res}</span>`;
-        }).join('');
+    if (standingsYear !== STANDINGS_DATA_YEAR) {
+        list.innerHTML = `<div class="st-empty">${standingsYear} 시즌 순위 기록은 준비 중이에요.</div>`;
+        return;
+    }
 
+    const myTeam = normalizeTeamShort(selectedTeamCode);
+    list.innerHTML = kboTeamStandingsData.map(row => {
+        const isMine = row.team === myTeam;
+        const color = teamColorMap[row.team] || '#64748b';
+        const streakClass = row.streak.includes('승') ? 'win' : (row.streak.includes('패') ? 'lose' : '');
         return `
-            <tr class="${psClass}">
-                <td class="col-rank">${row.rank}</td>
-                <td style="text-align:left;">
-                    <div class="col-team-wrap">
-                        ${logoHtml}
-                        <span>${row.team}</span>
-                        <span class="chevron">›</span>
-                    </div>
-                </td>
-                <td class="winrate-val">${row.winRate}</td>
-                <td>${row.gb}</td>
-                <td>${row.games}</td>
-                <td>${row.wins}</td>
-                <td>${row.losses}</td>
-                <td>${row.draws}</td>
-                <td>${row.streak}</td>
-                <td>${row.avg}</td>
-                <td>${row.era}</td>
-                <td>
-                    <div class="recent-badges-wrap">
-                        ${recentBadgesHtml}
-                    </div>
-                </td>
-                <td>${nextLogoHtml}</td>
-            </tr>
+            <div class="st-row ${row.psType ? 'ps-' + row.psType : ''} ${isMine ? 'is-mine' : ''}" style="--team-color: ${color};">
+                <span class="st-rank">${row.rank}</span>
+                <span class="st-team">
+                    <span class="st-logo">${teamLogos[row.team] || '⚾'}</span>
+                    <span class="st-team-text">
+                        <strong>${row.team}${isMine ? '<em class="st-my">MY</em>' : ''}</strong>
+                        <small>${row.wins}승 ${row.losses}패${row.draws ? ' ' + row.draws + '무' : ''}</small>
+                    </span>
+                </span>
+                <span class="st-num st-winrate">${row.winRate.replace(/^0/, '')}</span>
+                <span class="st-num">${row.gb === '0.0' ? '-' : row.gb}</span>
+                <span class="st-num"><span class="st-streak ${streakClass}">${row.streak}</span></span>
+            </div>
         `;
     }).join('');
 }
