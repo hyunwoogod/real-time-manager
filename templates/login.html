@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>로그인 - 집감독 실시간 야구 매니지먼트</title>
+    <title>로그인 - 방구석 감독 실시간 야구 매니지먼트</title>
+{% include '_favicon.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="/auth.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div class="auth-hero"><img src="/brand/hero.png?v=7" alt="방구석 감독 - 내 야구전략" width="440" height="440"></div>
     <div class="auth-container">
-        <div class="auth-logo auth-logo-emblem">{% set logo_size = 72 %}{% include '_logo.html' %}</div>
-        <h1 class="auth-title">집감독</h1>
-        <p class="auth-subtitle">실시간 라이브 야구 감독 매니지먼트</p>
+        <h1 class="auth-title sr-only">방구석 감독</h1>
         <div class="auth-card-header">로그인 · 회원가입</div>
         {% if error %}
         <div class="error-alert">

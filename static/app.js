@@ -1,5 +1,5 @@
 /* ==========================================================================
-   집감독 - Client Application Script (Master User Flow & Auth / Friend Hub)
+   방구석 감독 - Client Application Script (Master User Flow & Auth / Friend Hub)
    ========================================================================== */
 
 let sseSource = null;
@@ -385,7 +385,7 @@ function runSplashScreen() {
     let progress = 0;
     let msgIdx = 0;
 
-    // 30ms마다 1%씩 → 약 3초 동안 진행
+    // 45ms마다 1%씩 → 약 4.5초 동안 진행
     window._splashTimer = setInterval(() => {
         progress = Math.min(100, progress + 1);
         if (fill) fill.style.width = `${progress}%`;
@@ -401,12 +401,12 @@ function runSplashScreen() {
         if (progress >= 100) {
             dismissSplash();
         }
-    }, 30);
+    }, 45);
 
-    // Safety Timeout: 환영 화면은 최대 3.5초 (멈추지 않도록 보장)
+    // Safety Timeout: 환영 화면은 최대 5초 (멈추지 않도록 보장)
     window._splashSafetyTimer = setTimeout(() => {
         dismissSplash();
-    }, 3500);
+    }, 5000);
 }
 
 // Modal Handlers for Auth
@@ -1019,6 +1019,9 @@ function switchLobbyTab(tabName, btnEl) {
     if (targetPane) {
         targetPane.classList.add('active');
     }
+    // 탭을 바꾸면 항상 맨 위부터 보이도록 (이전 탭의 스크롤 위치가 남지 않게)
+    const pregameView = document.getElementById('pregame-view');
+    if (pregameView) pregameView.scrollTop = 0;
 
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
         btn.classList.remove('active');
@@ -2440,7 +2443,7 @@ function renderPostGameSummary(s) {
         "C": "🍿 C급 직관 마니아",
         "F": "🐣 F급 초보 해설가"
     };
-    document.getElementById('post-grade-title').innerText = titles[s.manager_grade] || "집감독 리포트";
+    document.getElementById('post-grade-title').innerText = titles[s.manager_grade] || "방구석 감독 리포트";
 }
 
 function resetMatchAndLobby() {

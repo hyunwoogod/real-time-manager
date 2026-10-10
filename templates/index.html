@@ -7,8 +7,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>집감독 - 프로 라이브 야구 감독 매니지먼트</title>
-    <link rel="stylesheet" href="style.css?v=20261011_5">
+    <title>방구석 감독 - 프로 라이브 야구 감독 매니지먼트</title>
+{% include '_favicon.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=20261011_22">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -80,18 +82,16 @@
                 } catch (e) { }
             };
 
-            // Mandatory Inline Safety Fallback Timeout (환영 화면 최대 4초)
-            setTimeout(function () { window.dismissSplash(); }, 4000);
+            // Mandatory Inline Safety Fallback Timeout (환영 화면 최대 5.5초)
+            setTimeout(function () { window.dismissSplash(); }, 5500);
         </script>
         <div id="splash-screen" class="splash-overlay active" onclick="window.dismissSplash()"
             ontouchstart="window.dismissSplash()" onpointerdown="window.dismissSplash()">
             <div class="splash-content ballpark-splash" style="--team-color: {{ favorite_team_color or '#10b981' }};">
-                <div class="zg-logo-wrap">
-                    {% set logo_size = 104 %}
-                    {% include '_logo.html' %}
-                </div>
-                <h1 class="zg-wordmark">집감독</h1>
-                <p class="zg-tagline">ZIP GAMDOK · BASEBALL MANAGER</p>
+                <h1 class="zg-wordmark sr-only">방구석 감독</h1>
+                <img class="splash-hero" src="/brand/hero.png?v=7" alt="" width="420" height="420">
+                <div class="splash-sheet">
+                <p class="zg-tagline">내 방에서 내리는 야구 작전</p>
 
                 {% if nickname %}
                 {% set splash_nick = nickname if nickname.endswith('감독') else nickname + ' 감독' %}
@@ -115,11 +115,15 @@
                         <span class="base-label">{{ label }}</span>
                     </div>
                     {% endfor %}
-                    <div id="splash-runner" class="basepath-runner" style="left: 0%;">
-                        <svg viewBox="0 0 24 24"><circle cx="15" cy="4.5" r="3" class="helmet"/><path d="M14 8.5 11 15M13 10.5l4 2.5M13 10.5 9 9.5M11 15l4 5M11 15l-4.5 3.5"/></svg>
+                    <!-- 달리는 마스코트: 얼굴이 통통 튀며 베이스를 돎 + 흙먼지 -->
+                    <div id="splash-runner" class="basepath-runner mascot-runner" style="left: 0%;">
+                        <span class="runner-dust"></span>
+                        <span class="runner-shadow"></span>
+                        <span class="runner-head"><img src="/brand/mascot-head.png?v=6" alt="" width="46" height="46"></span>
                     </div>
                 </div>
                 <div class="loader-status" id="loader-status-text">타석에 들어서는 중...</div>
+                </div>
             </div>
         </div>
 
@@ -132,12 +136,12 @@
                 <div class="brand-badge-glow">PRO BASEBALL PLATFORM</div>
                 <div class="landing-logo-wrapper">
                     <span class="landing-ball-icon">⚾</span>
-                    <h1 class="landing-brand-title">집감독</h1>
+                    <h1 class="landing-brand-title">방구석 감독</h1>
                     <p class="landing-brand-subtitle">실시간 라이브 야구 감독 매니지먼트 플랫폼</p>
                 </div>
 
                 <div class="login-prompt-banner" style="margin: 10px 0 16px 0; padding: 12px 14px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; color: #bae6fd; font-size: 0.92rem; font-weight: 600; line-height: 1.4;">
-                    ⚾ 집감독 서비스를 이용하시려면 로그인이 필요합니다.
+                    ⚾ 방구석 감독 서비스를 이용하시려면 로그인이 필요합니다.
                 </div>
 
                 <!-- 2 Main Action Buttons Only -->
@@ -457,8 +461,10 @@
                         <!-- Dynamic Ranking List Cards Rendered via JS -->
                     </div>
                 </div>
-                <!-- TAB 5: PANE MY RECORDS (나의 기록 탭) -->
-                <div id="pane-my-records" class="lobby-tab-pane">
+            </div>
+
+            <!-- TAB 5: PANE MY RECORDS (내 기록 탭) — 하단 바의 switchLobbyTab('my_records')와 이름을 맞춤 -->
+                <div id="pane-my_records" class="lobby-tab-pane">
                     <div class="records-hub-card">
                         <div class="card-header">
                             <div>
@@ -661,7 +667,7 @@
                     <div class="feed-header">
                         <div class="feed-title-box">
                             <span class="live-indicator-dot"></span>
-                            <span class="feed-title">집감독 실시간 라이브 분석 스트림</span>
+                            <span class="feed-title">방구석 감독 실시간 라이브 분석 스트림</span>
                         </div>
                         <button class="btn-sm btn-pitch-step" id="btn-pitch-step" onclick="handleNextPitch()">⏩ 1구
                             투구</button>
@@ -714,7 +720,7 @@
             <div class="settlement-card">
                 <div class="trophy-header">
                     <span class="trophy-icon">🏆</span>
-                    <h2>집감독 정산 리포트</h2>
+                    <h2>방구석 감독 정산 리포트</h2>
                     <p class="subtitle">오늘의 경기 감독 매니지먼트 종합 성적표</p>
                 </div>
 
@@ -756,7 +762,7 @@
         <div id="login-modal" class="modal-overlay">
             <div class="modal-card auth-modal-card">
                 <div class="modal-header">
-                    <h3>집감독 로그인</h3>
+                    <h3>방구석 감독 로그인</h3>
                     <button type="button" class="btn-close-modal" onclick="closeLoginModal()">✕</button>
                 </div>
                 <form onsubmit="event.preventDefault(); submitLogin();" class="auth-form">
@@ -976,7 +982,7 @@
                 <h3>💬 카카오톡 명장 공유하기</h3>
                 <p>친구들과 실시간 감독 점수와 명장 등급을 겨뤄보세요!</p>
                 <div class="share-preview-box">
-                    <span class="preview-title">⚾ 집감독 감독 성적 리포트</span>
+                    <span class="preview-title">⚾ 방구석 감독 성적 리포트</span>
                     <p class="preview-body">오늘 나의 감독 점수: 2,000 pts (B급 명장)! 당신의 선택은?</p>
                 </div>
                 <div class="share-modal-btns">
@@ -1069,7 +1075,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261011_5"></script>
+    <script src="app.js?v=20261011_7"></script>
 </body>
 
 </html>

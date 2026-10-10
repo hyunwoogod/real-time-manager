@@ -359,7 +359,7 @@ def api_check_nickname():
     return jsonify({"status": "success", "message": "사용 가능한 닉네임입니다.", "available": True})
 
 
-SOCIAL_ONLY_MSG = "집감독은 카카오·네이버·구글 계정으로만 로그인할 수 있어요."
+SOCIAL_ONLY_MSG = "방구석 감독은 카카오·네이버·구글 계정으로만 로그인할 수 있어요."
 
 
 @app.route('/signup', methods=['GET', 'POST'])

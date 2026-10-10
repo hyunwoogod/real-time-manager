@@ -1,5 +1,5 @@
 /* ==========================================================================
-   집감독 - Professional Sports Analytics Dark Theme Styling
+   방구석 감독 - Professional Sports Analytics Dark Theme Styling
    ========================================================================== */
 
 :root {
@@ -4337,10 +4337,11 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     text-shadow: 0 2px 0 #047857, 0 0 24px rgba(16, 185, 129, 0.45);
 }
 .zg-tagline {
+    margin-top: 14px;
     font-family: var(--font-body);
-    font-size: 0.66rem;
+    font-size: 0.82rem;
     font-weight: 700;
-    letter-spacing: 3px;
+    letter-spacing: 1px;
     color: #6ee7b7;
     opacity: 0.85;
 }
@@ -4412,7 +4413,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     border-radius: 3px;
     background: linear-gradient(90deg, #10b981, #6ee7b7);
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
-    transition: width 0.03s linear;
+    transition: width 0.045s linear;
 }
 .basepath-base {
     position: absolute;
@@ -4456,7 +4457,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     width: 34px;
     height: 34px;
     transform: translateX(-50%);
-    transition: left 0.03s linear;
+    transition: left 0.045s linear;
     animation: runnerBob 0.28s ease-in-out infinite alternate;
     filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.6));
 }
@@ -4706,3 +4707,375 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     background: rgba(239, 68, 68, 0.15);
     color: #f87171;
 }
+
+/* 로고 이미지 + 화면 읽기 전용 텍스트 */
+.zg-logo-img {
+    display: block;
+    border-radius: 22%;
+    object-fit: cover;
+}
+.sr-only {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ==========================================================================
+   시작 화면: 로고 그림을 화면 가득 배경으로 + 아래쪽 흰 카툰 카드
+   ========================================================================== */
+#splash-screen {
+    background: linear-gradient(180deg, #79cef6 0%, #79cef6 45%, #5aa9e0 100%) !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+#splash-screen .ballpark-splash {
+    position: relative;
+    z-index: 1;
+    max-width: 440px;
+    padding: 0 16px 20px;
+}
+.splash-hero {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-bottom: -34px;
+    /* 흰 테두리 없이 하늘색 배경에 스며들도록 가장자리를 부드럽게 */
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 4%, #000 82%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 4%, #000 82%, transparent 100%);
+    mask-composite: intersect;
+    animation: zgLogoIn 0.5s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+.splash-sheet { position: relative; z-index: 1; }
+.splash-sheet {
+    width: 100%;
+    background: #ffffff;
+    border: 3px solid #1f4e7a;
+    border-radius: 26px;
+    box-shadow: 0 8px 0 #1f4e7a, 0 18px 30px rgba(22, 58, 92, 0.3);
+    padding: 16px 16px 18px;
+    animation: splashWelcomeIn 0.45s ease-out both;
+}
+#splash-screen .zg-tagline {
+    margin: 0 0 10px;
+    font-family: 'Black Han Sans', var(--font-body);
+    font-size: 1.05rem;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    color: #e23b3b;
+    opacity: 1;
+}
+#splash-screen .splash-welcome {
+    margin: 0 0 22px;
+    background: #f4faff;
+    border: 2px solid #9cc9ea;
+    border-left: 6px solid var(--team-color);
+    animation: none;
+}
+#splash-screen .splash-welcome-text strong {
+    font-family: 'Black Han Sans', var(--font-body);
+    font-weight: 400;
+    font-size: 1.15rem;
+    color: #163a5c;
+}
+#splash-screen .splash-welcome-text span { color: #4b6b8a; }
+#splash-screen .basepath-track {
+    background: repeating-linear-gradient(90deg, #e9c79a 0 8px, #d9ab73 8px 12px);
+}
+#splash-screen .basepath-fill {
+    background: linear-gradient(90deg, #e23b3b, #ff6b5b);
+    box-shadow: none;
+}
+#splash-screen .base-mark {
+    background: #ffffff;
+    border-color: #1f4e7a;
+}
+#splash-screen .basepath-base.reached .base-mark {
+    background: #ffcc33;
+    border-color: #1f4e7a;
+    box-shadow: 0 0 0 3px rgba(255, 204, 51, 0.35);
+}
+#splash-screen .base-label { color: #8aa5bf; }
+#splash-screen .basepath-base.reached .base-label { color: #1f4e7a; }
+#splash-screen .basepath-runner svg { stroke: #1f4e7a; }
+#splash-screen .basepath-runner { filter: none; }
+#splash-screen .loader-status {
+    font-family: 'Black Han Sans', var(--font-body);
+    font-weight: 400;
+    font-size: 1rem;
+    color: #1f4e7a;
+}
+
+/* ==========================================================================
+   시작 화면 로딩: 잔디 위 흙길 + 달리는 마스코트 (로고 그림 톤)
+   ========================================================================== */
+#splash-screen .basepath {
+    height: 104px;
+    margin: 4px 6px 0;
+    width: calc(100% - 12px);
+}
+/* 잔디 띠 (잔디 깎은 줄무늬) */
+#splash-screen .basepath::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    right: -6px;
+    top: 50px;
+    height: 26px;
+    border-radius: 13px;
+    background: repeating-linear-gradient(90deg, #5cbf62 0 18px, #4fae55 18px 36px);
+    border: 2.5px solid #1f4e7a;
+}
+/* 흙길 */
+#splash-screen .basepath-track {
+    top: 58px;
+    left: 4px;
+    right: 4px;
+    height: 10px;
+    border-radius: 5px;
+    background: #e3b27a;
+    box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.12);
+}
+#splash-screen .basepath-fill {
+    background: repeating-linear-gradient(90deg, #e23b3b 0 10px, #ff5a4f 10px 20px);
+    border-radius: 5px;
+}
+/* 베이스: 흰 베이스 + 남색 테두리, 지나가면 노란색 */
+#splash-screen .basepath-base { top: 52px; gap: 12px; }
+#splash-screen .base-mark {
+    width: 18px;
+    height: 18px;
+    background: #ffffff;
+    border: 3px solid #1f4e7a;
+    border-radius: 3px;
+}
+#splash-screen .basepath-base.home .base-mark {
+    width: 20px;
+    border-radius: 3px 3px 10px 10px;
+}
+#splash-screen .basepath-base.reached .base-mark {
+    background: #ffcc33;
+    box-shadow: 0 0 0 4px rgba(255, 204, 51, 0.35);
+}
+#splash-screen .base-label {
+    font-family: 'Black Han Sans', var(--font-body);
+    font-weight: 400;
+    font-size: 0.78rem;
+    color: #8aa5bf;
+}
+#splash-screen .basepath-base.reached .base-label { color: #1f4e7a; }
+
+/* 달리는 마스코트 */
+#splash-screen .mascot-runner {
+    top: -2px;
+    width: 52px;
+    height: 64px;
+    animation: none;
+    filter: none;
+    z-index: 2;
+}
+.mascot-runner .runner-head {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 46px;
+    height: 46px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #1f4e7a;
+    background: #ffffff;
+    box-shadow: 0 3px 0 #1f4e7a;
+    animation: mascotBob 0.32s ease-in-out infinite alternate;
+}
+.mascot-runner .runner-head img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.mascot-runner .runner-legs {
+    position: absolute;
+    left: 50%;
+    top: 44px;
+    width: 20px;
+    height: 18px;
+    transform: translateX(-50%);
+}
+.mascot-runner .leg {
+    position: absolute;
+    left: 8px;
+    top: 0;
+    width: 5px;
+    height: 15px;
+    border-radius: 3px;
+    background: #2f6ea8;
+    border-bottom: 4px solid #1f4e7a;
+    transform-origin: top center;
+}
+.mascot-runner .leg-front { animation: legSwing 0.32s ease-in-out infinite alternate; }
+.mascot-runner .leg-back { animation: legSwing 0.32s ease-in-out infinite alternate-reverse; background: #275d8f; }
+.mascot-runner .runner-dust {
+    position: absolute;
+    left: -10px;
+    top: 52px;
+    width: 14px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(227, 178, 122, 0.85);
+    animation: dustPuff 0.5s ease-out infinite;
+}
+@keyframes mascotBob {
+    from { transform: translateX(-50%) translateY(0) rotate(-6deg); }
+    to { transform: translateX(-50%) translateY(-4px) rotate(6deg); }
+}
+@keyframes legSwing {
+    from { transform: rotate(35deg); }
+    to { transform: rotate(-35deg); }
+}
+@keyframes dustPuff {
+    from { opacity: 0.9; transform: translateX(0) scale(0.6); }
+    to { opacity: 0; transform: translateX(-12px) scale(1.4); }
+}
+
+/* 진행 문구: 만화 말풍선 느낌 */
+#splash-screen .loader-status {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    background: #fff7d6;
+    border: 2.5px solid #1f4e7a;
+    box-shadow: 0 3px 0 #1f4e7a;
+    font-size: 1rem;
+    color: #1f4e7a;
+}
+/* 환영 카드 아바타: 마스코트 톤의 흰 테두리 */
+#splash-screen .splash-welcome-logo {
+    border: 2.5px solid #1f4e7a;
+    box-shadow: 0 2px 0 #1f4e7a;
+}
+
+/* 마스코트 몸통(빨간 체크 유니폼)·팔·다리 보강 */
+#splash-screen .mascot-runner { top: -10px; height: 72px; }
+.mascot-runner .runner-head { width: 42px; height: 42px; z-index: 3; }
+.mascot-runner .runner-body {
+    position: absolute;
+    left: 50%;
+    top: 38px;
+    width: 24px;
+    height: 16px;
+    transform: translateX(-50%);
+    border-radius: 8px 8px 5px 5px;
+    background: repeating-linear-gradient(90deg, #d63a3a 0 4px, #a92626 4px 6px);
+    border: 2.5px solid #1f4e7a;
+    z-index: 2;
+    animation: mascotBob 0.32s ease-in-out infinite alternate;
+}
+.mascot-runner .arm {
+    position: absolute;
+    top: 2px;
+    width: 6px;
+    height: 13px;
+    border-radius: 3px;
+    background: #2f6ea8;
+    border: 2px solid #1f4e7a;
+    transform-origin: top center;
+}
+.mascot-runner .arm-front { right: -7px; animation: legSwing 0.32s ease-in-out infinite alternate-reverse; }
+.mascot-runner .arm-back { left: -7px; animation: legSwing 0.32s ease-in-out infinite alternate; }
+.mascot-runner .runner-legs { top: 50px; width: 24px; height: 20px; z-index: 1; }
+.mascot-runner .leg {
+    left: 8px;
+    width: 8px;
+    height: 16px;
+    border-radius: 4px;
+    background: #2f6ea8;
+    border: 2px solid #1f4e7a;
+    border-bottom: 5px solid #1f4e7a;
+}
+.mascot-runner .runner-dust { top: 62px; }
+
+/* 얼굴만 통통 튀며 달리기 (몸통·다리 없이) */
+#splash-screen .mascot-runner { top: 2px; width: 50px; height: 56px; }
+.mascot-runner .runner-head {
+    width: 46px;
+    height: 46px;
+    top: 0;
+    animation: faceHop 0.36s cubic-bezier(0.3, 0, 0.4, 1) infinite alternate;
+}
+.mascot-runner .runner-shadow {
+    position: absolute;
+    left: 50%;
+    top: 50px;
+    width: 30px;
+    height: 6px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: rgba(31, 78, 122, 0.3);
+    animation: faceShadow 0.36s cubic-bezier(0.3, 0, 0.4, 1) infinite alternate;
+}
+.mascot-runner .runner-dust { top: 46px; left: -8px; }
+@keyframes faceHop {
+    from { transform: translateX(-50%) translateY(6px) rotate(-8deg) scaleY(0.94); }
+    to { transform: translateX(-50%) translateY(-6px) rotate(8deg) scaleY(1); }
+}
+@keyframes faceShadow {
+    from { transform: translateX(-50%) scale(1); opacity: 0.45; }
+    to { transform: translateX(-50%) scale(0.6); opacity: 0.2; }
+}
+
+/* ==========================================================================
+   시작 화면: 원래 앱 색(진한 남색 + 초록 포인트)으로 — 그림 배경도 남색으로 바꿈
+   ========================================================================== */
+#splash-screen {
+    background: radial-gradient(circle at 50% 0%, #13213a 0%, #0b1424 45%, #060b14 100%) !important;
+}
+.splash-sheet {
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid rgba(110, 231, 183, 0.35);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+}
+#splash-screen .zg-tagline { color: #6ee7b7; }
+#splash-screen .splash-welcome {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 5px solid var(--team-color);
+}
+#splash-screen .splash-welcome-text strong { color: #f8fafc; }
+#splash-screen .splash-welcome-text span { color: #94a3b8; }
+#splash-screen .splash-welcome-logo { border-color: rgba(255, 255, 255, 0.25); box-shadow: none; }
+#splash-screen .basepath::before { border-color: rgba(255, 255, 255, 0.18); }
+#splash-screen .base-mark { border-color: #0f172a; }
+#splash-screen .basepath-base.reached .base-mark { background: #6ee7b7; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.3); }
+#splash-screen .base-label { color: #64748b; }
+#splash-screen .basepath-base.reached .base-label { color: #d1fae5; }
+#splash-screen .basepath-fill { background: linear-gradient(90deg, #10b981, #6ee7b7); }
+.mascot-runner .runner-head { border-color: #f8fafc; box-shadow: 0 0 0 2px #10b981, 0 6px 14px rgba(0, 0, 0, 0.5); }
+.mascot-runner .runner-shadow { background: rgba(0, 0, 0, 0.45); }
+#splash-screen .loader-status {
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(110, 231, 183, 0.5);
+    box-shadow: none;
+    color: #d1fae5;
+}
+
+/* 시작 화면 글씨: 두꺼운 게임체 대신 읽기 편한 본문체 */
+#splash-screen .zg-tagline,
+#splash-screen .splash-welcome-text strong,
+#splash-screen .base-label,
+#splash-screen .loader-status {
+    font-family: var(--font-body) !important;
+    letter-spacing: 0 !important;
+}
+#splash-screen .zg-tagline { font-weight: 700 !important; font-size: 0.92rem !important; }
+#splash-screen .splash-welcome-text strong { font-weight: 800 !important; font-size: 1.05rem !important; }
+#splash-screen .base-label { font-weight: 700 !important; font-size: 0.74rem !important; }
+#splash-screen .loader-status { font-weight: 700 !important; font-size: 0.9rem !important; }
