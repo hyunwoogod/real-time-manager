@@ -330,7 +330,8 @@ def index():
         is_rest_day=is_rest_day,
         match_away_full=match_away_full,
         match_home_full=match_home_full,
-        today_schedule=today_schedule_info
+        today_schedule=today_schedule_info,
+        initial_standings=database.compute_standings()['standings']
     ))
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"

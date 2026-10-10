@@ -28,6 +28,7 @@
             window.CURRENT_SESSION_NICKNAME = {{ nickname | tojson if nickname else 'null' }};
             window.CURRENT_SESSION_TEAM = {{ favorite_team | tojson if favorite_team else 'null' }};
             window.CURRENT_SESSION_TEAM_FULL = {{ favorite_team_full | tojson if favorite_team_full else 'null' }};
+            window.INITIAL_STANDINGS = {{ initial_standings | tojson if initial_standings else '[]' }};
             if (!window.CURRENT_SESSION_USER) {
                 try {
                     localStorage.removeItem('antigravity_user_id');
@@ -1045,7 +1046,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261011_2"></script>
+    <script src="app.js?v=20261011_3"></script>
 </body>
 
 </html>

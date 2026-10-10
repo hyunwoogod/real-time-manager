@@ -1039,8 +1039,8 @@ function switchLobbyTab(tabName, btnEl) {
     if (tabName === 'schedule') {
         loadScheduleTable(currentScheduleFilter || 'today');
     } else if (tabName === 'records') {
-        standingsLoaded = false;  // 탭을 열 때마다 최신 순위를 다시 불러옴
         renderKboStandingsTable();
+        refreshStandingsInBackground();
     } else if (tabName === 'my_records') {
         renderMyRecordsPane();
     }
@@ -1049,15 +1049,18 @@ function switchLobbyTab(tabName, btnEl) {
 }
 
 // 팀 순위는 서버(/api/standings)가 관리자 입력 경기 결과로 계산한 값을 사용
-let kboTeamStandingsData = [];
-let standingsLoaded = false;
+// 페이지를 열 때 서버가 넣어 준 순위로 바로 표시하고, 탭을 열 때마다 조용히 최신 순위로 갱신
+let kboTeamStandingsData = window.INITIAL_STANDINGS || [];
 
-function loadStandings() {
-    return fetch('/api/standings')
+function refreshStandingsInBackground() {
+    fetch('/api/standings')
         .then(r => r.json())
         .then(data => {
-            kboTeamStandingsData = data.standings || [];
-            standingsLoaded = true;
+            const latest = data.standings || [];
+            if (JSON.stringify(latest) !== JSON.stringify(kboTeamStandingsData)) {
+                kboTeamStandingsData = latest;
+                renderKboStandingsTable();
+            }
         })
         .catch(err => console.error('standings error:', err));
 }
@@ -1083,11 +1086,6 @@ function renderKboStandingsTable() {
 
     if (standingsYear !== STANDINGS_DATA_YEAR) {
         list.innerHTML = `<div class="st-empty">${standingsYear} 시즌 순위 기록은 준비 중이에요.</div>`;
-        return;
-    }
-    if (!standingsLoaded) {
-        list.innerHTML = `<div class="st-empty">순위를 불러오는 중...</div>`;
-        loadStandings().then(renderKboStandingsTable);
         return;
     }
     if (kboTeamStandingsData.length === 0) {
