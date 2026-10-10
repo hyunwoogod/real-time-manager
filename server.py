@@ -71,6 +71,19 @@ def normalize_team_short(name):
     return None
 
 
+def client_ip():
+    """Render 등 프록시 뒤에서도 실제 접속 IP를 얻기 위해 X-Forwarded-For 첫 값 사용"""
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    return forwarded.split(',')[0].strip() if forwarded else (request.remote_addr or '')
+
+
+def record_login(username, res):
+    if res.get('status') == 'success':
+        database.log_login(username, True, 'ok', res.get('user', {}).get('id'), client_ip())
+    else:
+        database.log_login(username, False, res.get('reason', ''), res.get('user_id'), client_ip())
+
+
 def team_full_name(team):
     return TEAM_FULL_NAMES.get(team, '응원 구단 미설정')
 
@@ -435,6 +448,7 @@ def login():
             return render_template('login.html', error=error_msg)
 
         res = database.login_user(username, password)
+        record_login(username, res)
         if res.get('status') == 'success':
             user_info = res.get('user', {})
             session.permanent = True
@@ -524,8 +538,9 @@ def admin_users():
     if not session.get('admin_authenticated'):
         return render_template('admin_auth.html')
 
-    # 3. 모든 회원 목록 조회 (SQLite baseball.db의 users 테이블 실시간 조회)
+    # 3. 모든 회원 목록 및 최근 로그인 기록 조회
     users = database.get_all_users()
+    login_logs = database.get_recent_login_logs(50)
 
     # 응원 구단 통계 집계
     team_counts = {}
@@ -540,14 +555,16 @@ def admin_users():
             "status": "success",
             "total_users": len(users),
             "popular_team": popular_team,
-            "users": users
+            "users": users,
+            "login_logs": login_logs
         })
 
     return render_template(
         'admin_users.html',
         users=users,
         total_users=len(users),
-        popular_team=popular_team
+        popular_team=popular_team,
+        login_logs=login_logs
     )
 
 
@@ -701,6 +718,9 @@ def api_login():
         return jsonify({"status": "error", "message": "아이디와 비밀번호를 입력해주세요."}), 400
 
     res = database.login_user(username, password)
+    record_login(username, res)
+    res.pop('reason', None)
+    res.pop('user_id', None)
     if res.get('status') == 'success':
         sync_session_from_user(res.get('user', {}))
     return jsonify(res)

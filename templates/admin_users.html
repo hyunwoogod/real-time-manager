@@ -365,6 +365,33 @@
             color: #64748b;
             font-size: 1rem;
         }
+        .login-log-card {
+            margin-top: 24px;
+        }
+        .login-log-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 22px 6px;
+        }
+        .login-log-header h2 {
+            font-size: 1.05rem;
+            color: #f8fafc;
+        }
+        .login-log-header span {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        .login-result {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .login-ok { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+        .login-fail { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
     </style>
 </head>
 <body>
@@ -514,6 +541,48 @@
                 </table>
             </div>
         </main>
+
+        <!-- LOGIN LOGS -->
+        <section class="table-card login-log-card">
+            <div class="login-log-header">
+                <h2>🔐 최근 로그인 기록</h2>
+                <span>최근 50건 · 한국 시간</span>
+            </div>
+            <div class="table-responsive">
+                <table id="admin-login-logs-table">
+                    <thead>
+                        <tr>
+                            <th>로그인 일시</th>
+                            <th>입력한 아이디</th>
+                            <th>감독 닉네임</th>
+                            <th>결과</th>
+                            <th>접속 IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in login_logs %}
+                        <tr>
+                            <td class="date-text">{{ log.created_at or '-' }}</td>
+                            <td>{{ log.username }}</td>
+                            <td>{{ log.nickname or '-' }}</td>
+                            <td>
+                                {% if log.success %}
+                                    <span class="login-result login-ok">✅ {{ log.reason_label }}</span>
+                                {% else %}
+                                    <span class="login-result login-fail">❌ {{ log.reason_label }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="date-text">{{ log.ip or '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr class="empty-row">
+                            <td colspan="5" style="text-align: center; padding: 40px 20px; color: #64748b;">아직 로그인 기록이 없습니다. 회원이 로그인하면 여기에 표시됩니다.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
 
     <script>

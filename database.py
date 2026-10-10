@@ -299,6 +299,19 @@ def init_db():
         )
     '''))
 
+    # 로그인 기록 (성공/실패 모두 기록, 관리자 콘솔에서 조회)
+    cursor.execute(_ddl('''
+        CREATE TABLE IF NOT EXISTS login_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            username TEXT NOT NULL,
+            success INTEGER NOT NULL,
+            reason TEXT NOT NULL DEFAULT '',
+            ip TEXT NOT NULL DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    '''))
+
     cols = _table_columns(cursor, 'kbo_schedules')
     if "home_pitcher" not in cols:
         cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN home_pitcher TEXT DEFAULT ''")
@@ -313,7 +326,7 @@ def init_db():
     if USE_POSTGRES:
         # Supabase는 public 스키마 테이블을 공개 키(publishable/anon key)로 REST API에 노출하므로
         # RLS를 켜서 외부 접근을 차단 (서버는 테이블 소유자 계정으로 접속하므로 영향 없음)
-        for table in ('users', 'user_friends', 'user_rankings', 'tactics_history', 'kbo_schedules'):
+        for table in ('users', 'user_friends', 'user_rankings', 'tactics_history', 'kbo_schedules', 'login_logs'):
             cursor.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
 
     conn.commit()
@@ -490,8 +503,9 @@ def login_user(username, password):
     conn.close()
     if ok:
         return {"status": "success", "user": _public_user(row)}
-    else:
-        return {"status": "error", "message": "아이디 또는 비밀번호가 일치하지 않습니다."}
+    # reason은 로그인 기록용 (사용자에게는 같은 안내 문구만 보여줌)
+    return {"status": "error", "message": "아이디 또는 비밀번호가 일치하지 않습니다.",
+            "reason": "wrong_password" if row else "no_user", "user_id": row['id'] if row else None}
 
 def get_user_by_id(user_id):
     conn = get_db()
@@ -516,6 +530,46 @@ def verify_session_user(user_id, username):
     row = cursor.fetchone()
     conn.close()
     return _public_user(row)
+
+LOGIN_REASON_LABELS = {
+    'ok': '로그인 성공',
+    'wrong_password': '비밀번호 틀림',
+    'no_user': '없는 아이디',
+}
+
+def log_login(username, success, reason='', user_id=None, ip=''):
+    """로그인 시도 1건 기록 (기록 실패가 로그인 자체를 막지 않도록 예외는 무시)"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO login_logs (user_id, username, success, reason, ip) VALUES (?, ?, ?, ?, ?)",
+            (user_id, (username or '').strip()[:50], 1 if success else 0, reason, (ip or '')[:64])
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"⚠️ [DB] 로그인 기록 저장 실패: {e}")
+
+def get_recent_login_logs(limit=50):
+    """최근 로그인 기록 (관리자 전용, 한국 시간)"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT l.id, l.username, l.success, l.reason, l.ip, l.created_at, u.nickname
+        FROM login_logs l
+        LEFT JOIN users u ON u.id = l.user_id
+        ORDER BY l.id DESC
+        LIMIT ?
+    ''', (limit,))
+    logs = []
+    for r in cursor.fetchall():
+        item = dict(r)
+        item['created_at'] = _to_kst_str(item['created_at'])
+        item['reason_label'] = LOGIN_REASON_LABELS.get(item['reason'], item['reason'] or '-')
+        logs.append(item)
+    conn.close()
+    return logs
 
 def update_user_profile(user_id, nickname, team):
     conn = get_db()
