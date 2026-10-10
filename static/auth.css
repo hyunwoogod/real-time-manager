@@ -264,3 +264,89 @@ body {
     margin-top: 6px;
     word-break: break-all;
 }
+
+/* 약관 동의 체크 */
+.consent-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    line-height: 1.5;
+    text-align: left;
+    cursor: pointer;
+}
+.consent-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 1px 0 0;
+    flex-shrink: 0;
+    accent-color: #10b981;
+}
+.consent-row a {
+    color: #38bdf8;
+    font-weight: 600;
+}
+.legal-links {
+    margin-top: 14px;
+    font-size: 0.75rem;
+    color: #475569;
+}
+.legal-links a {
+    color: #64748b;
+    text-decoration: none;
+}
+.legal-links a:hover {
+    text-decoration: underline;
+}
+
+/* 개인정보처리방침 / 이용약관 문서 */
+.legal-container {
+    max-width: 760px;
+    text-align: left;
+}
+.legal-container .auth-title,
+.legal-container .auth-subtitle {
+    text-align: center;
+}
+.legal-doc {
+    font-size: 0.9rem;
+    line-height: 1.75;
+    color: #cbd5e1;
+}
+.legal-doc h2 {
+    font-size: 1rem;
+    color: #f8fafc;
+    margin: 26px 0 8px;
+}
+.legal-doc ul {
+    padding-left: 20px;
+    margin: 6px 0;
+}
+.legal-doc table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 0.85rem;
+}
+.legal-doc th,
+.legal-doc td {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 8px 10px;
+    vertical-align: top;
+}
+.legal-doc th {
+    background: rgba(30, 41, 59, 0.8);
+    color: #f8fafc;
+    font-weight: 700;
+}
+.legal-meta {
+    font-size: 0.8rem;
+    color: #64748b;
+    text-align: center;
+    margin-bottom: 8px;
+}

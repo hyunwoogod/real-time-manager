@@ -291,6 +291,11 @@
                 </select>
             </div>
 
+            <label class="consent-row" for="agree_terms">
+                <input type="checkbox" id="agree_terms" name="agree_terms" value="1" required>
+                <span>만 14세 이상이며, <a href="/terms" target="_blank">이용약관</a>과 <a href="/privacy" target="_blank">개인정보처리방침</a>에 동의합니다. (필수)</span>
+            </label>
+
             <button type="submit" class="btn-submit" id="btn-submit-signup">회원가입 완료</button>
         </form>
 
@@ -305,6 +310,7 @@
                 <a href="/" class="auth-back">← 메인 화면으로 돌아가기</a>
             </div>
         </div>
+        <div class="legal-links"><a href="/terms">이용약관</a> · <a href="/privacy">개인정보처리방침</a></div>
     </div>
 
     <script>
@@ -520,6 +526,14 @@
                 event.preventDefault();
                 alert(nCheck.msg);
                 nicknameInput.focus();
+                return false;
+            }
+
+            // 4-1. 약관 동의 여부 검증
+            const agreeBox = document.getElementById('agree_terms');
+            if (!agreeBox.checked) {
+                alert("이용약관 및 개인정보처리방침에 동의해 주세요.");
+                agreeBox.focus();
                 return false;
             }
 

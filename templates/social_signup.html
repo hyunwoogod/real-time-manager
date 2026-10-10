@@ -36,11 +36,17 @@
                     {% endfor %}
                 </select>
             </div>
+            <label class="consent-row" for="agree_terms">
+                <input type="checkbox" id="agree_terms" name="agree_terms" value="1" required>
+                <span>만 14세 이상이며, <a href="/terms" target="_blank">이용약관</a>과 <a href="/privacy" target="_blank">개인정보처리방침</a>에 동의합니다. (필수)</span>
+            </label>
+
             <button type="submit" class="btn-submit" id="btn-submit-social-signup">시작하기</button>
         </form>
         <div class="auth-links">
             <div><a href="/login" class="auth-back">← 다른 방법으로 로그인하기</a></div>
         </div>
+        <div class="legal-links"><a href="/terms">이용약관</a> · <a href="/privacy">개인정보처리방침</a></div>
     </div>
     <script>
         // 버튼 중복 클릭 방지

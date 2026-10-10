@@ -359,6 +359,8 @@ def init_db():
 
     # KBO 경기 일정 시딩
     seed_kbo_schedules()
+    # 개인정보처리방침: 로그인 기록은 3개월 보관 후 파기
+    purge_old_login_logs()
     # 예전에 평문으로 저장된 비밀번호를 해시로 일괄 전환
     migrate_plaintext_passwords()
 
@@ -771,6 +773,15 @@ def log_login(username, success, reason='', user_id=None, ip=''):
         conn.close()
     except Exception as e:
         print(f"⚠️ [DB] 로그인 기록 저장 실패: {e}")
+
+LOGIN_LOG_RETENTION_DAYS = 90
+
+def purge_old_login_logs():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM login_logs WHERE created_at < ?", (_utc_now_str(-LOGIN_LOG_RETENTION_DAYS * 86400),))
+    conn.commit()
+    conn.close()
 
 def get_recent_login_logs(limit=50):
     """최근 로그인 기록 (관리자 전용, 한국 시간)"""

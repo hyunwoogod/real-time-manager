@@ -203,7 +203,9 @@ def authentication_guard():
         '/api/check-email',
         '/signup/social',
         '/forgot-password',
-        '/find-email'
+        '/find-email',
+        '/privacy',
+        '/terms'
     }
     if path in PUBLIC_PATHS or path.startswith('/api/check-') or path.startswith('/auth/'):
         return None
@@ -385,6 +387,8 @@ def signup():
             return fail("감독 닉네임은 2자 이상 10자 이하로 입력해 주세요.")
         if not favorite_team:
             return fail("응원 구단을 선택해 주세요.")
+        if not data.get('agree_terms'):
+            return fail(TERMS_REQUIRED_MSG)
 
         res = database.register_user(
             username=email,
@@ -504,8 +508,26 @@ def logout():
 
 @app.context_processor
 def inject_social_providers():
-    """로그인/회원가입 화면에 설정된 소셜 로그인 버튼만 표시"""
-    return {'social_providers': social_auth.enabled_providers()}
+    """로그인/회원가입 화면에 설정된 소셜 로그인 버튼만 표시 + 약관 화면용 문의 이메일"""
+    return {
+        'social_providers': social_auth.enabled_providers(),
+        'contact_email': os.environ.get('CONTACT_EMAIL', '').strip() or os.environ.get('MAIL_USERNAME', '').strip(),
+        'legal_effective_date': LEGAL_EFFECTIVE_DATE,
+    }
+
+
+LEGAL_EFFECTIVE_DATE = '2026년 10월 10일'
+TERMS_REQUIRED_MSG = "이용약관 및 개인정보처리방침에 동의해 주세요."
+
+
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
 
 
 def social_redirect_uri(provider):
@@ -577,7 +599,10 @@ def social_signup():
     if request.method == 'POST':
         nickname = request.form.get('nickname', '').strip()
         favorite_team = normalize_team_short(request.form.get('favorite_team'))
-        res = database.create_social_user(pending['provider'], pending['id'], pending.get('email'), nickname, favorite_team)
+        if not request.form.get('agree_terms'):
+            res = {"status": "error", "message": TERMS_REQUIRED_MSG}
+        else:
+            res = database.create_social_user(pending['provider'], pending['id'], pending.get('email'), nickname, favorite_team)
         if res.get('status') != 'success':
             return render_template('social_signup.html', provider_name=provider_name, pending=pending,
                                    nickname=nickname, favorite_team=favorite_team, error=res.get('message'))
