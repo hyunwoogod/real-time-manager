@@ -173,6 +173,22 @@ def _is_password_hash(stored):
     return bool(stored) and stored.startswith(('pbkdf2:', 'scrypt:'))
 
 
+KST = datetime.timezone(datetime.timedelta(hours=9))
+
+def _to_kst_str(value):
+    """DB의 UTC 시각(datetime 또는 'YYYY-MM-DD HH:MM:SS' 문자열)을 한국 시간 문자열로 변환"""
+    if not value:
+        return value
+    if isinstance(value, str):
+        try:
+            value = datetime.datetime.strptime(value[:19], '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            return value
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=datetime.timezone.utc)
+    return value.astimezone(KST).strftime('%Y-%m-%d %H:%M:%S')
+
+
 def _public_user(row):
     """DB 사용자 레코드에서 비밀번호를 제거하고 기본값을 보정한 dict 반환 (API 응답/세션용)"""
     if not row:
@@ -183,8 +199,8 @@ def _public_user(row):
         user['favorite_team'] = user.get('team')
     if not user.get('nickname'):
         user['nickname'] = user.get('username') or '감독'
-    if isinstance(user.get('created_at'), datetime.datetime):
-        user['created_at'] = user['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+    if user.get('created_at'):
+        user['created_at'] = _to_kst_str(user['created_at'])
     return user
 
 
@@ -291,6 +307,9 @@ def init_db():
     if "status_text" not in cols:
         cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN status_text TEXT DEFAULT '경기전'")
 
+    # 회원가입에서 이메일을 받지 않으므로, 예전에 자동으로 채워 넣은 가짜 이메일(아이디@zipgamdok.com) 제거
+    cursor.execute("UPDATE users SET email = '' WHERE email = username || '@zipgamdok.com'")
+
     if USE_POSTGRES:
         # Supabase는 public 스키마 테이블을 공개 키(publishable/anon key)로 REST API에 노출하므로
         # RLS를 켜서 외부 접근을 차단 (서버는 테이블 소유자 계정으로 접속하므로 영향 없음)
@@ -302,36 +321,8 @@ def init_db():
 
     # KBO 경기 일정 시딩
     seed_kbo_schedules()
-    # 유저 테이블이 비어있을 경우 테스트용 기본 계정 자동 생성 안전장치
-    ensure_default_test_user()
     # 예전에 평문으로 저장된 비밀번호를 해시로 일괄 전환
     migrate_plaintext_passwords()
-
-def ensure_default_test_user():
-    """서버가 시작되거나 DB가 생성될 때 users 테이블이 비어있으면 테스트용 기본 계정 자동 생성"""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) as cnt FROM users")
-    count = cursor.fetchone()['cnt']
-    if count == 0:
-        cursor.execute('''
-            INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed)
-            VALUES (?, ?, ?, ?, ?, ?, '👑', 2000, 'B', 1)
-        ''', (
-            'coach1234', 
-            hash_password('Coach2026!'), 
-            'coach1234@zipgamdok.com', 
-            '김명장감독', 
-            '한화', 
-            '한화'
-        ))
-        conn.commit()
-        try:
-            conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
-        except Exception:
-            pass
-        print("⚾ [DB] 테스트용 기본 계정 자동 생성 완료 (아이디: coach1234 / 비밀번호: Coach2026!)")
-    conn.close()
 
 def migrate_plaintext_passwords():
     """평문 비밀번호가 남아 있으면 해시로 변환 (이미 해시된 값은 건드리지 않음)"""
@@ -456,8 +447,7 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
     if not fav_team:
         conn.close()
         return {"status": "error", "message": "응원 구단을 선택해 주세요."}
-    if not email:
-        email = f"{username}@zipgamdok.com"
+    email = (email or '').strip()
 
     try:
         user_id = _insert_returning_id(cursor, '''
@@ -650,8 +640,8 @@ def get_tactics_history():
     cursor.execute("SELECT * FROM tactics_history ORDER BY id DESC LIMIT 10")
     rows = [dict(r) for r in cursor.fetchall()]
     for r in rows:
-        if isinstance(r.get('timestamp'), datetime.datetime):
-            r['timestamp'] = r['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+        if r.get('timestamp'):
+            r['timestamp'] = _to_kst_str(r['timestamp'])
     conn.close()
     return rows
 

@@ -378,7 +378,7 @@
                         집감독 관리자 콘솔
                         <span class="security-status-tag">SECURED</span>
                     </h1>
-                    <p>SQLite users 테이블 실시간 회원 명부 및 응원 구단 현황</p>
+                    <p>실시간 회원 명부 및 응원 구단 현황</p>
                 </div>
             </div>
             <div class="header-actions">
@@ -449,7 +449,6 @@
                             <th>회원 아이디</th>
                             <th>감독 닉네임</th>
                             <th>응원 구단</th>
-                            <th>이메일</th>
                             <th>감독 포인트</th>
                             <th>등급</th>
                             <th>가입 일시</th>
@@ -495,7 +494,6 @@
                                     <span class="team-badge team-badge-default">⚾ {{ ft or '한화' }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ user.email or '-' }}</td>
                             <td><span class="score-pill">{{ "{:,}".format(user.score) if user.score is number else user.score }} pt</span></td>
                             <td>
                                 {% set gr = user.grade or 'B' %}
@@ -505,7 +503,7 @@
                         </tr>
                         {% else %}
                         <tr class="empty-row">
-                            <td colspan="8" style="text-align: center; padding: 50px 20px;">
+                            <td colspan="7" style="text-align: center; padding: 50px 20px;">
                                 <div style="font-size: 2.2rem; margin-bottom: 10px;">⚾</div>
                                 <div style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin-bottom: 4px;">등록된 회원이 없습니다</div>
                                 <p style="font-size: 0.85rem; color: #64748b;">현재 회원 데이터가 초기화되어 0명입니다. 신규 회원이 가입하면 실시간으로 표시됩니다.</p>
@@ -556,7 +554,7 @@
                     noResultRow = document.createElement('tr');
                     noResultRow.id = 'no-search-results-row';
                     noResultRow.className = 'empty-row';
-                    noResultRow.innerHTML = '<td colspan="8">검색 조건과 일치하는 회원이 없습니다.</td>';
+                    noResultRow.innerHTML = '<td colspan="7">검색 조건과 일치하는 회원이 없습니다.</td>';
                     tbody.appendChild(noResultRow);
                 }
                 noResultRow.style.display = '';
