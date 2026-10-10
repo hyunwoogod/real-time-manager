@@ -45,7 +45,10 @@ PROVIDERS = {
 
 
 class SocialLoginError(Exception):
-    pass
+    """code: 카카오 KOE010 같은 제공자 오류 코드 (화면 안내용)"""
+    def __init__(self, message, code=''):
+        super().__init__(message)
+        self.code = code
 
 
 def _client(provider):
@@ -93,7 +96,13 @@ def _request_json(url, data=None, headers=None):
             return json.loads(resp.read().decode('utf-8'))
     except urllib.error.HTTPError as e:
         detail = e.read().decode('utf-8', 'replace')[:300]
-        raise SocialLoginError(f"HTTP {e.code}: {detail}")
+        code = ''
+        try:
+            body = json.loads(detail)
+            code = body.get('error_code') or body.get('error') or ''
+        except ValueError:
+            pass
+        raise SocialLoginError(f"HTTP {e.code}: {detail}", code=str(code))
     except Exception as e:
         raise SocialLoginError(f"{type(e).__name__}: {e}")
 
@@ -117,7 +126,8 @@ def fetch_profile(provider, code, redirect_uri, state):
     token = _request_json(conf['token_url'], data=token_params)
     access_token = token.get('access_token')
     if not access_token:
-        raise SocialLoginError(f"토큰 발급 실패: {token.get('error_description') or token.get('error') or token}")
+        raise SocialLoginError(f"토큰 발급 실패: {token.get('error_description') or token.get('error') or token}",
+                               code=str(token.get('error_code') or token.get('error') or ''))
 
     info = _request_json(conf['profile_url'], headers={'Authorization': f'Bearer {access_token}'})
 

@@ -12,6 +12,13 @@ import social_auth
 import game_engine
 from game_engine import GameEngine
 
+# gunicorn에서도 print 로그가 Render Logs에 즉시 보이도록 줄 단위로 출력
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
+except Exception:
+    pass
+
 app = Flask(__name__, static_folder='static', static_url_path='', template_folder='templates')
 # Render 프록시 뒤에서 https 주소/실제 접속 IP를 올바르게 인식 (소셜 로그인 redirect_uri에 필요)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
@@ -481,8 +488,9 @@ def social_callback(provider):
     try:
         profile = social_auth.fetch_profile(provider, request.args.get('code', ''), social_redirect_uri(provider), expected_state)
     except social_auth.SocialLoginError as e:
-        print(f"⚠️ [SOCIAL] {provider} 로그인 실패: {e}")
-        return login_page_error(f"{name} 로그인 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.")
+        print(f"⚠️ [SOCIAL] {provider} 로그인 실패: {e}", flush=True)
+        code_note = f" (오류 코드: {e.code})" if e.code else ""
+        return login_page_error(f"{name} 로그인 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.{code_note}")
     if not profile.get('id'):
         return login_page_error(f"{name} 계정 정보를 가져오지 못했습니다. 다시 시도해 주세요.")
 
