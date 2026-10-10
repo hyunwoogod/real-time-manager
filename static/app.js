@@ -372,16 +372,16 @@ function runSplashScreen() {
     }
 
     const statusMsgs = [
-        "실시간 KBO/MLB 중계 데이터 동기화 중...",
-        "감독 매니지먼트 시뮬레이션 엔진 동기화 중...",
-        "집감독 플랫폼 준비 완료!"
+        "로비 입장 준비 중...",
+        "응원 구단 경기 정보 불러오는 중...",
+        "입장 완료!"
     ];
 
     let progress = 0;
     let msgIdx = 0;
 
     window._splashTimer = setInterval(() => {
-        progress += 20;
+        progress += 2;
         if (fill) fill.style.width = `${Math.min(100, progress)}%`;
 
         if (progress > 35 && msgIdx === 0) {
@@ -397,10 +397,10 @@ function runSplashScreen() {
         }
     }, 30);
 
-    // Safety Timeout: Guarantee splash dismissal within 0.8s max (Never hangs)
+    // Safety Timeout: 환영 화면은 최대 2초 (멈추지 않도록 보장)
     window._splashSafetyTimer = setTimeout(() => {
         dismissSplash();
-    }, 800);
+    }, 2000);
 }
 
 // Modal Handlers for Auth

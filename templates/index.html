@@ -8,7 +8,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>집감독 - 프로 라이브 야구 감독 매니지먼트</title>
-    <link rel="stylesheet" href="style.css?v=20260929_01">
+    <link rel="stylesheet" href="style.css?v=20261010_1">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -79,8 +79,8 @@
                 } catch (e) { }
             };
 
-            // Mandatory Inline Safety Fallback Timeout (1.2s MAX)
-            setTimeout(function () { window.dismissSplash(); }, 1200);
+            // Mandatory Inline Safety Fallback Timeout (환영 화면 최대 2.5초)
+            setTimeout(function () { window.dismissSplash(); }, 2500);
         </script>
         <div id="splash-screen" class="splash-overlay active" onclick="window.dismissSplash()"
             ontouchstart="window.dismissSplash()" onpointerdown="window.dismissSplash()">
@@ -90,10 +90,19 @@
                     <span class="spinning-ball">⚾</span>
                 </div>
                 <h1 class="splash-logo">집감독</h1>
+                {% if nickname %}
+                {% set splash_nick = nickname if nickname.endswith('감독') else nickname + ' 감독' %}
+                <p class="splash-welcome" style="border-color: {{ favorite_team_color or '#10b981' }};">
+                    <span class="splash-welcome-logo">{{ favorite_team_logo or '⚾' }}</span>
+                    <strong>{{ splash_nick }}님, 반갑습니다!</strong>
+                </p>
+                <p class="splash-subtitle">{{ favorite_team_full }} 감독석으로 입장합니다</p>
+                {% else %}
                 <p class="splash-subtitle">실시간 라이브 야구 감독 매니지먼트</p>
+                {% endif %}
 
                 <div class="loader-box">
-                    <div class="loader-status" id="loader-status-text">실시간 KBO/MLB 중계 데이터 동기화 중...</div>
+                    <div class="loader-status" id="loader-status-text">로비 입장 준비 중...</div>
                     <div class="loader-bar-bg">
                         <div id="splash-progress-fill" class="loader-bar-fill"></div>
                     </div>
@@ -1073,7 +1082,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261010_2"></script>
+    <script src="app.js?v=20261010_3"></script>
 </body>
 
 </html>
