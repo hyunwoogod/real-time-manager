@@ -1107,7 +1107,7 @@ function renderKboStandingsTable() {
                     <span class="st-logo">${teamLogos[row.team] || '⚾'}</span>
                     <span class="st-team-text">
                         <strong>${row.team}${isMine ? '<em class="st-my">MY</em>' : ''}</strong>
-                        <small>${row.wins}승 ${row.losses}패${row.draws ? ' ' + row.draws + '무' : ''}</small>
+                        <small>${row.wins}승 ${row.draws}무 ${row.losses}패</small>
                     </span>
                 </span>
                 <span class="st-num st-winrate">${row.winRate.replace(/^0/, '')}</span>

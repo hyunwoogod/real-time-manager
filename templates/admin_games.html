@@ -178,10 +178,10 @@
                 <h2>🏆 현재 순위 (자동 계산)</h2>
                 <p class="desc">기준값({{ as_of }}까지) + 그 다음 날부터 입력한 경기 결과 · 반영된 마지막 경기일: {{ standings.updated_through }}</p>
                 <table>
-                    <tr><th>순위</th><th style="text-align:left;">팀</th><th>승</th><th>패</th><th>무</th><th>승률</th><th>게임차</th><th>연속</th></tr>
+                    <tr><th>순위</th><th style="text-align:left;">팀</th><th>승</th><th>무</th><th>패</th><th>승률</th><th>게임차</th><th>연속</th></tr>
                     {% for r in standings.standings %}
                     <tr>
-                        <td>{{ r.rank }}</td><td class="team">{{ r.team }}</td><td>{{ r.wins }}</td><td>{{ r.losses }}</td><td>{{ r.draws }}</td>
+                        <td>{{ r.rank }}</td><td class="team">{{ r.team }}</td><td>{{ r.wins }}</td><td>{{ r.draws }}</td><td>{{ r.losses }}</td>
                         <td>{{ r.winRate }}</td><td>{{ '-' if r.rank == 1 else r.gb }}</td><td>{{ r.streak }}</td>
                     </tr>
                     {% endfor %}
@@ -191,19 +191,19 @@
             <!-- 4. 순위 기준값 -->
             <section class="card">
                 <h2>📌 순위 기준값</h2>
-                <p class="desc">기준일까지의 <strong>실제 승·패·무</strong>와 연속 기록(예: 3승, 2패)을 넣어 주세요. 기준일 <strong>다음 날부터</strong> 입력한 경기 결과가 자동으로 더해져요. 처음 한 번만 맞춰 두면 돼요.</p>
+                <p class="desc">기준일까지의 <strong>실제 승·무·패</strong>와 연속 기록(예: 3승, 2패)을 넣어 주세요. 기준일 <strong>다음 날부터</strong> 입력한 경기 결과가 자동으로 더해져요. 처음 한 번만 맞춰 두면 돼요.</p>
                 <form method="POST" action="/admin/games" class="base-table">
                     <input type="hidden" name="action" value="save_base">
                     <input type="hidden" name="date" value="{{ d }}">
                     <p style="margin-bottom: 10px;">기준일 <input type="date" name="as_of" value="{{ as_of }}" required style="width:auto;"></p>
                     <table>
-                        <tr><th style="text-align:left;">팀</th><th>승</th><th>패</th><th>무</th><th>연속</th></tr>
+                        <tr><th style="text-align:left;">팀</th><th>승</th><th>무</th><th>패</th><th>연속</th></tr>
                         {% for b in base %}
                         <tr>
                             <td class="team">{{ b.team }}</td>
                             <td><input type="number" name="wins_{{ b.team }}" min="0" value="{{ b.wins }}" required></td>
-                            <td><input type="number" name="losses_{{ b.team }}" min="0" value="{{ b.losses }}" required></td>
                             <td><input type="number" name="draws_{{ b.team }}" min="0" value="{{ b.draws }}" required></td>
+                            <td><input type="number" name="losses_{{ b.team }}" min="0" value="{{ b.losses }}" required></td>
                             <td><input type="text" class="streak" name="streak_{{ b.team }}" value="{{ b.streak }}" placeholder="3승" maxlength="4"></td>
                         </tr>
                         {% endfor %}
