@@ -392,6 +392,18 @@
         }
         .login-ok { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
         .login-fail { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+        .provider-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .provider-email { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
+        .provider-kakao { background: #FEE500; color: #191919; }
+        .provider-naver { background: #03C75A; color: #ffffff; }
+        .provider-google { background: #ffffff; color: #1f1f1f; }
     </style>
 </head>
 <body>
@@ -449,7 +461,7 @@
         <section class="controls-card">
             <div class="search-box-wrapper">
                 <span class="search-icon-svg">🔍</span>
-                <input type="text" id="user-search-input" class="search-input" placeholder="회원 아이디, 닉네임, 응원팀 검색..." oninput="filterUserTable()">
+                <input type="text" id="user-search-input" class="search-input" placeholder="이메일, 닉네임, 응원팀 검색..." oninput="filterUserTable()">
             </div>
             <div class="team-filter-buttons">
                 <button class="filter-btn active" data-team="ALL" onclick="setTeamFilter('ALL', this)">전체 구단</button>
@@ -473,7 +485,7 @@
                     <thead>
                         <tr>
                             <th>No.</th>
-                            <th>회원 아이디</th>
+                            <th>로그인 계정</th>
                             <th>감독 닉네임</th>
                             <th>응원 구단</th>
                             <th>감독 포인트</th>
@@ -484,14 +496,15 @@
                     <tbody id="users-table-body">
                         {% for user in users %}
                         <tr class="user-row" 
-                            data-username="{{ user.username }}" 
+                            data-username="{{ user.account_label }}" 
                             data-nickname="{{ user.nickname }}" 
                             data-team="{{ user.favorite_team }}">
                             <td class="td-id">#{{ user.id }}</td>
                             <td>
                                 <div class="td-username">
                                     <div class="user-avatar-badge">{{ user.avatar or '👑' }}</div>
-                                    <span>{{ user.username }}</span>
+                                    <span class="provider-badge provider-{{ user.auth_provider or 'email' }}">{{ user.provider_name }}</span>
+                                    <span>{{ user.email if user.auth_provider in ('kakao', 'google', 'naver') and user.email else (user.username if (user.auth_provider or 'email') == 'email' else '-') }}</span>
                                 </div>
                             </td>
                             <td><strong>{{ user.nickname }}</strong></td>
@@ -553,7 +566,7 @@
                     <thead>
                         <tr>
                             <th>로그인 일시</th>
-                            <th>입력한 아이디</th>
+                            <th>계정</th>
                             <th>감독 닉네임</th>
                             <th>결과</th>
                             <th>접속 IP</th>

@@ -24,6 +24,7 @@
         <script>
             window.CURRENT_SESSION_USER_ID = {{ user_id | tojson if user_id else 'null' }};
             window.CURRENT_SESSION_USER = {{ username | tojson if username else 'null' }};
+            window.CURRENT_SESSION_ACCOUNT = {{ account_label | tojson if account_label else 'null' }};
             window.CURRENT_SESSION_NICKNAME = {{ nickname | tojson if nickname else 'null' }};
             window.CURRENT_SESSION_TEAM = {{ favorite_team | tojson if favorite_team else 'null' }};
             window.CURRENT_SESSION_TEAM_FULL = {{ favorite_team_full | tojson if favorite_team_full else 'null' }};
@@ -875,7 +876,7 @@
                         <div class="settings-user-name" id="settings-disp-nickname">{{ disp_nick if disp_nick else '김명장 감독' }}</div>
                         <div class="settings-user-team" id="settings-disp-team">⚾ {{ favorite_team_full }} 응원 구단</div>
                         {% if username %}
-                        <div class="settings-user-id" id="settings-disp-id">계정: {{ username }}</div>
+                        <div class="settings-user-id" id="settings-disp-id">계정: {{ account_label or username }}</div>
                         {% else %}
                         <div class="settings-user-id" id="settings-disp-id" style="display: none;"></div>
                         {% endif %}
@@ -1072,7 +1073,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261010_1"></script>
+    <script src="app.js?v=20261010_2"></script>
 </body>
 
 </html>

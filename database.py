@@ -4,6 +4,8 @@ import os
 import re
 import datetime
 import shutil
+import secrets
+import hashlib
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # ==============================================================================
@@ -243,6 +245,29 @@ def init_db():
         cursor.execute("ALTER TABLE users ADD COLUMN favorite_team TEXT DEFAULT '한화'")
         cursor.execute("UPDATE users SET favorite_team = team WHERE favorite_team IS NULL OR favorite_team = ''")
         conn.commit()
+    # 로그인 방식: email(이메일+비밀번호) / kakao / google / naver
+    if 'auth_provider' not in user_cols:
+        cursor.execute("ALTER TABLE users ADD COLUMN auth_provider TEXT NOT NULL DEFAULT 'email'")
+        conn.commit()
+    if 'provider_user_id' not in user_cols:
+        cursor.execute("ALTER TABLE users ADD COLUMN provider_user_id TEXT NOT NULL DEFAULT ''")
+        conn.commit()
+    cursor.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_provider ON users (auth_provider, provider_user_id) WHERE provider_user_id <> ''"
+    )
+
+    # 비밀번호 재설정 인증번호 (번호는 해시로만 저장, 시각은 UTC 'YYYY-MM-DD HH:MM:SS' 문자열)
+    cursor.execute(_ddl('''
+        CREATE TABLE IF NOT EXISTS password_resets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            code_hash TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            used INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL
+        )
+    '''))
 
     # 친구 관계 테이블
     cursor.execute(_ddl('''
@@ -326,7 +351,7 @@ def init_db():
     if USE_POSTGRES:
         # Supabase는 public 스키마 테이블을 공개 키(publishable/anon key)로 REST API에 노출하므로
         # RLS를 켜서 외부 접근을 차단 (서버는 테이블 소유자 계정으로 접속하므로 영향 없음)
-        for table in ('users', 'user_friends', 'user_rankings', 'tactics_history', 'kbo_schedules', 'login_logs'):
+        for table in ('users', 'user_friends', 'user_rankings', 'tactics_history', 'kbo_schedules', 'login_logs', 'password_resets'):
             cursor.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
 
     conn.commit()
@@ -342,7 +367,7 @@ def migrate_plaintext_passwords():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT id, password FROM users")
-    targets = [(hash_password(r['password']), r['id']) for r in cursor.fetchall() if not _is_password_hash(r['password'])]
+    targets = [(hash_password(r['password']), r['id']) for r in cursor.fetchall() if r['password'] and not _is_password_hash(r['password'])]
     if targets:
         cursor.executemany("UPDATE users SET password = ? WHERE id = ?", targets)
         conn.commit()
@@ -371,6 +396,20 @@ def clear_all_users():
         cursor.execute("VACUUM")
     conn.close()
     return {"status": "success", "message": "모든 회원 데이터가 성공적으로 초기화되었습니다."}
+
+EMAIL_RE = re.compile(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+
+def normalize_email(email):
+    return (email or '').strip().lower()
+
+def validate_email_format(email):
+    """이메일(로그인 아이디) 형식 검사"""
+    e = normalize_email(email)
+    if not e:
+        return False, "이메일을 입력해 주세요."
+    if len(e) > 100 or not EMAIL_RE.match(e):
+        return False, "올바른 이메일 주소를 입력해 주세요. (예: name@gmail.com)"
+    return True, ""
 
 def validate_username_format(username):
     """아이디 유효성 검사: 영문 + 숫자 조합으로 8자 이상"""
@@ -442,12 +481,26 @@ def _just_registered_same_user(cursor, username, password, within_seconds=30):
     age = datetime.datetime.utcnow() - created.replace(tzinfo=None)
     return row if age.total_seconds() <= within_seconds else None
 
+def _validate_profile(cursor, nickname, team):
+    """감독 닉네임(2~10자, 중복 불가)과 응원 구단 검사. (닉네임, 구단, 오류메시지) 반환"""
+    raw_nick = (nickname or '').strip()
+    if len(raw_nick) < 2 or len(raw_nick) > 10:
+        return None, None, "감독 닉네임은 2자 이상 10자 이하로 입력해 주세요."
+    cursor.execute("SELECT id FROM users WHERE LOWER(nickname) = LOWER(?)", (raw_nick,))
+    if cursor.fetchone():
+        return None, None, "이미 사용 중인 닉네임입니다."
+    fav_team = normalize_team_name(team)
+    if not fav_team:
+        return None, None, "응원 구단을 선택해 주세요."
+    return raw_nick, fav_team, None
+
 def register_user(username, password, email=None, marketing_agreed=False, nickname=None, team=None, favorite_team=None):
+    """이메일 회원가입: 이메일이 곧 로그인 아이디(username 컬럼에 소문자로 저장)"""
     conn = get_db()
     cursor = conn.cursor()
 
-    username = username.strip() if username else ''
-    valid_u, msg_u = validate_username_format(username)
+    username = normalize_email(email or username)
+    valid_u, msg_u = validate_email_format(username)
     if not valid_u:
         conn.close()
         return {"status": "error", "message": msg_u}
@@ -464,30 +517,18 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
         conn.close()
         if same:
             return {"status": "success", "user": _public_user(same)}
-        return {"status": "error", "message": "이미 사용 중인 아이디입니다."}
+        return {"status": "error", "message": "이미 가입된 이메일입니다."}
 
-    # 닉네임 유효성 (2~10자 범위) 및 중복 확인
-    raw_nick = (nickname or username).strip()
-    if len(raw_nick) < 2 or len(raw_nick) > 10:
+    raw_nick, fav_team, err = _validate_profile(cursor, nickname, favorite_team or team)
+    if err:
         conn.close()
-        return {"status": "error", "message": "감독 닉네임은 2자 이상 10자 이하로 입력해 주세요."}
-
-    cursor.execute("SELECT id FROM users WHERE LOWER(nickname) = LOWER(?)", (raw_nick,))
-    if cursor.fetchone():
-        conn.close()
-        return {"status": "error", "message": "이미 사용 중인 닉네임입니다."}
-
-    fav_team = normalize_team_name(favorite_team or team)
-    if not fav_team:
-        conn.close()
-        return {"status": "error", "message": "응원 구단을 선택해 주세요."}
-    email = (email or '').strip()
+        return {"status": "error", "message": err}
 
     try:
         user_id = _insert_returning_id(cursor, '''
-            INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed)
-            VALUES (?, ?, ?, ?, ?, ?, '👑', 2000, 'B', ?)
-        ''', (username, hash_password(password), email, raw_nick, fav_team, fav_team, 1 if marketing_agreed else 0))
+            INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed, auth_provider)
+            VALUES (?, ?, ?, ?, ?, ?, '👑', 2000, 'B', ?, 'email')
+        ''', (username, hash_password(password), username, raw_nick, fav_team, fav_team, 1 if marketing_agreed else 0))
         conn.commit()
 
         cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
@@ -506,10 +547,161 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
         conn.close()
         if same:
             return {"status": "success", "user": _public_user(same)}
-        return {"status": "error", "message": "이미 사용 중인 아이디 또는 닉네임입니다."}
+        return {"status": "error", "message": "이미 가입된 이메일이거나 사용 중인 닉네임입니다."}
     except Exception as e:
         conn.close()
         return {"status": "error", "message": str(e)}
+
+# ==============================================================================
+# 소셜 로그인 (카카오 / 구글 / 네이버)
+# ==============================================================================
+SOCIAL_PROVIDERS = {'kakao': '카카오', 'google': '구글', 'naver': '네이버'}
+
+def get_social_user(provider, provider_user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE auth_provider = ? AND provider_user_id = ?", (provider, str(provider_user_id)))
+    row = cursor.fetchone()
+    conn.close()
+    return _public_user(row)
+
+def create_social_user(provider, provider_user_id, email, nickname, team):
+    """소셜 계정 첫 로그인 시 닉네임/구단을 받아 회원 생성 (비밀번호 없음)"""
+    if provider not in SOCIAL_PROVIDERS or not provider_user_id:
+        return {"status": "error", "message": "소셜 로그인 정보가 올바르지 않습니다. 다시 시도해 주세요."}
+    existing = get_social_user(provider, provider_user_id)
+    if existing:
+        return {"status": "success", "user": existing}
+
+    conn = get_db()
+    cursor = conn.cursor()
+    raw_nick, fav_team, err = _validate_profile(cursor, nickname, team)
+    if err:
+        conn.close()
+        return {"status": "error", "message": err}
+    username = f"{provider}_{provider_user_id}"
+    try:
+        user_id = _insert_returning_id(cursor, '''
+            INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed, auth_provider, provider_user_id)
+            VALUES (?, '', ?, ?, ?, ?, '👑', 2000, 'B', 0, ?, ?)
+        ''', (username, normalize_email(email), raw_nick, fav_team, fav_team, provider, str(provider_user_id)))
+        conn.commit()
+        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        user = _public_user(cursor.fetchone())
+        conn.close()
+        return {"status": "success", "user": user}
+    except IntegrityError:
+        conn.close()
+        existing = get_social_user(provider, provider_user_id)
+        if existing:
+            return {"status": "success", "user": existing}
+        return {"status": "error", "message": "이미 사용 중인 닉네임입니다."}
+
+def account_label(user):
+    """화면에 보여줄 계정 표시 (이메일 또는 'OO 계정')"""
+    if not user:
+        return ''
+    provider = user.get('auth_provider') or 'email'
+    if provider in SOCIAL_PROVIDERS:
+        name = SOCIAL_PROVIDERS[provider] + ' 계정'
+        return f"{name} ({user['email']})" if user.get('email') else name
+    return user.get('username') or ''
+
+# ==============================================================================
+# 이메일 찾기 / 비밀번호 재설정
+# ==============================================================================
+def mask_email(email):
+    """ja***@gmail.com 형태로 일부 가리기"""
+    local, _, domain = (email or '').partition('@')
+    if not domain:
+        return email
+    shown = local[:2] if len(local) > 2 else local[:1]
+    return f"{shown}{'*' * max(3, len(local) - len(shown))}@{domain}"
+
+def find_account_by_nickname(nickname):
+    """닉네임으로 가입 방식과 가린 이메일 반환 (아이디 찾기용)"""
+    n = (nickname or '').strip()
+    if not n:
+        return None
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT username, email, auth_provider FROM users WHERE LOWER(nickname) = LOWER(?)", (n,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    provider = row['auth_provider'] or 'email'
+    if provider in SOCIAL_PROVIDERS:
+        return {"provider": provider, "provider_name": SOCIAL_PROVIDERS[provider], "masked_email": mask_email(row['email']) if row['email'] else ''}
+    return {"provider": "email", "provider_name": "이메일", "masked_email": mask_email(row['username'])}
+
+RESET_CODE_MINUTES = 10
+RESET_MAX_ATTEMPTS = 5
+RESET_RESEND_SECONDS = 60
+
+def _utc_now_str(offset_seconds=0):
+    return (datetime.datetime.utcnow() + datetime.timedelta(seconds=offset_seconds)).strftime('%Y-%m-%d %H:%M:%S')
+
+def _hash_reset_code(user_id, code):
+    return hashlib.sha256(f"{user_id}:{code}".encode('utf-8')).hexdigest()
+
+def create_password_reset(email):
+    """이메일 가입 계정이면 6자리 인증번호를 만들어 반환. 없는 이메일이면 None.
+    반환: {"status": "ok", "code", "user"} / {"status": "too_soon"} / None"""
+    e = normalize_email(email)
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE LOWER(username) = ? AND auth_provider = 'email'", (e,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+    cursor.execute("SELECT created_at FROM password_resets WHERE user_id = ? ORDER BY id DESC LIMIT 1", (row['id'],))
+    last = cursor.fetchone()
+    if last and last['created_at'] > _utc_now_str(-RESET_RESEND_SECONDS):
+        conn.close()
+        return {"status": "too_soon"}
+    code = f"{secrets.randbelow(1000000):06d}"
+    # 이전에 보낸 번호는 무효화하고 새 번호만 유효
+    cursor.execute("UPDATE password_resets SET used = 1 WHERE user_id = ? AND used = 0", (row['id'],))
+    cursor.execute(
+        "INSERT INTO password_resets (user_id, code_hash, expires_at, created_at) VALUES (?, ?, ?, ?)",
+        (row['id'], _hash_reset_code(row['id'], code), _utc_now_str(RESET_CODE_MINUTES * 60), _utc_now_str())
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "code": code, "user": _public_user(row)}
+
+def reset_password_with_code(email, code, new_password):
+    """인증번호 확인 후 비밀번호 변경"""
+    valid_p, msg_p = validate_password_format(new_password)
+    if not valid_p:
+        return {"status": "error", "message": msg_p}
+    e = normalize_email(email)
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE LOWER(username) = ? AND auth_provider = 'email'", (e,))
+    user = cursor.fetchone()
+    reset = None
+    if user:
+        cursor.execute(
+            "SELECT * FROM password_resets WHERE user_id = ? AND used = 0 ORDER BY id DESC LIMIT 1", (user['id'],)
+        )
+        reset = cursor.fetchone()
+    if not reset or reset['expires_at'] < _utc_now_str() or reset['attempts'] >= RESET_MAX_ATTEMPTS:
+        conn.close()
+        return {"status": "error", "message": "인증번호가 만료되었거나 유효하지 않습니다. 인증번호를 다시 받아 주세요."}
+    if not secrets.compare_digest(reset['code_hash'], _hash_reset_code(user['id'], (code or '').strip())):
+        cursor.execute("UPDATE password_resets SET attempts = attempts + 1 WHERE id = ?", (reset['id'],))
+        conn.commit()
+        conn.close()
+        left = RESET_MAX_ATTEMPTS - reset['attempts'] - 1
+        return {"status": "error", "message": f"인증번호가 일치하지 않습니다. (남은 시도 {max(left, 0)}회)"}
+    cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hash_password(new_password), user['id']))
+    cursor.execute("UPDATE password_resets SET used = 1 WHERE user_id = ?", (user['id'],))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요."}
 
 def login_user(username, password):
     u = username.strip() if username else ''
@@ -519,7 +711,9 @@ def login_user(username, password):
     cursor.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", (u,))
     row = cursor.fetchone()
     stored = row['password'] if row else ''
-    if _is_password_hash(stored):
+    if row and not stored:
+        ok = False  # 소셜 로그인 전용 계정
+    elif _is_password_hash(stored):
         ok = check_password_hash(stored, p)
     else:
         # 평문으로 남아 있던 비밀번호는 로그인 성공 시 해시로 교체
@@ -531,7 +725,7 @@ def login_user(username, password):
     if ok:
         return {"status": "success", "user": _public_user(row)}
     # reason은 로그인 기록용 (사용자에게는 같은 안내 문구만 보여줌)
-    return {"status": "error", "message": "아이디 또는 비밀번호가 일치하지 않습니다.",
+    return {"status": "error", "message": "이메일 또는 비밀번호가 일치하지 않습니다.",
             "reason": "wrong_password" if row else "no_user", "user_id": row['id'] if row else None}
 
 def get_user_by_id(user_id):
@@ -561,7 +755,7 @@ def verify_session_user(user_id, username):
 LOGIN_REASON_LABELS = {
     'ok': '로그인 성공',
     'wrong_password': '비밀번호 틀림',
-    'no_user': '없는 아이디',
+    'no_user': '가입되지 않은 이메일',
 }
 
 def log_login(username, success, reason='', user_id=None, ip=''):
@@ -1021,14 +1215,17 @@ def get_all_users():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT id, username, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed, created_at
+        SELECT id, username, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed, created_at, auth_provider
         FROM users
         ORDER BY id DESC
     ''')
     rows = cursor.fetchall()
     users = []
     for r in rows:
-        users.append(_public_user(r))
+        u = _public_user(r)
+        u['provider_name'] = SOCIAL_PROVIDERS.get(u.get('auth_provider'), '이메일')
+        u['account_label'] = account_label(u)
+        users.append(u)
     conn.close()
     return users
 

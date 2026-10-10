@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>회원가입 - 집감독 실시간 야구 매니지먼트</title>
     <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/auth.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         body {
@@ -233,14 +234,14 @@
         {% endif %}
 
         <form method="POST" action="/signup" class="auth-form" id="signup-form" onsubmit="return handleSignupSubmit(event)">
-            <!-- 1) 아이디(ID) (중복 확인 버튼 포함) -->
+            <!-- 1) 이메일 = 로그인 아이디 (중복 확인 버튼 포함) -->
             <div class="form-group">
                 <label for="username">
-                    <span>아이디 (ID)</span>
-                    <span class="label-hint">영문+숫자 8자 이상</span>
+                    <span>이메일 (로그인 아이디)</span>
+                    <span class="label-hint">비밀번호 찾기에 사용돼요</span>
                 </label>
                 <div class="input-with-btn">
-                    <input type="text" id="username" name="username" placeholder="영문, 숫자 조합 8자 이상" required minlength="8" autofocus autocomplete="username" oninput="onUsernameChanged()">
+                    <input type="email" id="username" name="email" placeholder="name@gmail.com" value="{{ form.email or '' }}" required maxlength="100" autofocus autocomplete="email" oninput="onUsernameChanged()">
                     <button type="button" class="btn-check" id="btn-check-username" onclick="checkUsernameAvailability()">중복 확인</button>
                 </div>
                 <div id="username-msg" class="field-feedback"></div>
@@ -263,7 +264,7 @@
                     <span class="label-hint">2~10자 자유 입력</span>
                 </label>
                 <div class="input-with-btn">
-                    <input type="text" id="nickname" name="nickname" placeholder="감독 이름 입력 (예: 김명장)" required minlength="2" maxlength="10" oninput="onNicknameChanged()">
+                    <input type="text" id="nickname" name="nickname" placeholder="감독 이름 입력 (예: 김명장)" value="{{ form.nickname or '' }}" required minlength="2" maxlength="10" oninput="onNicknameChanged()">
                     <button type="button" class="btn-check" id="btn-check-nickname" onclick="checkNicknameAvailability()">중복 확인</button>
                 </div>
                 <div id="nickname-msg" class="field-feedback"></div>
@@ -276,22 +277,25 @@
                     <span class="label-hint">KBO 10개 구단</span>
                 </label>
                 <select id="favorite_team" name="favorite_team" required>
-                    <option value="" disabled selected>응원 구단을 선택해 주세요</option>
-                    <option value="KIA">🐯 KIA 타이거즈</option>
-                    <option value="삼성">🦁 삼성 라이온즈</option>
-                    <option value="LG">🧢 LG 트윈스</option>
-                    <option value="두산">🐻 두산 베어스</option>
-                    <option value="KT">🧙 KT 위즈</option>
-                    <option value="SSG">🚀 SSG 랜더스</option>
-                    <option value="롯데">⚓ 롯데 자이언츠</option>
-                    <option value="한화">🦅 한화 이글스</option>
-                    <option value="NC">🦖 NC 다이노스</option>
-                    <option value="키움">🦸 키움 히어로즈</option>
+                    <option value="" disabled {% if not form.favorite_team %}selected{% endif %}>응원 구단을 선택해 주세요</option>
+                    <option value="KIA" {% if form.favorite_team == 'KIA' %}selected{% endif %}>🐯 KIA 타이거즈</option>
+                    <option value="삼성" {% if form.favorite_team == '삼성' %}selected{% endif %}>🦁 삼성 라이온즈</option>
+                    <option value="LG" {% if form.favorite_team == 'LG' %}selected{% endif %}>🧢 LG 트윈스</option>
+                    <option value="두산" {% if form.favorite_team == '두산' %}selected{% endif %}>🐻 두산 베어스</option>
+                    <option value="KT" {% if form.favorite_team == 'KT' %}selected{% endif %}>🧙 KT 위즈</option>
+                    <option value="SSG" {% if form.favorite_team == 'SSG' %}selected{% endif %}>🚀 SSG 랜더스</option>
+                    <option value="롯데" {% if form.favorite_team == '롯데' %}selected{% endif %}>⚓ 롯데 자이언츠</option>
+                    <option value="한화" {% if form.favorite_team == '한화' %}selected{% endif %}>🦅 한화 이글스</option>
+                    <option value="NC" {% if form.favorite_team == 'NC' %}selected{% endif %}>🦖 NC 다이노스</option>
+                    <option value="키움" {% if form.favorite_team == '키움' %}selected{% endif %}>🦸 키움 히어로즈</option>
                 </select>
             </div>
 
             <button type="submit" class="btn-submit" id="btn-submit-signup">회원가입 완료</button>
         </form>
+
+        {% set divider_text = '또는 간편 가입' %}
+        {% include '_social_buttons.html' %}
 
         <div class="auth-links">
             <div>
@@ -312,14 +316,12 @@
         let isSubmitting = false;  // 가입 버튼 중복 클릭으로 같은 요청이 두 번 전송되는 것 방지
         let checkedNickname = "";
 
-        // 아이디 형식 유효성 검사 (영문+숫자 8자 이상)
+        // 이메일(로그인 아이디) 형식 검사
         function validateUsernameRule(u) {
-            if (!u) return { valid: false, msg: "아이디를 입력해 주세요." };
-            if (u.length < 8) return { valid: false, msg: "아이디는 8자 이상 입력해 주세요." };
-            const hasLetter = /[a-zA-Z]/.test(u);
-            const hasDigit = /\d/.test(u);
-            if (!hasLetter || !hasDigit) return { valid: false, msg: "아이디는 영문과 숫자를 반드시 모두 포함해야 합니다." };
-            if (!/^[a-zA-Z0-9]+$/.test(u)) return { valid: false, msg: "아이디는 영문과 숫자만 사용할 수 있습니다." };
+            if (!u) return { valid: false, msg: "이메일을 입력해 주세요." };
+            if (u.length > 100 || !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(u)) {
+                return { valid: false, msg: "올바른 이메일 주소를 입력해 주세요. (예: name@gmail.com)" };
+            }
             return { valid: true, msg: "" };
         }
 
@@ -416,16 +418,16 @@
             }
 
             try {
-                const res = await fetch(`/api/check-username?username=${encodeURIComponent(username)}`);
+                const res = await fetch(`/api/check-email?email=${encodeURIComponent(username)}`);
                 const data = await res.json();
                 if (data.available) {
-                    msgEl.innerText = "✅ 사용 가능한 아이디입니다.";
+                    msgEl.innerText = "✅ 사용 가능한 이메일입니다.";
                     msgEl.className = "field-feedback success";
                     usernameChecked = true;
                     checkedUsername = username;
                     return true;
                 } else {
-                    msgEl.innerText = `⚠️ ${data.message || '이미 사용 중인 아이디입니다.'}`;
+                    msgEl.innerText = `⚠️ ${data.message || '이미 가입된 이메일입니다.'}`;
                     msgEl.className = "field-feedback error";
                     usernameChecked = false;
                     checkedUsername = "";
@@ -494,7 +496,7 @@
             const currentPassword = passwordInput.value;
             const currentNickname = nicknameInput.value.trim();
 
-            // 1. 아이디 형식 검증
+            // 1. 이메일 형식 검증
             const uCheck = validateUsernameRule(currentUsername);
             if (!uCheck.valid) {
                 event.preventDefault();
@@ -540,13 +542,13 @@
                 return false;
             }
 
-            // 6. 아이디 중복 확인 완료 여부 검증 (확인 전이면 자동으로 확인)
+            // 6. 이메일 중복 확인 완료 여부 검증 (확인 전이면 자동으로 확인)
             if (!usernameChecked || checkedUsername !== currentUsername) {
                 isSubmitting = true;  // 확인하는 동안 다시 눌러도 무시
                 const ok = await checkUsernameAvailability();
                 isSubmitting = false;
                 if (!ok) {
-                    alert("아이디 중복 확인 결과 이미 사용 중인 아이디입니다.");
+                    alert("이미 가입된 이메일입니다. 로그인하거나 비밀번호 찾기를 이용해 주세요.");
                     usernameInput.focus();
                     return false;
                 }

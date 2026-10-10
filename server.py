@@ -1,15 +1,21 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, make_response
 from functools import wraps
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 import sys
 import json
 import time
 import datetime
+import secrets
 import database
+import mailer
+import social_auth
 import game_engine
 from game_engine import GameEngine
 
 app = Flask(__name__, static_folder='static', static_url_path='', template_folder='templates')
+# Render 프록시 뒤에서 https 주소/실제 접속 IP를 올바르게 인식 (소셜 로그인 redirect_uri에 필요)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.secret_key = os.environ.get('SECRET_KEY', 'zipgamdok-secret-baseball-key-2026')
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -102,6 +108,7 @@ def sync_session_from_user(user):
     session['username'] = username
     session['nickname'] = user.get('nickname') or (username + " 감독")
     session['favorite_team'] = resolve_user_team(user)
+    session['account_label'] = database.account_label(user)
 
 # DB 초기화 및 글로벌 게임 엔진 생성
 database.init_db()
@@ -192,9 +199,13 @@ def authentication_guard():
         '/api/session',
         '/api/me',
         '/api/check-username', 
-        '/api/check-nickname'
+        '/api/check-nickname',
+        '/api/check-email',
+        '/signup/social',
+        '/forgot-password',
+        '/find-email'
     }
-    if path in PUBLIC_PATHS or path.startswith('/api/check-'):
+    if path in PUBLIC_PATHS or path.startswith('/api/check-') or path.startswith('/auth/'):
         return None
 
     # 3. 비인가 세션 검사
@@ -292,6 +303,7 @@ def index():
         'index.html', 
         user_id=user_id,
         username=username, 
+        account_label=session.get('account_label') or username,
         nickname=nickname, 
         favorite_team=favorite_team,
         favorite_team_full=favorite_team_full,
@@ -309,23 +321,24 @@ def index():
     return response
 
 
+@app.route('/api/check-email', methods=['GET', 'POST'])
 @app.route('/api/check-username', methods=['GET', 'POST'])
-def api_check_username():
-    """아이디 중복 확인 API: 영문 + 숫자 조합 8자 이상 및 중복 검증"""
+def api_check_email():
+    """이메일(로그인 아이디) 형식 및 중복 확인 API"""
     if request.method == 'POST' and request.is_json:
         data = request.get_json(silent=True) or {}
-        username = data.get('username', '').strip()
+        email = data.get('email') or data.get('username') or ''
     else:
-        username = (request.args.get('username') or request.form.get('username', '')).strip()
+        email = request.args.get('email') or request.args.get('username') or request.form.get('email', '')
+    email = database.normalize_email(email)
 
-    valid, msg = database.validate_username_format(username)
+    valid, msg = database.validate_email_format(email)
     if not valid:
         return jsonify({"status": "error", "message": msg, "available": False}), 400
 
-    exists = database.check_username_exists(username)
-    if exists:
-        return jsonify({"status": "error", "message": "이미 사용 중인 아이디입니다.", "available": False})
-    return jsonify({"status": "success", "message": "사용 가능한 아이디입니다.", "available": True})
+    if database.check_username_exists(email):
+        return jsonify({"status": "error", "message": "이미 가입된 이메일입니다.", "available": False})
+    return jsonify({"status": "success", "message": "사용 가능한 이메일입니다.", "available": True})
 
 
 @app.route('/api/check-nickname', methods=['GET', 'POST'])
@@ -350,74 +363,51 @@ def api_check_nickname():
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    """회원가입 기능: 아이디, 비밀번호, 닉네임, 응원 구단을 입력받아 SQLite users 테이블에 저장"""
+    """이메일 회원가입: 이메일(로그인 아이디), 비밀번호, 감독 닉네임, 응원 구단"""
     if request.method == 'POST':
-        if request.is_json:
-            data = request.get_json(silent=True) or {}
-            username = data.get('username', '').strip()
-            password = data.get('password', '').strip()
-            nickname = data.get('nickname', '').strip()
-            favorite_team = normalize_team_short(data.get('favorite_team') or data.get('team'))
-        else:
-            username = request.form.get('username', '').strip()
-            password = request.form.get('password', '').strip()
-            nickname = request.form.get('nickname', '').strip()
-            favorite_team = normalize_team_short(request.form.get('favorite_team') or request.form.get('team'))
+        data = (request.get_json(silent=True) or {}) if request.is_json else request.form
+        email = database.normalize_email(data.get('email') or data.get('username'))
+        password = (data.get('password') or '').strip()
+        nickname = (data.get('nickname') or '').strip()
+        favorite_team = normalize_team_short(data.get('favorite_team') or data.get('team'))
 
-        valid_u, msg_u = database.validate_username_format(username)
-        if not valid_u:
+        def fail(msg):
             if request.is_json:
-                return jsonify({"status": "error", "message": msg_u}), 400
-            return render_template('signup.html', error=msg_u)
+                return jsonify({"status": "error", "message": msg}), 400
+            return render_template('signup.html', error=msg, form={'email': email, 'nickname': nickname, 'favorite_team': favorite_team})
 
-        valid_p, msg_p = database.validate_password_format(password)
-        if not valid_p:
-            if request.is_json:
-                return jsonify({"status": "error", "message": msg_p}), 400
-            return render_template('signup.html', error=msg_p)
-
+        for valid, msg in (database.validate_email_format(email), database.validate_password_format(password)):
+            if not valid:
+                return fail(msg)
         if not nickname:
-            error_msg = "감독 닉네임을 입력해 주세요."
-            if request.is_json:
-                return jsonify({"status": "error", "message": error_msg}), 400
-            return render_template('signup.html', error=error_msg)
-
+            return fail("감독 닉네임을 입력해 주세요.")
         if len(nickname) < 2 or len(nickname) > 10:
-            error_msg = "감독 닉네임은 2자 이상 10자 이하로 입력해 주세요."
-            if request.is_json:
-                return jsonify({"status": "error", "message": error_msg}), 400
-            return render_template('signup.html', error=error_msg)
-
+            return fail("감독 닉네임은 2자 이상 10자 이하로 입력해 주세요.")
         if not favorite_team:
-            error_msg = "응원 구단을 선택해 주세요."
-            if request.is_json:
-                return jsonify({"status": "error", "message": error_msg}), 400
-            return render_template('signup.html', error=error_msg)
+            return fail("응원 구단을 선택해 주세요.")
 
         res = database.register_user(
-            username=username, 
-            password=password, 
+            username=email,
+            password=password,
+            email=email,
             nickname=nickname,
-            favorite_team=favorite_team, 
+            favorite_team=favorite_team,
             team=favorite_team
         )
-        if res.get('status') == 'success':
-            if request.is_json:
-                return jsonify({
-                    "status": "success",
-                    "message": "회원가입되었습니다! 로그인 화면으로 가기",
-                    "username": username,
-                    "nickname": nickname,
-                    "favorite_team": favorite_team,
-                    "redirect": url_for('login')
-                })
-            # 안내 화면: "회원가입되었습니다! 로그인 화면으로 가기" 버튼 및 문구 제공
-            return render_template('signup_success.html', username=username, nickname=nickname, favorite_team=favorite_team)
-        else:
-            error_msg = res.get('message', '회원가입 처리 중 오류가 발생했습니다.')
-            if request.is_json:
-                return jsonify({"status": "error", "message": error_msg}), 400
-            return render_template('signup.html', error=error_msg)
+        if res.get('status') != 'success':
+            return fail(res.get('message', '회원가입 처리 중 오류가 발생했습니다.'))
+
+        if request.is_json:
+            return jsonify({
+                "status": "success",
+                "message": "회원가입되었습니다! 로그인 화면으로 가기",
+                "email": email,
+                "nickname": nickname,
+                "favorite_team": favorite_team,
+                "redirect": url_for('login')
+            })
+        # 안내 화면: "회원가입되었습니다! 로그인 화면으로 가기" 버튼 및 문구 제공
+        return render_template('signup_success.html', username=email, nickname=nickname, favorite_team=favorite_team)
 
     # GET 요청: 이미 로그인되어 있다면 DB 확인 후 메인으로 이동
     if session.get('user_id') and session.get('username'):
@@ -426,23 +416,19 @@ def signup():
         else:
             session.clear()
             session.modified = True
-    return render_template('signup.html')
+    return render_template('signup.html', form={})
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """로그인 기능: SQLite 일치 확인 후 Flask session에 사용자 이름 및 응원 구단 저장 및 세션 유지"""
     if request.method == 'POST':
-        if request.is_json:
-            data = request.get_json(silent=True) or {}
-            username = data.get('username', '').strip()
-            password = data.get('password', '').strip()
-        else:
-            username = request.form.get('username', '').strip()
-            password = request.form.get('password', '').strip()
+        data = (request.get_json(silent=True) or {}) if request.is_json else request.form
+        username = database.normalize_email(data.get('email') or data.get('username'))
+        password = (data.get('password') or '').strip()
 
         if not username or not password:
-            error_msg = "아이디와 비밀번호를 모두 입력해주세요."
+            error_msg = "이메일과 비밀번호를 모두 입력해주세요."
             if request.is_json:
                 return jsonify({"status": "error", "message": error_msg}), 400
             return render_template('login.html', error=error_msg)
@@ -466,7 +452,7 @@ def login():
                 })
             return redirect(url_for('index'))
         else:
-            error_msg = res.get('message', '아이디 또는 비밀번호가 일치하지 않습니다.')
+            error_msg = res.get('message', '이메일 또는 비밀번호가 일치하지 않습니다.')
             if request.is_json:
                 return jsonify({"status": "error", "message": error_msg}), 401
             return render_template('login.html', error=error_msg)
@@ -510,6 +496,155 @@ def logout():
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+
+# ==============================================================================
+# SOCIAL LOGIN (카카오 / 구글 / 네이버)
+# ==============================================================================
+
+@app.context_processor
+def inject_social_providers():
+    """로그인/회원가입 화면에 설정된 소셜 로그인 버튼만 표시"""
+    return {'social_providers': social_auth.enabled_providers()}
+
+
+def social_redirect_uri(provider):
+    """각 개발자 콘솔에 등록할 콜백 주소 (PUBLIC_BASE_URL이 있으면 그 주소 기준)"""
+    base = os.environ.get('PUBLIC_BASE_URL', '').strip().rstrip('/')
+    if base:
+        return base + url_for('social_callback', provider=provider)
+    return url_for('social_callback', provider=provider, _external=True)
+
+
+def login_page_error(msg):
+    return render_template('login.html', error=msg)
+
+
+@app.route('/auth/<provider>/start')
+def social_start(provider):
+    if not social_auth.is_configured(provider):
+        return login_page_error("아직 준비 중인 로그인 방식입니다.")
+    state = secrets.token_urlsafe(24)
+    session['oauth_state'] = state
+    session['oauth_provider'] = provider
+    return redirect(social_auth.authorize_url(provider, social_redirect_uri(provider), state))
+
+
+@app.route('/auth/<provider>/callback')
+def social_callback(provider):
+    name = database.SOCIAL_PROVIDERS.get(provider, '소셜')
+    expected_state = session.pop('oauth_state', None)
+    expected_provider = session.pop('oauth_provider', None)
+
+    if request.args.get('error'):
+        return login_page_error(f"{name} 로그인이 취소되었습니다.")
+    if (not social_auth.is_configured(provider) or provider != expected_provider
+            or not expected_state or request.args.get('state') != expected_state):
+        return login_page_error(f"{name} 로그인 요청이 만료되었습니다. 다시 시도해 주세요.")
+
+    try:
+        profile = social_auth.fetch_profile(provider, request.args.get('code', ''), social_redirect_uri(provider), expected_state)
+    except social_auth.SocialLoginError as e:
+        print(f"⚠️ [SOCIAL] {provider} 로그인 실패: {e}")
+        return login_page_error(f"{name} 로그인 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.")
+    if not profile.get('id'):
+        return login_page_error(f"{name} 계정 정보를 가져오지 못했습니다. 다시 시도해 주세요.")
+
+    user = database.get_social_user(provider, profile['id'])
+    if user:
+        session.permanent = True
+        sync_session_from_user(user)
+        database.log_login(session['account_label'], True, 'ok', user['id'], client_ip())
+        return redirect(url_for('index'))
+
+    # 첫 로그인: 닉네임/응원 구단을 받는 화면으로 이동
+    session['social_pending'] = {
+        'provider': provider,
+        'id': profile['id'],
+        'email': profile.get('email', ''),
+        'nickname': (profile.get('nickname') or '')[:10],
+    }
+    return redirect(url_for('social_signup'))
+
+
+@app.route('/signup/social', methods=['GET', 'POST'])
+def social_signup():
+    pending = session.get('social_pending')
+    if not pending:
+        return redirect(url_for('login'))
+    provider_name = database.SOCIAL_PROVIDERS.get(pending['provider'], '소셜')
+
+    if request.method == 'POST':
+        nickname = request.form.get('nickname', '').strip()
+        favorite_team = normalize_team_short(request.form.get('favorite_team'))
+        res = database.create_social_user(pending['provider'], pending['id'], pending.get('email'), nickname, favorite_team)
+        if res.get('status') != 'success':
+            return render_template('social_signup.html', provider_name=provider_name, pending=pending,
+                                   nickname=nickname, favorite_team=favorite_team, error=res.get('message'))
+        session.pop('social_pending', None)
+        session.permanent = True
+        sync_session_from_user(res['user'])
+        database.log_login(session['account_label'], True, 'ok', res['user']['id'], client_ip())
+        return redirect(url_for('index'))
+
+    return render_template('social_signup.html', provider_name=provider_name, pending=pending,
+                           nickname=pending.get('nickname', ''), favorite_team=None)
+
+
+# ==============================================================================
+# 이메일 찾기 / 비밀번호 재설정
+# ==============================================================================
+
+@app.route('/find-email', methods=['GET', 'POST'])
+def find_email():
+    result = None
+    nickname = ''
+    error = None
+    if request.method == 'POST':
+        nickname = request.form.get('nickname', '').strip()
+        if not nickname:
+            error = "감독 닉네임을 입력해 주세요."
+        else:
+            result = database.find_account_by_nickname(nickname)
+            if not result:
+                error = "해당 닉네임으로 가입된 계정이 없습니다."
+    return render_template('find_email.html', result=result, nickname=nickname, error=error)
+
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'GET':
+        return render_template('forgot_password.html', step='request', email='')
+
+    action = request.form.get('action', 'send')
+    email = database.normalize_email(request.form.get('email'))
+
+    if action == 'send':
+        valid, msg = database.validate_email_format(email)
+        if not valid:
+            return render_template('forgot_password.html', step='request', email=email, error=msg)
+        if not mailer.is_configured():
+            return render_template('forgot_password.html', step='request', email=email,
+                                   error="비밀번호 찾기 메일 기능이 아직 준비 중입니다. 관리자에게 문의해 주세요.")
+        res = database.create_password_reset(email)
+        notice = "가입된 이메일이라면 인증번호를 보냈습니다. 메일함(스팸함 포함)을 확인해 주세요."
+        if res and res['status'] == 'too_soon':
+            notice = "인증번호를 방금 보냈습니다. 1분 뒤에 다시 요청할 수 있어요. 메일함을 확인해 주세요."
+        elif res and res['status'] == 'ok':
+            if not mailer.send_reset_code(email, res['code'], res['user'].get('nickname', ''), database.RESET_CODE_MINUTES):
+                return render_template('forgot_password.html', step='request', email=email,
+                                       error="메일 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.")
+        return render_template('forgot_password.html', step='verify', email=email, notice=notice)
+
+    # action == 'reset'
+    code = request.form.get('code', '').strip()
+    new_password = request.form.get('new_password', '')
+    if new_password != request.form.get('new_password_confirm', ''):
+        return render_template('forgot_password.html', step='verify', email=email, error="새 비밀번호가 서로 일치하지 않습니다.")
+    res = database.reset_password_with_code(email, code, new_password)
+    if res['status'] != 'success':
+        return render_template('forgot_password.html', step='verify', email=email, error=res['message'])
+    return render_template('login.html', notice=res['message'], email=email)
 
 
 # ==============================================================================
@@ -690,9 +825,9 @@ def api_search_friends():
 @app.route('/api/register', methods=['POST'])
 def api_register():
     data = request.get_json(silent=True) or {}
-    username = data.get('username', '').strip()
+    email = database.normalize_email(data.get('email') or data.get('username'))
+    username = email
     password = data.get('password', '').strip()
-    email = data.get('email', '').strip()
     marketing_agreed = data.get('marketing_agreed', False)
     nickname = data.get('nickname', '김명장').strip()
     favorite_team = normalize_team_short(data.get('favorite_team') or data.get('team'))
@@ -711,11 +846,11 @@ def api_register():
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.get_json(silent=True) or {}
-    username = data.get('username', '').strip()
+    username = database.normalize_email(data.get('email') or data.get('username'))
     password = data.get('password', '').strip()
 
     if not username or not password:
-        return jsonify({"status": "error", "message": "아이디와 비밀번호를 입력해주세요."}), 400
+        return jsonify({"status": "error", "message": "이메일과 비밀번호를 입력해주세요."}), 400
 
     res = database.login_user(username, password)
     record_login(username, res)

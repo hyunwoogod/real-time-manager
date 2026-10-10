@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>감독 정보 설정 - 집감독 실시간 야구 매니지먼트</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/auth.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-logo">⚾</div>
+        <h1 class="auth-title">집감독</h1>
+        <p class="auth-subtitle">{{ provider_name }} 계정으로 시작합니다</p>
+        <div class="auth-card-header">감독 정보 설정</div>
+        {% if error %}
+        <div class="error-alert">⚠️ {{ error }}</div>
+        {% endif %}
+        <div class="notice-alert">
+            👋 처음 오셨네요! 감독 닉네임과 응원 구단만 정하면 바로 시작할 수 있어요.
+            {% if pending.email %}<br><span style="color: #94a3b8;">연결된 이메일: {{ pending.email }}</span>{% endif %}
+        </div>
+        <form method="POST" action="/signup/social" class="auth-form" id="social-signup-form">
+            <div class="form-group">
+                <label for="nickname">감독 닉네임 (2~10자)</label>
+                <input type="text" id="nickname" name="nickname" value="{{ nickname or '' }}" placeholder="감독 이름 입력 (예: 김명장)" required minlength="2" maxlength="10">
+                <div class="form-hint">다른 감독과 겹치지 않는 이름을 정해 주세요.</div>
+            </div>
+            <div class="form-group">
+                <label for="favorite_team">응원 구단</label>
+                <select id="favorite_team" name="favorite_team" required>
+                    <option value="" disabled {% if not favorite_team %}selected{% endif %}>응원 구단을 선택해 주세요</option>
+                    {% for code, label in [('KIA', '🐯 KIA 타이거즈'), ('삼성', '🦁 삼성 라이온즈'), ('LG', '🧢 LG 트윈스'), ('두산', '🐻 두산 베어스'), ('KT', '🧙 KT 위즈'), ('SSG', '🚀 SSG 랜더스'), ('롯데', '⚓ 롯데 자이언츠'), ('한화', '🦅 한화 이글스'), ('NC', '🦖 NC 다이노스'), ('키움', '🦸 키움 히어로즈')] %}
+                    <option value="{{ code }}" {% if favorite_team == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn-submit" id="btn-submit-social-signup">시작하기</button>
+        </form>
+        <div class="auth-links">
+            <div><a href="/login" class="auth-back">← 다른 방법으로 로그인하기</a></div>
+        </div>
+    </div>
+    <script>
+        // 버튼 중복 클릭 방지
+        document.getElementById('social-signup-form').addEventListener('submit', function () {
+            const btn = document.getElementById('btn-submit-social-signup');
+            btn.disabled = true;
+            btn.innerText = '처리 중...';
+        });
+    </script>
+</body>
+</html>

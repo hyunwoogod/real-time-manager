@@ -433,7 +433,7 @@ function openSettingsModal() {
     const nick = window.CURRENT_SESSION_NICKNAME || window.CURRENT_SESSION_USER || userNickname || localStorage.getItem('antigravity_user_nickname') || '김명장 감독';
     const teamCode = normalizeTeamShort(selectedTeamCode || window.CURRENT_SESSION_TEAM);
     const teamFull = teamFullMap[teamCode] || '응원 구단 미설정';
-    const user = window.CURRENT_SESSION_USER || '';
+    const user = window.CURRENT_SESSION_ACCOUNT || window.CURRENT_SESSION_USER || '';
 
     const nickEl = document.getElementById('settings-disp-nickname');
     const teamEl = document.getElementById('settings-disp-team');
