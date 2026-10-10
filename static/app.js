@@ -1022,7 +1022,9 @@ function switchLobbyTab(tabName, btnEl) {
     if (btnEl && btnEl.classList.contains('bottom-nav-item')) {
         btnEl.classList.add('active');
     } else {
-        const defaultBtn = document.querySelector(`.bottom-nav-item[onclick*="'${tabName}'"]`);
+        // 팀 순위(records)는 리그 탭 안에 있으므로 리그 버튼을 켬
+        const navKey = tabName === 'records' ? 'schedule' : tabName;
+        const defaultBtn = document.querySelector(`.bottom-nav-item[onclick*="'${navKey}'"]`);
         if (defaultBtn) defaultBtn.classList.add('active');
     }
 
@@ -1030,8 +1032,8 @@ function switchLobbyTab(tabName, btnEl) {
     document.querySelectorAll('.sub-nav-item').forEach(subBtn => {
         subBtn.classList.remove('active');
         const onclickAttr = subBtn.getAttribute('onclick') || '';
-        if ((tabName === 'schedule' && (onclickAttr.includes('schedule') || subBtn.innerText.includes('일정'))) ||
-            (tabName === 'records' && (onclickAttr.includes('records') || subBtn.innerText.includes('순위/기록')))) {
+        if ((tabName === 'schedule' && onclickAttr.includes('schedule')) ||
+            (tabName === 'records' && onclickAttr.includes('records'))) {
             subBtn.classList.add('active');
         }
     });
