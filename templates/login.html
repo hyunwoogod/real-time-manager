@@ -27,7 +27,7 @@
         <form method="POST" action="/login" class="auth-form">
             <div class="form-group">
                 <label for="email">이메일</label>
-                <input type="email" id="email" name="email" placeholder="가입한 이메일을 입력하세요" value="{{ email or '' }}" required autofocus autocomplete="username">
+                <input type="text" inputmode="email" id="email" name="email" placeholder="가입한 이메일을 입력하세요" value="{{ email or '' }}" required autofocus autocomplete="username">
             </div>
             <div class="form-group">
                 <label for="password">비밀번호 (Password)</label>
