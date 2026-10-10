@@ -491,7 +491,6 @@ def social_callback(provider):
         'provider': provider,
         'id': profile['id'],
         'email': profile.get('email', ''),
-        'nickname': (profile.get('nickname') or '')[:10],
     }
     return redirect(url_for('social_signup'))
 
@@ -520,7 +519,7 @@ def social_signup():
         return redirect(url_for('index'))
 
     return render_template('social_signup.html', provider_name=provider_name, pending=pending,
-                           nickname=pending.get('nickname', ''), favorite_team=None)
+                           nickname='', favorite_team=None)
 
 
 # ==============================================================================

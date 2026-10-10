@@ -350,3 +350,31 @@ body {
     text-align: center;
     margin-bottom: 8px;
 }
+
+/* 입력칸 + 오른쪽 버튼 (닉네임 중복 확인) */
+.input-with-btn {
+    display: flex;
+    gap: 8px;
+}
+.input-with-btn input {
+    flex: 1;
+    min-width: 0;
+}
+.btn-check {
+    flex-shrink: 0;
+    padding: 0 14px;
+    background: rgba(14, 165, 233, 0.15);
+    border: 1px solid rgba(14, 165, 233, 0.5);
+    border-radius: 12px;
+    color: #38bdf8;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.btn-check:hover {
+    background: rgba(14, 165, 233, 0.25);
+}
+.form-hint.msg-success { color: #34d399; }
+.form-hint.msg-error { color: #f87171; }
+.form-hint.msg-info { color: #94a3b8; }
