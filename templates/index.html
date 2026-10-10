@@ -79,8 +79,8 @@
                 } catch (e) { }
             };
 
-            // Mandatory Inline Safety Fallback Timeout (환영 화면 최대 2.5초)
-            setTimeout(function () { window.dismissSplash(); }, 2500);
+            // Mandatory Inline Safety Fallback Timeout (환영 화면 최대 4초)
+            setTimeout(function () { window.dismissSplash(); }, 4000);
         </script>
         <div id="splash-screen" class="splash-overlay active" onclick="window.dismissSplash()"
             ontouchstart="window.dismissSplash()" onpointerdown="window.dismissSplash()">
@@ -1082,7 +1082,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261010_3"></script>
+    <script src="app.js?v=20261010_4"></script>
 </body>
 
 </html>

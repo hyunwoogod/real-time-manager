@@ -380,8 +380,9 @@ function runSplashScreen() {
     let progress = 0;
     let msgIdx = 0;
 
+    // 30ms마다 1%씩 → 약 3초 동안 진행
     window._splashTimer = setInterval(() => {
-        progress += 2;
+        progress += 1;
         if (fill) fill.style.width = `${Math.min(100, progress)}%`;
 
         if (progress > 35 && msgIdx === 0) {
@@ -397,10 +398,10 @@ function runSplashScreen() {
         }
     }, 30);
 
-    // Safety Timeout: 환영 화면은 최대 2초 (멈추지 않도록 보장)
+    // Safety Timeout: 환영 화면은 최대 3.5초 (멈추지 않도록 보장)
     window._splashSafetyTimer = setTimeout(() => {
         dismissSplash();
-    }, 2000);
+    }, 3500);
 }
 
 // Modal Handlers for Auth
