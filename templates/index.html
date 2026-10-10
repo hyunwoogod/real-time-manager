@@ -8,7 +8,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>집감독 - 프로 라이브 야구 감독 매니지먼트</title>
-    <link rel="stylesheet" href="style.css?v=20261011_3">
+    <link rel="stylesheet" href="style.css?v=20261011_5">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -85,30 +85,41 @@
         </script>
         <div id="splash-screen" class="splash-overlay active" onclick="window.dismissSplash()"
             ontouchstart="window.dismissSplash()" onpointerdown="window.dismissSplash()">
-            <div class="splash-content">
-                <div class="brand-badge">PRO BASEBALL PLATFORM</div>
-                <div class="baseball-spin-wrapper">
-                    <span class="spinning-ball">⚾</span>
+            <div class="splash-content ballpark-splash" style="--team-color: {{ favorite_team_color or '#10b981' }};">
+                <div class="zg-logo-wrap">
+                    {% set logo_size = 104 %}
+                    {% include '_logo.html' %}
                 </div>
-                <h1 class="splash-logo">집감독</h1>
+                <h1 class="zg-wordmark">집감독</h1>
+                <p class="zg-tagline">ZIP GAMDOK · BASEBALL MANAGER</p>
+
                 {% if nickname %}
                 {% set splash_nick = nickname if nickname.endswith('감독') else nickname + ' 감독' %}
-                <p class="splash-welcome" style="border-color: {{ favorite_team_color or '#10b981' }};">
+                <div class="splash-welcome">
                     <span class="splash-welcome-logo">{{ favorite_team_logo or '⚾' }}</span>
-                    <strong>{{ splash_nick }}님, 반갑습니다!</strong>
-                </p>
-                <p class="splash-subtitle">{{ favorite_team_full }} 감독석으로 입장합니다</p>
-                {% else %}
-                <p class="splash-subtitle">실시간 라이브 야구 감독 매니지먼트</p>
-                {% endif %}
-
-                <div class="loader-box">
-                    <div class="loader-status" id="loader-status-text">로비 입장 준비 중...</div>
-                    <div class="loader-bar-bg">
-                        <div id="splash-progress-fill" class="loader-bar-fill"></div>
+                    <div class="splash-welcome-text">
+                        <strong>{{ splash_nick }}님, 반갑습니다!</strong>
+                        <span>{{ favorite_team_full }} 감독석으로 입장합니다</span>
                     </div>
                 </div>
-                <div class="splash-footer">Powered by Antigravity Real-Time Engine</div>
+                {% endif %}
+
+                <!-- 주루 로딩바: 타석 → 1루 → 2루 → 3루 → 홈 -->
+                <div class="basepath" aria-hidden="true">
+                    <div class="basepath-track">
+                        <div id="splash-progress-fill" class="basepath-fill"></div>
+                    </div>
+                    {% for pos, label in [(0, '타석'), (25, '1루'), (50, '2루'), (75, '3루'), (100, '홈')] %}
+                    <div class="basepath-base {% if loop.first %}reached{% endif %} {% if loop.last %}home{% endif %}" style="left: {{ pos }}%;" data-at="{{ pos }}">
+                        <span class="base-mark"></span>
+                        <span class="base-label">{{ label }}</span>
+                    </div>
+                    {% endfor %}
+                    <div id="splash-runner" class="basepath-runner" style="left: 0%;">
+                        <svg viewBox="0 0 24 24"><circle cx="15" cy="4.5" r="3" class="helmet"/><path d="M14 8.5 11 15M13 10.5l4 2.5M13 10.5 9 9.5M11 15l4 5M11 15l-4.5 3.5"/></svg>
+                    </div>
+                </div>
+                <div class="loader-status" id="loader-status-text">타석에 들어서는 중...</div>
             </div>
         </div>
 
@@ -1058,7 +1069,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261011_4"></script>
+    <script src="app.js?v=20261011_5"></script>
 </body>
 
 </html>

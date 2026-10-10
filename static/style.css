@@ -4300,27 +4300,192 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     transform: translateX(20px);
 }
 
-/* 로그인한 감독 환영 문구 (시작 화면) */
-.splash-welcome {
-    display: inline-flex;
+/* ==========================================================================
+   시작(로딩) 화면 — 밤 야구장 + 엠블럼 + 주루 로딩바
+   ========================================================================== */
+#splash-screen {
+    background:
+        radial-gradient(ellipse 60% 40% at 8% 0%, rgba(255, 255, 255, 0.10) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 92% 0%, rgba(255, 255, 255, 0.10) 0%, transparent 70%),
+        radial-gradient(ellipse 120% 45% at 50% 110%, rgba(16, 185, 129, 0.28) 0%, transparent 70%),
+        linear-gradient(180deg, #050b16 0%, #071324 60%, #04150f 100%) !important;
+}
+.ballpark-splash {
+    width: 100%;
+    max-width: 360px;
+    padding: 0 20px;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px;
-    margin: 14px auto 6px;
-    padding: 10px 18px;
-    border: 1px solid #10b981;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.7);
-    font-size: 1.1rem;
-    color: #f8fafc;
-    animation: splashWelcomeIn 0.5s ease-out both;
+    text-align: center;
+}
+.zg-logo-wrap {
+    filter: drop-shadow(0 10px 24px rgba(16, 185, 129, 0.35));
+    animation: zgLogoIn 0.6s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+@keyframes zgLogoIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.85); }
+    to { opacity: 1; transform: none; }
+}
+.zg-wordmark {
+    margin: 14px 0 2px;
+    font-family: var(--font-body);
+    font-size: 2.3rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #ffffff;
+    text-shadow: 0 2px 0 #047857, 0 0 24px rgba(16, 185, 129, 0.45);
+}
+.zg-tagline {
+    font-family: var(--font-body);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #6ee7b7;
+    opacity: 0.85;
+}
+
+.splash-welcome {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin: 26px 0 30px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    background: rgba(8, 16, 30, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 4px solid var(--team-color);
+    text-align: left;
+    animation: splashWelcomeIn 0.5s 0.2s ease-out both;
 }
 .splash-welcome-logo {
-    font-size: 1.5rem;
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1.4rem;
+    background: color-mix(in srgb, var(--team-color) 40%, rgba(15, 23, 42, 0.9));
+}
+.splash-welcome-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.splash-welcome-text strong {
+    font-size: 1.02rem;
+    color: #f8fafc;
+}
+.splash-welcome-text span {
+    font-size: 0.78rem;
+    color: #94a3b8;
 }
 @keyframes splashWelcomeIn {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* 주루 로딩바 */
+.basepath {
+    position: relative;
+    width: calc(100% - 28px);
+    height: 58px;
+    margin: 0 14px;
+}
+.basepath-track {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    right: 0;
+    height: 6px;
+    border-radius: 3px;
+    background: repeating-linear-gradient(90deg, rgba(180, 140, 90, 0.35) 0 8px, rgba(180, 140, 90, 0.18) 8px 12px);
+    overflow: hidden;
+}
+.basepath-fill {
+    width: 0%;
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #10b981, #6ee7b7);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+    transition: width 0.03s linear;
+}
+.basepath-base {
+    position: absolute;
+    top: 25px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.base-mark {
+    width: 14px;
+    height: 14px;
+    transform: rotate(45deg);
+    border-radius: 2px;
+    background: #1e293b;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.basepath-base.home .base-mark {
+    transform: none;
+    border-radius: 2px 2px 7px 7px;
+}
+.basepath-base.reached .base-mark {
+    background: #f8fafc;
+    border-color: #6ee7b7;
+    box-shadow: 0 0 12px rgba(110, 231, 183, 0.9);
+}
+.base-label {
+    font-size: 0.66rem;
+    font-weight: 800;
+    color: #64748b;
+    white-space: nowrap;
+}
+.basepath-base.reached .base-label {
+    color: #d1fae5;
+}
+.basepath-runner {
+    position: absolute;
+    top: -8px;
+    width: 34px;
+    height: 34px;
+    transform: translateX(-50%);
+    transition: left 0.03s linear;
+    animation: runnerBob 0.28s ease-in-out infinite alternate;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.6));
+}
+.basepath-runner svg {
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: #f8fafc;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.basepath-runner .helmet {
+    fill: var(--team-color);
+    stroke: #f8fafc;
+    stroke-width: 1.4;
+}
+@keyframes runnerBob {
+    from { transform: translateX(-50%) translateY(0) rotate(-4deg); }
+    to { transform: translateX(-50%) translateY(-3px) rotate(4deg); }
+}
+.ballpark-splash .loader-status {
+    margin-top: 14px;
+    min-height: 1.2em;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
 
 /* ==========================================================================
    팀 순위 (순위/기록 탭) - 가로 스크롤 없는 한 화면 리스트

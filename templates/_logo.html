@@ -1,0 +1,35 @@
+{# 집감독 엠블럼: 홈플레이트 방패 + 교차한 배트 + 야구공 (logo_size로 크기 지정) #}
+<svg class="zg-emblem" viewBox="0 0 120 132" width="{{ logo_size or 96 }}" height="{{ ((logo_size or 96) * 1.1) | int }}" role="img" aria-label="집감독 로고">
+    <defs>
+        <linearGradient id="zgShield" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#13324a"/>
+            <stop offset="100%" stop-color="#071422"/>
+        </linearGradient>
+        <linearGradient id="zgRim" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#6ee7b7"/>
+            <stop offset="100%" stop-color="#059669"/>
+        </linearGradient>
+        <linearGradient id="zgBat" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#8a5a2b"/>
+            <stop offset="100%" stop-color="#e3b778"/>
+        </linearGradient>
+    </defs>
+    <!-- 홈플레이트 방패 -->
+    <path d="M10 8 H110 V78 L60 126 L10 78 Z" fill="url(#zgShield)" stroke="url(#zgRim)" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M20 17 H100 V74 L60 113 L20 74 Z" fill="none" stroke="rgba(110,231,183,0.25)" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- 교차한 배트 -->
+    <g transform="rotate(-38 60 60)">
+        <rect x="56" y="16" width="8" height="86" rx="4" fill="url(#zgBat)"/>
+        <rect x="55" y="96" width="10" height="5" rx="2.5" fill="#5b3a1a"/>
+    </g>
+    <g transform="rotate(38 60 60)">
+        <rect x="56" y="16" width="8" height="86" rx="4" fill="url(#zgBat)"/>
+        <rect x="55" y="96" width="10" height="5" rx="2.5" fill="#5b3a1a"/>
+    </g>
+    <!-- 야구공 -->
+    <circle cx="60" cy="58" r="22" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M47 41 C55 50 55 66 47 75" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-dasharray="3 3"/>
+    <path d="M73 41 C65 50 65 66 73 75" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-dasharray="3 3"/>
+    <!-- 별 장식 -->
+    <path d="M60 92 l2.4 5 5.4.6-4 3.7 1.1 5.3-4.9-2.7-4.9 2.7 1.1-5.3-4-3.7 5.4-.6z" fill="#fbbf24"/>
+</svg>

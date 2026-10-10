@@ -371,26 +371,31 @@ function runSplashScreen() {
         splash.onpointerdown = (e) => { try { e.stopPropagation(); } catch(err) {} dismissSplash(); };
     }
 
+    // 주루 중계 문구 (진행률 25%마다 다음 베이스)
     const statusMsgs = [
-        "로비 입장 준비 중...",
-        "응원 구단 경기 정보 불러오는 중...",
-        "입장 완료!"
+        "타석에 들어서는 중...",
+        "1루 진루! 경기 정보 확인 중",
+        "2루 도루 성공! 응원 구단 소식 불러오는 중",
+        "3루 안착! 감독석 준비 중",
+        "홈 인! ⚾ 입장합니다"
     ];
+    const runner = document.getElementById('splash-runner');
+    const bases = document.querySelectorAll('.basepath-base');
 
     let progress = 0;
     let msgIdx = 0;
 
     // 30ms마다 1%씩 → 약 3초 동안 진행
     window._splashTimer = setInterval(() => {
-        progress += 1;
-        if (fill) fill.style.width = `${Math.min(100, progress)}%`;
+        progress = Math.min(100, progress + 1);
+        if (fill) fill.style.width = `${progress}%`;
+        if (runner) runner.style.left = `${progress}%`;
+        bases.forEach(b => b.classList.toggle('reached', progress >= Number(b.dataset.at)));
 
-        if (progress > 35 && msgIdx === 0) {
-            msgIdx = 1;
-            if (statusText) statusText.innerText = statusMsgs[1];
-        } else if (progress > 75 && msgIdx === 1) {
-            msgIdx = 2;
-            if (statusText) statusText.innerText = statusMsgs[2];
+        const idx = Math.min(4, Math.floor(progress / 25));
+        if (idx !== msgIdx) {
+            msgIdx = idx;
+            if (statusText) statusText.innerText = statusMsgs[idx];
         }
 
         if (progress >= 100) {

@@ -378,3 +378,10 @@ body {
 .form-hint.msg-success { color: #34d399; }
 .form-hint.msg-error { color: #f87171; }
 .form-hint.msg-info { color: #94a3b8; }
+
+/* 집감독 엠블럼 로고 (로그인·가입 화면) */
+.auth-logo-emblem {
+    display: inline-block;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 8px 18px rgba(16, 185, 129, 0.35));
+}
