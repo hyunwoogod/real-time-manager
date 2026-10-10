@@ -177,6 +177,22 @@ def login_required(f):
 
 
 @app.before_request
+def strip_trailing_slash():
+    """/privacy/ 처럼 끝에 / 가 붙은 주소도 /privacy 로 열리도록 이동"""
+    path = request.path
+    if len(path) > 1 and path.endswith('/'):
+        query = request.query_string.decode('utf-8')
+        return redirect(path.rstrip('/') + (f'?{query}' if query else ''), code=301)
+    return None
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    """없는 주소로 들어왔을 때 영문 기본 오류 대신 안내 화면 표시"""
+    return render_template('not_found.html'), 404
+
+
+@app.before_request
 def authentication_guard():
     """모든 요청 사전 검사 가드: SQLite users 테이블 실시간 대조 및 무효 세션 즉각 강제 파기"""
     path = request.path
