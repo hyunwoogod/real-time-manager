@@ -41,7 +41,8 @@
             <a href="/forgot-password" id="link-forgot-password">비밀번호를 잊으셨나요?</a>
         </div>
 
-        {% set divider_text = '또는 간편 로그인' %}
+        {% set divider_text = '또는 간편 로그인 (처음이면 자동으로 가입돼요)' %}
+        {% set social_action = '로그인' %}
         {% include '_social_buttons.html' %}
 
         <div class="auth-links">
