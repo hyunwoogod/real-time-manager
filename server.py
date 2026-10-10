@@ -208,6 +208,7 @@ def authentication_guard():
         '/signup', 
         '/logout',
         '/admin/users', 
+        '/admin/games',
         '/admin/logout',
         '/api/login', 
         '/api/register',
@@ -593,6 +594,56 @@ def admin_users():
     )
 
 
+@app.route('/admin/games', methods=['GET', 'POST'])
+def admin_games():
+    """관리자: 경기 일정·결과 입력, 팀 순위 기준값 관리"""
+    if not session.get('admin_authenticated'):
+        return redirect(url_for('admin_users'))
+
+    selected_date = request.values.get('date') or datetime.date.today().isoformat()
+    try:
+        selected_date = datetime.date.fromisoformat(selected_date).isoformat()
+    except ValueError:
+        selected_date = datetime.date.today().isoformat()
+
+    message, error = None, None
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'save_result':
+            res = database.save_game_result(request.form.get('game_id'), request.form.get('status_text'),
+                                            request.form.get('away_score'), request.form.get('home_score'))
+        elif action == 'add_game':
+            res = database.add_game(request.form.get('game_date'), request.form.get('start_time'),
+                                    request.form.get('away_team'), request.form.get('home_team'), request.form.get('stadium'))
+            if res['status'] == 'success':
+                selected_date = request.form.get('game_date') or selected_date
+        elif action == 'delete_game':
+            res = database.delete_game(request.form.get('game_id'))
+        elif action == 'save_base':
+            rows = [{'team': t,
+                     'wins': request.form.get(f'wins_{t}'),
+                     'losses': request.form.get(f'losses_{t}'),
+                     'draws': request.form.get(f'draws_{t}'),
+                     'streak': request.form.get(f'streak_{t}')} for t in database.KBO_TEAMS]
+            res = database.save_standings_base(rows, request.form.get('as_of'))
+        else:
+            res = {"status": "error", "message": "알 수 없는 요청입니다."}
+        if res['status'] == 'success':
+            message = res['message']
+        else:
+            error = res['message']
+
+    games = [g for g in database.get_schedules_by_date(selected_date) if g.get('is_rest_day') != 1]
+    base, as_of = database.get_standings_base()
+    standings = database.compute_standings()
+    day = datetime.date.fromisoformat(selected_date)
+    return render_template('admin_games.html', selected_date=selected_date, games=games, base=base, as_of=as_of,
+                           prev_date=(day - datetime.timedelta(days=1)).isoformat(),
+                           next_date=(day + datetime.timedelta(days=1)).isoformat(),
+                           standings=standings, teams=database.KBO_TEAMS, message=message, error=error,
+                           team_full_names=TEAM_FULL_NAMES)
+
+
 @app.route('/admin/logout')
 def admin_logout():
     """관리자 세션 로그아웃"""
@@ -692,6 +743,12 @@ def api_lobby():
         "countdown": "14분 30초",
         "current_username": session.get('username') or (user_info.get('username') if user_info else '')
     })
+
+
+@app.route('/api/standings')
+def api_standings():
+    """팀 순위: 관리자 기준값 + 이후 경기 결과로 자동 계산"""
+    return jsonify(database.compute_standings())
 
 
 @app.route('/api/schedules')

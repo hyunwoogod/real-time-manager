@@ -344,6 +344,28 @@ def init_db():
         cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN away_pitcher TEXT DEFAULT ''")
     if "status_text" not in cols:
         cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN status_text TEXT DEFAULT '경기전'")
+    # 관리자가 입력하는 경기 결과 (비어 있으면 아직 결과 없음)
+    if "away_score" not in cols:
+        cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN away_score INTEGER")
+    if "home_score" not in cols:
+        cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN home_score INTEGER")
+
+    # 팀 순위 기준값: 이 시점까지의 승·패·무 (이후 경기 결과는 자동으로 더해서 계산)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS team_standings_base (
+            team TEXT PRIMARY KEY,
+            wins INTEGER NOT NULL DEFAULT 0,
+            losses INTEGER NOT NULL DEFAULT 0,
+            draws INTEGER NOT NULL DEFAULT 0,
+            streak TEXT NOT NULL DEFAULT ''
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL DEFAULT ''
+        )
+    ''')
 
     # 회원가입에서 이메일을 받지 않으므로, 예전에 자동으로 채워 넣은 가짜 이메일(아이디@zipgamdok.com) 제거
     cursor.execute("UPDATE users SET email = '' WHERE email = username || '@zipgamdok.com'")
@@ -351,14 +373,15 @@ def init_db():
     if USE_POSTGRES:
         # Supabase는 public 스키마 테이블을 공개 키(publishable/anon key)로 REST API에 노출하므로
         # RLS를 켜서 외부 접근을 차단 (서버는 테이블 소유자 계정으로 접속하므로 영향 없음)
-        for table in ('users', 'user_friends', 'user_rankings', 'tactics_history', 'kbo_schedules', 'login_logs', 'password_resets'):
+        for table in ('users', 'user_friends', 'user_rankings', 'tactics_history', 'kbo_schedules', 'login_logs', 'password_resets', 'team_standings_base', 'app_settings'):
             cursor.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
 
     conn.commit()
     conn.close()
 
-    # KBO 경기 일정 시딩
+    # KBO 경기 일정 시딩 (테이블이 비어 있을 때만 — 관리자가 입력한 결과가 지워지지 않도록)
     seed_kbo_schedules()
+    seed_standings_base()
     # 개인정보처리방침: 로그인 기록은 3개월 보관 후 파기
     purge_old_login_logs()
     # 예전에 평문으로 저장된 비밀번호를 해시로 일괄 전환
@@ -934,9 +957,12 @@ def get_tactics_history():
 def seed_kbo_schedules():
     conn = get_db()
     cursor = conn.cursor()
-    
-    # 기존 일정 테이블 초기화 후 완벽 재시딩
-    cursor.execute("DELETE FROM kbo_schedules")
+
+    # 이미 일정이 있으면 건드리지 않음 (관리자 입력 경기·결과 보존)
+    cursor.execute("SELECT COUNT(*) AS cnt FROM kbo_schedules")
+    if cursor.fetchone()['cnt'] > 0:
+        conn.close()
+        return
 
     raw_schedules = [
         # 9월 22일 (화) - 18:30 (화요일 룰)
@@ -1110,6 +1136,240 @@ def seed_kbo_schedules():
 
     conn.commit()
     conn.close()
+
+# ==============================================================================
+# 팀 순위: 기준값(승·패·무) + 기준일 이후 경기 결과로 자동 계산
+# ==============================================================================
+KBO_TEAMS = ['KT', '삼성', 'KIA', 'LG', '두산', 'SSG', 'NC', '롯데', '한화', '키움']
+STANDINGS_AS_OF_KEY = 'standings_as_of'
+STATUS_FINAL = '경기종료'
+STATUS_CANCELED = '취소'
+STATUS_SCHEDULED = '경기전'
+
+# 처음 한 번 넣는 기준값 (관리자 화면에서 실제 값으로 고칠 수 있음)
+DEFAULT_STANDINGS_BASE = [
+    ('KT', 86, 49, 5, '6승'), ('삼성', 82, 54, 3, '2패'), ('KIA', 75, 61, 2, '3승'), ('LG', 75, 63, 1, '8패'),
+    ('두산', 72, 64, 5, '2승'), ('SSG', 63, 72, 5, '2승'), ('NC', 63, 75, 2, '2패'), ('롯데', 61, 74, 3, '2패'),
+    ('한화', 56, 81, 4, '1승'), ('키움', 49, 89, 4, '1패'),
+]
+DEFAULT_STANDINGS_AS_OF = '2026-10-10'
+
+
+def get_setting(key, default=''):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM app_settings WHERE key = ?", (key,))
+    row = cursor.fetchone()
+    conn.close()
+    return row['value'] if row else default
+
+
+def set_setting(key, value, cursor=None):
+    own = cursor is None
+    if own:
+        conn = get_db()
+        cursor = conn.cursor()
+    cursor.execute("DELETE FROM app_settings WHERE key = ?", (key,))
+    cursor.execute("INSERT INTO app_settings (key, value) VALUES (?, ?)", (key, value))
+    if own:
+        conn.commit()
+        conn.close()
+
+
+def seed_standings_base():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) AS cnt FROM team_standings_base")
+    if cursor.fetchone()['cnt'] == 0:
+        cursor.executemany(
+            "INSERT INTO team_standings_base (team, wins, losses, draws, streak) VALUES (?, ?, ?, ?, ?)",
+            DEFAULT_STANDINGS_BASE
+        )
+        set_setting(STANDINGS_AS_OF_KEY, DEFAULT_STANDINGS_AS_OF, cursor)
+        conn.commit()
+    conn.close()
+
+
+def get_standings_base():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT team, wins, losses, draws, streak FROM team_standings_base")
+    rows = {r['team']: dict(r) for r in cursor.fetchall()}
+    conn.close()
+    base = [rows.get(t, {'team': t, 'wins': 0, 'losses': 0, 'draws': 0, 'streak': ''}) for t in KBO_TEAMS]
+    return base, get_setting(STANDINGS_AS_OF_KEY, DEFAULT_STANDINGS_AS_OF)
+
+
+def save_standings_base(rows, as_of):
+    """관리자: 순위 기준값과 기준일 저장. rows: [{'team','wins','losses','draws','streak'}]"""
+    try:
+        datetime.date.fromisoformat(as_of)
+    except (TypeError, ValueError):
+        return {"status": "error", "message": "기준일 형식이 올바르지 않습니다. (예: 2026-10-10)"}
+    clean = []
+    for r in rows:
+        team = normalize_team_name(r.get('team'))
+        if not team:
+            continue
+        try:
+            w, l, d = (max(0, int(r.get(k) or 0)) for k in ('wins', 'losses', 'draws'))
+        except ValueError:
+            return {"status": "error", "message": f"{team}의 승·패·무는 숫자로 입력해 주세요."}
+        streak = (r.get('streak') or '').strip()
+        if streak and not re.fullmatch(r'\d+(승|패|무)', streak):
+            return {"status": "error", "message": f"{team}의 연속 기록은 '3승', '2패'처럼 입력해 주세요."}
+        clean.append((team, w, l, d, streak))
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM team_standings_base")
+    cursor.executemany("INSERT INTO team_standings_base (team, wins, losses, draws, streak) VALUES (?, ?, ?, ?, ?)", clean)
+    set_setting(STANDINGS_AS_OF_KEY, as_of, cursor)
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "순위 기준값을 저장했습니다."}
+
+
+def _parse_streak(streak):
+    m = re.fullmatch(r'(\d+)(승|패|무)', (streak or '').strip())
+    return (m.group(2), int(m.group(1))) if m else (None, 0)
+
+
+def compute_standings():
+    """기준값 + 기준일 다음 날부터의 '경기종료' 결과로 현재 순위 계산"""
+    base, as_of = get_standings_base()
+    table = {}
+    for b in base:
+        kind, length = _parse_streak(b['streak'])
+        table[b['team']] = {'team': b['team'], 'wins': b['wins'], 'losses': b['losses'], 'draws': b['draws'],
+                            'streak_kind': kind, 'streak_len': length}
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT game_date, home_team, away_team, home_score, away_score FROM kbo_schedules
+        WHERE game_date > ? AND status_text = ? AND is_rest_day = 0
+          AND home_score IS NOT NULL AND away_score IS NOT NULL
+        ORDER BY game_date ASC, id ASC
+    ''', (as_of, STATUS_FINAL))
+    games = cursor.fetchall()
+    conn.close()
+
+    def apply(team, result):
+        t = table.get(team)
+        if not t:
+            return
+        t[{'승': 'wins', '패': 'losses', '무': 'draws'}[result]] += 1
+        if t['streak_kind'] == result:
+            t['streak_len'] += 1
+        else:
+            t['streak_kind'], t['streak_len'] = result, 1
+
+    for g in games:
+        home, away = normalize_team_name(g['home_team']), normalize_team_name(g['away_team'])
+        hs, as_ = int(g['home_score']), int(g['away_score'])
+        if hs == as_:
+            apply(home, '무'); apply(away, '무')
+        elif hs > as_:
+            apply(home, '승'); apply(away, '패')
+        else:
+            apply(home, '패'); apply(away, '승')
+
+    rows = []
+    for t in table.values():
+        decided = t['wins'] + t['losses']
+        t['pct'] = t['wins'] / decided if decided else 0.0
+        rows.append(t)
+    rows.sort(key=lambda t: (-t['pct'], -t['wins'], t['losses']))
+
+    leader = rows[0] if rows else None
+    ps_types = {1: 'ks', 2: 'po', 3: 'jpo', 4: 'wc', 5: 'wc'}
+    result = []
+    for idx, t in enumerate(rows, start=1):
+        gb = ((leader['wins'] - t['wins']) + (t['losses'] - leader['losses'])) / 2 if leader else 0
+        result.append({
+            'rank': idx,
+            'team': t['team'],
+            'wins': t['wins'],
+            'losses': t['losses'],
+            'draws': t['draws'],
+            'games': t['wins'] + t['losses'] + t['draws'],
+            'winRate': f"{t['pct']:.3f}",
+            'gb': '0.0' if idx == 1 else f"{gb:.1f}",
+            'streak': f"{t['streak_len']}{t['streak_kind']}" if t['streak_kind'] else '-',
+            'psType': ps_types.get(idx, ''),
+        })
+    last_final = games[-1]['game_date'] if games else as_of
+    return {'standings': result, 'as_of': as_of, 'updated_through': last_final}
+
+
+# ==============================================================================
+# 관리자: 경기 일정·결과 관리
+# ==============================================================================
+WEEKDAYS_KO = ['월', '화', '수', '목', '금', '토', '일']
+
+def _validate_game_fields(game_date, start_time, away_team, home_team, stadium):
+    try:
+        d = datetime.date.fromisoformat((game_date or '').strip())
+    except ValueError:
+        return None, "경기 날짜를 선택해 주세요."
+    away, home = normalize_team_name(away_team), normalize_team_name(home_team)
+    if not away or not home:
+        return None, "원정팀과 홈팀을 선택해 주세요."
+    if away == home:
+        return None, "원정팀과 홈팀이 같을 수 없습니다."
+    st = (start_time or '').strip()
+    if not re.fullmatch(r'\d{2}:\d{2}', st):
+        return None, "경기 시작 시간을 선택해 주세요. (예: 18:30)"
+    return {'game_date': d.isoformat(), 'day_of_week': WEEKDAYS_KO[d.weekday()], 'start_time': st,
+            'away_team': away, 'home_team': home, 'stadium': (stadium or '').strip() or '-'}, None
+
+
+def add_game(game_date, start_time, away_team, home_team, stadium):
+    fields, err = _validate_game_fields(game_date, start_time, away_team, home_team, stadium)
+    if err:
+        return {"status": "error", "message": err}
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO kbo_schedules (game_date, day_of_week, start_time, home_team, away_team, stadium, home_pitcher, away_pitcher, status_text, is_rest_day)
+        VALUES (?, ?, ?, ?, ?, ?, '', '', ?, 0)
+    ''', (fields['game_date'], fields['day_of_week'], fields['start_time'], fields['home_team'],
+          fields['away_team'], fields['stadium'], STATUS_SCHEDULED))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": f"{fields['game_date']} {fields['away_team']} vs {fields['home_team']} 경기를 추가했습니다."}
+
+
+def save_game_result(game_id, status_text, away_score, home_score):
+    """관리자: 경기 상태와 점수 저장. '경기종료'면 점수 필수, 그 외에는 점수를 비움"""
+    if status_text not in (STATUS_SCHEDULED, STATUS_FINAL, STATUS_CANCELED):
+        return {"status": "error", "message": "경기 상태를 선택해 주세요."}
+    if status_text == STATUS_FINAL:
+        try:
+            a, h = int(away_score), int(home_score)
+            if a < 0 or h < 0 or a > 99 or h > 99:
+                raise ValueError
+        except (TypeError, ValueError):
+            return {"status": "error", "message": "경기종료로 저장하려면 두 팀 점수를 0~99 숫자로 입력해 주세요."}
+    else:
+        a = h = None
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE kbo_schedules SET status_text = ?, away_score = ?, home_score = ? WHERE id = ?",
+                   (status_text, a, h, int(game_id)))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "경기 결과를 저장했습니다."}
+
+
+def delete_game(game_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM kbo_schedules WHERE id = ?", (int(game_id),))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "경기를 삭제했습니다."}
+
 
 def get_all_schedules():
     conn = get_db()

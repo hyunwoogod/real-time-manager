@@ -1039,6 +1039,7 @@ function switchLobbyTab(tabName, btnEl) {
     if (tabName === 'schedule') {
         loadScheduleTable(currentScheduleFilter || 'today');
     } else if (tabName === 'records') {
+        standingsLoaded = false;  // 탭을 열 때마다 최신 순위를 다시 불러옴
         renderKboStandingsTable();
     } else if (tabName === 'my_records') {
         renderMyRecordsPane();
@@ -1047,18 +1048,19 @@ function switchLobbyTab(tabName, btnEl) {
     try { updateBottomNavVisibility(); } catch(e) {}
 }
 
-const kboTeamStandingsData = [
-    { rank: 1, team: 'KT', winRate: '0.637', gb: '0.0', games: 140, wins: 86, losses: 49, draws: 5, streak: '6승', avg: '0.283', era: '4.20', recent: ['승','승','승','무','승'], next: '키움', psType: 'ks' },
-    { rank: 2, team: '삼성', winRate: '0.603', gb: '4.5', games: 139, wins: 82, losses: 54, draws: 3, streak: '2패', avg: '0.276', era: '4.25', recent: ['승','승','승','패','패'], next: 'KIA', psType: 'po' },
-    { rank: 3, team: 'KIA', winRate: '0.551', gb: '11.5', games: 138, wins: 75, losses: 61, draws: 2, streak: '3승', avg: '0.271', era: '4.30', recent: ['패','패','승','승','승'], next: '삼성', psType: 'jpo' },
-    { rank: 4, team: 'LG', winRate: '0.543', gb: '12.5', games: 139, wins: 75, losses: 63, draws: 1, streak: '8패', avg: '0.265', era: '4.85', recent: ['패','패','패','패','패'], next: 'NC', psType: 'wc' },
-    { rank: 5, team: '두산', winRate: '0.529', gb: '14.5', games: 141, wins: 72, losses: 64, draws: 5, streak: '2승', avg: '0.268', era: '3.84', recent: ['승','승','패','승','승'], next: '롯데', psType: 'wc' },
-    { rank: 6, team: 'SSG', winRate: '0.467', gb: '23.0', games: 140, wins: 63, losses: 72, draws: 5, streak: '2승', avg: '0.259', era: '5.15', recent: ['승','승','패','승','승'], next: '한화', psType: '' },
-    { rank: 7, team: 'NC', winRate: '0.457', gb: '24.5', games: 140, wins: 63, losses: 75, draws: 2, streak: '2패', avg: '0.271', era: '4.73', recent: ['패','패','승','패','패'], next: 'LG', psType: '' },
-    { rank: 8, team: '롯데', winRate: '0.452', gb: '25.0', games: 138, wins: 61, losses: 74, draws: 3, streak: '2패', avg: '0.272', era: '4.77', recent: ['승','승','패','무','패'], next: '두산', psType: '' },
-    { rank: 9, team: '한화', winRate: '0.409', gb: '31.0', games: 141, wins: 56, losses: 81, draws: 4, streak: '1승', avg: '0.273', era: '5.29', recent: ['패','패','패','패','승'], next: 'SSG', psType: '' },
-    { rank: 10, team: '키움', winRate: '0.355', gb: '38.5', games: 142, wins: 49, losses: 89, draws: 4, streak: '1패', avg: '0.244', era: '5.28', recent: ['패','패','승','승','패'], next: 'KT', psType: '' }
-];
+// 팀 순위는 서버(/api/standings)가 관리자 입력 경기 결과로 계산한 값을 사용
+let kboTeamStandingsData = [];
+let standingsLoaded = false;
+
+function loadStandings() {
+    return fetch('/api/standings')
+        .then(r => r.json())
+        .then(data => {
+            kboTeamStandingsData = data.standings || [];
+            standingsLoaded = true;
+        })
+        .catch(err => console.error('standings error:', err));
+}
 
 const STANDINGS_DATA_YEAR = 2026;  // 순위 데이터가 있는 시즌
 let standingsYear = STANDINGS_DATA_YEAR;
@@ -1081,6 +1083,15 @@ function renderKboStandingsTable() {
 
     if (standingsYear !== STANDINGS_DATA_YEAR) {
         list.innerHTML = `<div class="st-empty">${standingsYear} 시즌 순위 기록은 준비 중이에요.</div>`;
+        return;
+    }
+    if (!standingsLoaded) {
+        list.innerHTML = `<div class="st-empty">순위를 불러오는 중...</div>`;
+        loadStandings().then(renderKboStandingsTable);
+        return;
+    }
+    if (kboTeamStandingsData.length === 0) {
+        list.innerHTML = `<div class="st-empty">순위 정보가 아직 없어요.</div>`;
         return;
     }
 
@@ -1426,7 +1437,12 @@ function renderMatchupsForDate(dateStr) {
         const awayPitcherHtml = awayPitcher ? `<span class="matchup-pitcher-name">${awayPitcher}</span>` : '';
         const homePitcherHtml = homePitcher ? `<span class="matchup-pitcher-name">${homePitcher}</span>` : '';
         const statusText = m.status_text || '경기전';
-        const badgeClass = statusText === '경기중' ? 'status-badge-cyan' : 'status-badge-cyan';
+        const badgeClass = statusText === '경기종료' ? 'status-badge-final' : (statusText === '취소' ? 'status-badge-canceled' : 'status-badge-cyan');
+        const hasScore = statusText === '경기종료' && m.away_score !== null && m.away_score !== undefined && m.home_score !== null && m.home_score !== undefined;
+        const awayWin = hasScore && m.away_score > m.home_score;
+        const homeWin = hasScore && m.home_score > m.away_score;
+        const awayScoreHtml = hasScore ? `<span class="matchup-score ${awayWin ? 'win' : ''}">${m.away_score}</span>` : '';
+        const homeScoreHtml = hasScore ? `<span class="matchup-score ${homeWin ? 'win' : ''}">${m.home_score}</span>` : '';
 
         return `
             <div class="matchup-card">
@@ -1439,12 +1455,14 @@ function renderMatchupsForDate(dateStr) {
                         <div class="matchup-team-item">
                             <span class="matchup-team-logo">${awayLogo}</span>
                             <span class="matchup-team-name">${m.away_team}</span>
+                            ${awayScoreHtml}
                             ${awayPitcherHtml}
                         </div>
                         <div class="matchup-team-item">
                             <span class="matchup-team-logo">${homeLogo}</span>
                             <span class="matchup-team-name">${m.home_team}</span>
                             <span class="home-tag">홈</span>
+                            ${homeScoreHtml}
                             ${homePitcherHtml}
                         </div>
                     </div>

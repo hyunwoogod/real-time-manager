@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경기·순위 관리 - 집감독 관리자</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #060b14;
+            --card: rgba(15, 23, 42, 0.9);
+            --border: rgba(255, 255, 255, 0.12);
+            --text: #f8fafc;
+            --sub: #94a3b8;
+            --accent: #10b981;
+            --blue: #38bdf8;
+            --red: #f87171;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Noto Sans KR', sans-serif;
+            padding: 24px 16px 60px;
+        }
+        .wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .top {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .top h1 { font-size: 1.4rem; font-weight: 900; }
+        .top p { font-size: 0.85rem; color: var(--sub); margin-top: 4px; }
+        .nav { display: flex; flex-wrap: wrap; gap: 8px; }
+        .nav a {
+            padding: 9px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; text-decoration: none;
+            color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border);
+        }
+        .nav a.logout { color: var(--red); border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.12); }
+        .card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 20px;
+        }
+        .card h2 { font-size: 1.05rem; margin-bottom: 4px; }
+        .card .desc { font-size: 0.82rem; color: var(--sub); margin-bottom: 16px; line-height: 1.6; }
+        .alert { padding: 12px 14px; border-radius: 12px; font-size: 0.88rem; }
+        .alert.ok { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7; }
+        .alert.err { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; }
+
+        input, select, button {
+            font-family: inherit; font-size: 0.9rem; color: var(--text);
+            background: rgba(30, 41, 59, 0.9); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px;
+        }
+        input[type="number"] { width: 64px; text-align: center; }
+        button { cursor: pointer; font-weight: 700; }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: #04140d; }
+        .btn-danger { background: transparent; color: var(--red); border-color: rgba(239, 68, 68, 0.4); }
+
+        .date-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+        .date-bar a { color: var(--blue); text-decoration: none; font-weight: 700; padding: 8px 10px; }
+
+        .game-row {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+            padding: 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); margin-top: 10px;
+        }
+        .game-meta { font-size: 0.8rem; color: var(--sub); min-width: 110px; }
+        .score-box { display: flex; align-items: center; gap: 8px; font-weight: 800; }
+        .score-box .team { min-width: 44px; text-align: center; }
+        .score-box .home-tag { font-size: 0.7rem; color: var(--sub); font-weight: 400; }
+        .game-row form.result { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; flex: 1; }
+        .status-final { color: #6ee7b7; }
+        .status-canceled { color: var(--red); }
+        .empty { color: var(--sub); font-size: 0.88rem; padding: 18px 0 4px; }
+
+        .add-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--border); }
+        th { color: var(--sub); font-weight: 600; font-size: 0.78rem; }
+        td.team { text-align: left; font-weight: 700; }
+        .base-table input { width: 64px; }
+        .base-table input.streak { width: 70px; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="top">
+            <div>
+                <h1>⚾ 경기·순위 관리</h1>
+                <p>경기 결과를 입력하면 팀 순위가 자동으로 계산돼요.</p>
+            </div>
+            <div class="nav">
+                <a href="/admin/users">👥 회원 목록</a>
+                <a href="/">🏠 서비스 메인</a>
+                <a href="/admin/logout" class="logout">🚪 로그아웃</a>
+            </div>
+        </div>
+
+        {% if message %}<div class="alert ok">✅ {{ message }}</div>{% endif %}
+        {% if error %}<div class="alert err">⚠️ {{ error }}</div>{% endif %}
+
+        <!-- 1. 날짜별 경기 결과 입력 -->
+        <section class="card">
+            <h2>📝 경기 결과 입력</h2>
+            <p class="desc">경기가 끝나면 점수를 넣고 <strong>경기종료</strong>로 저장하세요. 비로 취소된 경기는 <strong>취소</strong>로 바꾸면 순위 계산에서 빠져요.</p>
+
+            {% set d = selected_date %}
+            <form method="GET" action="/admin/games" class="date-bar">
+                <a href="/admin/games?date={{ prev_date or '' }}" id="prev-day">◀ 전날</a>
+                <input type="date" name="date" value="{{ d }}" onchange="this.form.submit()">
+                <a href="/admin/games?date={{ next_date or '' }}" id="next-day">다음날 ▶</a>
+            </form>
+
+            {% for g in games %}
+            <div class="game-row">
+                <div class="game-meta">{{ g.start_time }} · {{ g.stadium }}</div>
+                <form method="POST" action="/admin/games" class="result">
+                    <input type="hidden" name="action" value="save_result">
+                    <input type="hidden" name="game_id" value="{{ g.id }}">
+                    <input type="hidden" name="date" value="{{ d }}">
+                    <div class="score-box">
+                        <span class="team">{{ g.away_team }}</span>
+                        <input type="number" name="away_score" min="0" max="99" value="{{ g.away_score if g.away_score is not none else '' }}" aria-label="{{ g.away_team }} 점수">
+                        <span>:</span>
+                        <input type="number" name="home_score" min="0" max="99" value="{{ g.home_score if g.home_score is not none else '' }}" aria-label="{{ g.home_team }} 점수">
+                        <span class="team">{{ g.home_team }} <span class="home-tag">홈</span></span>
+                    </div>
+                    <select name="status_text" class="{{ 'status-final' if g.status_text == '경기종료' else ('status-canceled' if g.status_text == '취소' else '') }}">
+                        {% for st in ['경기전', '경기종료', '취소'] %}
+                        <option value="{{ st }}" {% if (g.status_text or '경기전') == st %}selected{% endif %}>{{ st }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn-primary">저장</button>
+                </form>
+                <form method="POST" action="/admin/games" onsubmit="return confirm('{{ g.away_team }} vs {{ g.home_team }} 경기를 삭제할까요?');">
+                    <input type="hidden" name="action" value="delete_game">
+                    <input type="hidden" name="game_id" value="{{ g.id }}">
+                    <input type="hidden" name="date" value="{{ d }}">
+                    <button type="submit" class="btn-danger">삭제</button>
+                </form>
+            </div>
+            {% else %}
+            <p class="empty">{{ d }}에는 등록된 경기가 없어요. 아래에서 경기를 추가할 수 있어요.</p>
+            {% endfor %}
+        </section>
+
+        <!-- 2. 경기 추가 -->
+        <section class="card">
+            <h2>➕ 경기 추가</h2>
+            <p class="desc">새 일정(우천 순연 경기 등)을 추가해요. 추가한 경기는 게임의 일정 탭과 로비에 바로 나와요.</p>
+            <form method="POST" action="/admin/games" class="add-form">
+                <input type="hidden" name="action" value="add_game">
+                <input type="date" name="game_date" value="{{ d }}" required>
+                <select name="start_time" required>
+                    {% for t in ['14:00', '17:00', '18:00', '18:30'] %}
+                    <option value="{{ t }}" {% if t == '18:30' %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+                <select name="away_team" required>
+                    <option value="" disabled selected>원정팀</option>
+                    {% for t in teams %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+                </select>
+                <span>vs</span>
+                <select name="home_team" required id="add-home-team">
+                    <option value="" disabled selected>홈팀</option>
+                    {% for t in teams %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+                </select>
+                <input type="text" name="stadium" id="add-stadium" placeholder="구장 (예: 잠실)" maxlength="10" list="stadium-list">
+                <datalist id="stadium-list">
+                    {% for st in ['잠실', '문학', '수원', '대전', '대구', '광주', '사직', '창원', '고척'] %}<option value="{{ st }}">{% endfor %}
+                </datalist>
+                <button type="submit" class="btn-primary">추가</button>
+            </form>
+        </section>
+
+        <div class="two-col">
+            <!-- 3. 현재 순위 (자동 계산) -->
+            <section class="card">
+                <h2>🏆 현재 순위 (자동 계산)</h2>
+                <p class="desc">기준값({{ as_of }}까지) + 그 다음 날부터 입력한 경기 결과 · 반영된 마지막 경기일: {{ standings.updated_through }}</p>
+                <table>
+                    <tr><th>순위</th><th style="text-align:left;">팀</th><th>승</th><th>패</th><th>무</th><th>승률</th><th>게임차</th><th>연속</th></tr>
+                    {% for r in standings.standings %}
+                    <tr>
+                        <td>{{ r.rank }}</td><td class="team">{{ r.team }}</td><td>{{ r.wins }}</td><td>{{ r.losses }}</td><td>{{ r.draws }}</td>
+                        <td>{{ r.winRate }}</td><td>{{ '-' if r.rank == 1 else r.gb }}</td><td>{{ r.streak }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </section>
+
+            <!-- 4. 순위 기준값 -->
+            <section class="card">
+                <h2>📌 순위 기준값</h2>
+                <p class="desc">기준일까지의 <strong>실제 승·패·무</strong>와 연속 기록(예: 3승, 2패)을 넣어 주세요. 기준일 <strong>다음 날부터</strong> 입력한 경기 결과가 자동으로 더해져요. 처음 한 번만 맞춰 두면 돼요.</p>
+                <form method="POST" action="/admin/games" class="base-table">
+                    <input type="hidden" name="action" value="save_base">
+                    <input type="hidden" name="date" value="{{ d }}">
+                    <p style="margin-bottom: 10px;">기준일 <input type="date" name="as_of" value="{{ as_of }}" required style="width:auto;"></p>
+                    <table>
+                        <tr><th style="text-align:left;">팀</th><th>승</th><th>패</th><th>무</th><th>연속</th></tr>
+                        {% for b in base %}
+                        <tr>
+                            <td class="team">{{ b.team }}</td>
+                            <td><input type="number" name="wins_{{ b.team }}" min="0" value="{{ b.wins }}" required></td>
+                            <td><input type="number" name="losses_{{ b.team }}" min="0" value="{{ b.losses }}" required></td>
+                            <td><input type="number" name="draws_{{ b.team }}" min="0" value="{{ b.draws }}" required></td>
+                            <td><input type="text" class="streak" name="streak_{{ b.team }}" value="{{ b.streak }}" placeholder="3승" maxlength="4"></td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                    <button type="submit" class="btn-primary" style="margin-top: 12px; width: 100%;" onclick="return confirm('순위 기준값을 저장할까요?');">기준값 저장</button>
+                </form>
+            </section>
+        </div>
+    </div>
+    <script>
+        // 홈팀을 고르면 구장 칸을 자동으로 채움
+        const homeStadium = {'KT':'수원','삼성':'대구','KIA':'광주','LG':'잠실','두산':'잠실','SSG':'문학','NC':'창원','롯데':'사직','한화':'대전','키움':'고척'};
+        document.getElementById('add-home-team').addEventListener('change', function () {
+            const st = document.getElementById('add-stadium');
+            if (!st.value) st.value = homeStadium[this.value] || '';
+        });
+    </script>
+</body>
+</html>

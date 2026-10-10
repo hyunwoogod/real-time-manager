@@ -4480,3 +4480,31 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     font-size: 0.85rem;
     color: var(--text-sub);
 }
+
+/* 일정 카드: 경기 결과 점수 */
+.matchup-score {
+    margin-left: 6px;
+    min-width: 22px;
+    font-family: var(--font-body);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: var(--text-sub);
+}
+.matchup-score.win { color: var(--text-main); }
+.status-badge-final {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: rgba(148, 163, 184, 0.18);
+    color: #cbd5e1;
+}
+.status-badge-canceled {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
