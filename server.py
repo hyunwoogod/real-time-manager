@@ -211,7 +211,8 @@ def authentication_guard():
         '/forgot-password',
         '/find-email',
         '/privacy',
-        '/terms'
+        '/terms',
+        '/healthz'
     }
     if path in PUBLIC_PATHS or path.startswith('/api/check-') or path.startswith('/auth/'):
         return None
@@ -425,6 +426,12 @@ def inject_social_providers():
 
 LEGAL_EFFECTIVE_DATE = '2026년 10월 10일'
 TERMS_REQUIRED_MSG = "이용약관 및 개인정보처리방침에 동의해 주세요."
+
+
+@app.route('/healthz')
+def healthz():
+    """깨우미(업타임 모니터)용 가벼운 상태 확인 주소: 무료 서버가 잠들지 않도록 주기적으로 호출"""
+    return Response('ok', mimetype='text/plain')
 
 
 @app.route('/privacy')
