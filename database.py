@@ -424,6 +424,24 @@ def check_nickname_exists(nickname):
     conn.close()
     return bool(row)
 
+def _just_registered_same_user(cursor, username, password, within_seconds=30):
+    """방금(30초 이내) 같은 아이디+비밀번호로 가입된 계정이 있으면 반환.
+    가입 버튼이 두 번 눌려 같은 요청이 연달아 들어온 경우를 '이미 사용 중' 오류 대신 가입 성공으로 처리하기 위함."""
+    cursor.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", (username,))
+    row = cursor.fetchone()
+    if not row or not _is_password_hash(row['password']) or not check_password_hash(row['password'], password):
+        return None
+    created = row['created_at']
+    if isinstance(created, str):
+        try:
+            created = datetime.datetime.strptime(created[:19], '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            return None
+    if not created:
+        return None
+    age = datetime.datetime.utcnow() - created.replace(tzinfo=None)
+    return row if age.total_seconds() <= within_seconds else None
+
 def register_user(username, password, email=None, marketing_agreed=False, nickname=None, team=None, favorite_team=None):
     conn = get_db()
     cursor = conn.cursor()
@@ -439,10 +457,13 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
         conn.close()
         return {"status": "error", "message": msg_p}
 
-    # 아이디 중복 확인
+    # 아이디 중복 확인 (방금 같은 내용으로 가입된 중복 요청이면 성공으로 처리)
     cursor.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,))
     if cursor.fetchone():
+        same = _just_registered_same_user(cursor, username, password)
         conn.close()
+        if same:
+            return {"status": "success", "user": _public_user(same)}
         return {"status": "error", "message": "이미 사용 중인 아이디입니다."}
 
     # 닉네임 유효성 (2~10자 범위) 및 중복 확인
@@ -478,7 +499,13 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
         conn.close()
         return {"status": "success", "user": user}
     except IntegrityError:
+        # 두 요청이 거의 동시에 들어와 한쪽이 먼저 저장된 경우
         conn.close()
+        conn = get_db()
+        same = _just_registered_same_user(conn.cursor(), username, password)
+        conn.close()
+        if same:
+            return {"status": "success", "user": _public_user(same)}
         return {"status": "error", "message": "이미 사용 중인 아이디 또는 닉네임입니다."}
     except Exception as e:
         conn.close()

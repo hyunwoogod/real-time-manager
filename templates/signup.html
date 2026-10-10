@@ -176,6 +176,10 @@
             box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
             transition: all 0.2s ease;
         }
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
         .btn-submit:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(16, 185, 129, 0.5);
@@ -305,6 +309,7 @@
         let checkedUsername = "";
 
         let nicknameChecked = false;
+        let isSubmitting = false;  // 가입 버튼 중복 클릭으로 같은 요청이 두 번 전송되는 것 방지
         let checkedNickname = "";
 
         // 아이디 형식 유효성 검사 (영문+숫자 8자 이상)
@@ -469,7 +474,18 @@
             }
         }
 
+        function submitSignupOnce() {
+            isSubmitting = true;
+            const btn = document.getElementById('btn-submit-signup');
+            btn.disabled = true;
+            btn.innerText = '가입 처리 중...';
+            document.getElementById('signup-form').submit();
+        }
+
         async function handleSignupSubmit(event) {
+            event.preventDefault();
+            if (isSubmitting) return false;
+
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
             const nicknameInput = document.getElementById('nickname');
@@ -524,20 +540,20 @@
                 return false;
             }
 
-            // 6. 아이디 중복 확인 완료 여부 검증
+            // 6. 아이디 중복 확인 완료 여부 검증 (확인 전이면 자동으로 확인)
             if (!usernameChecked || checkedUsername !== currentUsername) {
-                event.preventDefault();
+                isSubmitting = true;  // 확인하는 동안 다시 눌러도 무시
                 const ok = await checkUsernameAvailability();
-                if (ok) {
-                    document.getElementById('signup-form').submit();
-                } else {
+                isSubmitting = false;
+                if (!ok) {
                     alert("아이디 중복 확인 결과 이미 사용 중인 아이디입니다.");
                     usernameInput.focus();
+                    return false;
                 }
-                return false;
             }
 
-            return true;
+            submitSignupOnce();
+            return false;
         }
     </script>
 </body>
