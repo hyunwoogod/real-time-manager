@@ -1469,17 +1469,11 @@ function scrollDateBar(direction) {
     if (box) box.scrollBy({ left: direction * 150, behavior: 'smooth' });
 }
 
-// 이전/다음 달: 그 달의 첫 경기 날짜로 이동 (경기가 없으면 안내)
+// 이전/다음 달: 그 달의 1일로 이동
 function shiftSchedMonth(delta) {
     const cur = scDateParts(selectedScheduleDate || getFormattedTodayStr());
     const target = new Date(cur.y, cur.m - 1 + delta, 1);
-    const prefix = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}`;
-    const dates = Array.from(new Set((cachedSchedules || []).filter(s => s.is_rest_day !== 1 && s.game_date.startsWith(prefix)).map(s => s.game_date))).sort();
-    if (!dates.length) {
-        showToast(`${target.getMonth() + 1}월에는 등록된 경기가 없어요`);
-        return;
-    }
-    selectScheduleDate(dates[0]);
+    selectScheduleDate(`${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-01`);
 }
 
 function renderMatchupsForDate(dateStr) {
