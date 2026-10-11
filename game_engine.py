@@ -270,7 +270,8 @@ CRISIS_TYPES = [
 ]
 
 class GameEngine:
-    def __init__(self, home_team="삼성", away_team="한화", home_pitcher=None, away_pitcher=None):
+    def __init__(self, home_team="삼성", away_team="한화", home_pitcher=None, away_pitcher=None, user_id=None):
+        self.user_id = user_id  # 이 경기를 보는 사용자 (점수 저장 대상)
         if home_team == away_team:
             away_team = "한화" if home_team != "한화" else "삼성"
         self.home_team_name = home_team
@@ -304,7 +305,7 @@ class GameEngine:
         self.runner_3b = False
         
         # 유저 기존 스코어 승계 (없으면 2,000pt부터 시작)
-        user = database.get_user_by_id(1)
+        user = database.get_user_by_id(self.user_id) if getattr(self, 'user_id', None) else None
         self.manager_score = user["score"] if (user and "score" in user and user["score"] is not None) else 2000
         self._update_manager_grade()
 
@@ -673,7 +674,8 @@ class GameEngine:
 
                 self.manager_score += score_delta
                 self._update_manager_grade()
-                database.update_user_score(self.manager_score, self.manager_grade)
+                if getattr(self, 'user_id', None):
+                    database.update_user_score(self.manager_score, self.manager_grade, self.user_id)
 
                 log_msg = f"📊 [위기 채점 {case_no}번 케이스] {commentary}"
                 self.commentary_logs.insert(0, log_msg)

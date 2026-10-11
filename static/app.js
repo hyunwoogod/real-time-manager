@@ -2487,8 +2487,12 @@ function resetMatchAndLobby() {
     if (streamContainer) {
         streamContainer.innerHTML = '';
     }
-    fetch('/api/reset', { method: 'POST' })
-        .then(() => switchView('pregame-view'));
+    // 지금 보던 경기의 두 팀 그대로 초기화 (기본값 삼성·한화로 바뀌지 않도록)
+    fetch('/api/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ home_team: currentHomeTeam, away_team: currentAwayTeam, home_pitcher: currentHomePitcher, away_pitcher: currentAwayPitcher })
+    }).then(() => switchView('pregame-view'));
 }
 
 function openShareModal() {

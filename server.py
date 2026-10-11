@@ -125,9 +125,32 @@ def sync_session_from_user(user):
     session['favorite_team'] = resolve_user_team(user)
     session['account_label'] = database.account_label(user)
 
-# DB 초기화 및 글로벌 게임 엔진 생성
+# DB 초기화
 database.init_db()
-engine = GameEngine("한화", "롯데")
+
+# 사용자별 게임 엔진 (예전엔 서버 전체가 경기 하나를 같이 써서,
+# 다른 사람이 경기에 들어가면 모두의 화면이 그 팀으로 바뀌는 문제가 있었음)
+import threading
+from collections import OrderedDict
+_engines = OrderedDict()
+_engines_lock = threading.Lock()
+MAX_ENGINES = 500  # 오래 안 쓴 경기부터 정리 (메모리 보호)
+
+
+def get_engine():
+    """현재 로그인한 사용자의 게임 엔진 (없으면 새로 만듦)"""
+    uid = session.get('user_id')
+    key = uid if uid else 'guest'
+    with _engines_lock:
+        eng = _engines.get(key)
+        if eng is None:
+            eng = GameEngine("한화", "롯데", user_id=uid)
+            _engines[key] = eng
+            while len(_engines) > MAX_ENGINES:
+                _engines.popitem(last=False)
+        else:
+            _engines.move_to_end(key)
+        return eng
 
 
 def login_required(f):
@@ -727,6 +750,8 @@ def api_session():
 @app.route('/api/stream')
 def api_stream():
     """SSE (Server-Sent Events) 실시간 라이브 중계 스트림"""
+    engine = get_engine()
+
     def event_stream():
         try:
             while True:
@@ -749,7 +774,7 @@ def api_stream():
 
 @app.route('/api/state')
 def api_state():
-    return jsonify(engine.get_state())
+    return jsonify(get_engine().get_state())
 
 
 @app.route('/api/lobby')
@@ -765,8 +790,8 @@ def api_lobby():
     rankings = database.get_user_friends_ranking(user_id)
     user_info = database.get_user_by_id(user_id)
     
-    user_score = user_info['score'] if user_info and 'score' in user_info else engine.manager_score
-    user_grade = user_info['grade'] if user_info and 'grade' in user_info else engine.manager_grade
+    user_score = user_info['score'] if user_info and 'score' in user_info else get_engine().manager_score
+    user_grade = user_info['grade'] if user_info and 'grade' in user_info else get_engine().manager_grade
     
     user_team = resolve_user_team(user_info) if user_info else session.get('favorite_team')
     team_full = team_full_name(user_team)
@@ -837,13 +862,11 @@ def api_add_friend():
 def api_tactic():
     data = request.get_json(silent=True) or {}
     tactic_id = data.get('tactic_id')
-    user_id = data.get('user_id') or session.get('user_id', 1)
-    try:
-        user_id = int(user_id)
-    except (ValueError, TypeError):
-        user_id = 1
+    # 점수는 항상 로그인한 본인 계정에만 저장 (요청에 담긴 user_id는 믿지 않음)
+    user_id = session.get('user_id')
+    engine = get_engine()
     res = engine.apply_tactic(tactic_id)
-    if res.get('status') == 'success':
+    if res.get('status') == 'success' and user_id:
         database.update_user_score(engine.manager_score, engine.manager_grade, user_id)
     return jsonify(res)
 
@@ -857,6 +880,7 @@ def api_reset():
     away_p = data.get('away_pitcher') or game_engine.TEAMS.get(away, {}).get("pitcher", "박준영")
     if home == away:
         away = '한화' if home != '한화' else '삼성'
+    engine = get_engine()
     engine.home_team_name = home
     engine.away_team_name = away
     engine.home_pitcher = home_p
@@ -867,7 +891,7 @@ def api_reset():
 
 @app.route('/api/step', methods=['POST'])
 def api_step():
-    state = engine.step_pitch()
+    state = get_engine().step_pitch()
     return jsonify(state)
 
 
