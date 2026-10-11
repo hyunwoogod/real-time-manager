@@ -1042,20 +1042,9 @@ class GameEngine:
             else:
                 actual_manager_choice = "KEEP"
 
+        # 투수 교체 여부는 화면에서 '작전 공개' 카드로 보여주므로, 투구 목록에는 넣지 않음
         if not self.batter_sessions:
             self.init_first_session()
-        curr_session = self.batter_sessions[0]
-        curr_session["pitches"].append({
-            "seq": len(curr_session.get("pitches", [])) + 1,
-            "type": "PITCHER_CHANGE",
-            "code": "CHANGE",
-            "is_pitcher_change": True,
-            "old_pitcher": old_pitcher,
-            "new_pitcher": new_pitcher,
-            "result": "투수 교체" if actual_manager_choice == "CHANGE" else "투수 유지",
-            "speed_type": f"{old_pitcher} → {new_pitcher}" if actual_manager_choice == "CHANGE" else f"{old_pitcher} 계속 투구",
-            "commentary_text": f"실제 감독 선택: {'투수 교체 ' + old_pitcher + ' → ' + new_pitcher if actual_manager_choice == 'CHANGE' else '투수 유지'}"
-        })
 
         self.pending_tactic = {
             "my_choice": my_choice,

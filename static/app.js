@@ -1672,11 +1672,7 @@ function updateScoreboardUI(s) {
         console.error("Render Feed Error:", err);
     }
 
-    // 작전 결과를 먼저 보여주고, 새 위기는 결과 팝업을 닫은 뒤에 띄움
-    if (s && s.tactic_resolution && window._lastHandledCaseId !== (s.tactic_resolution.case_no + '_' + s.totalPitcherCount)) {
-        window._lastHandledCaseId = s.tactic_resolution.case_no + '_' + s.totalPitcherCount;
-        openTacticResultModal(s.tactic_resolution);
-    }
+    // 작전 결과는 타석 결과 큰 글씨 아래에 함께 표시 (igCheckPlayResult)
 
     if (s && s.crisis_active && s.current_crisis) {
         openCrisisModal(s.current_crisis);
@@ -1721,10 +1717,13 @@ function openCrisisModal(crisis) {
     const modal = document.getElementById('crisis-modal');
     if (!modal || !crisis) return;
     if (modal.classList.contains('active')) return;
-    // 작전 결과 팝업을 보는 중이면, 닫은 뒤에 띄움 (뒤에서 타이머가 흘러가지 않게)
-    const resultModal = document.getElementById('tactic-result-modal');
-    if (resultModal && resultModal.classList.contains('active')) {
-        window._pendingCrisis = crisis;
+    // 타석 결과·작전 채점 글씨가 떠 있는 동안은 다 본 뒤에 띄움
+    const wait = (window._igBannerUntil || 0) - Date.now();
+    if (wait > 0) {
+        clearTimeout(window._igCrisisDelay);
+        window._igCrisisDelay = setTimeout(() => {
+            if (currentGameState && currentGameState.crisis_active) openCrisisModal(currentGameState.current_crisis || crisis);
+        }, wait + 50);
         return;
     }
 
@@ -1782,7 +1781,7 @@ function submitTactic(tacticId) {
                 updateScoreboardUI(res.state);
                 drawBaseballField(res.state);
             }
-            showToast('작전 제출! 이번 타석 결과가 나오면 채점돼요');
+            igShowTacticReveal(res);
         }
     });
 }
@@ -2168,6 +2167,7 @@ function renderIngame(s) {
     if (btn) btn.disabled = !!s.game_over;
 
     igCheckPlayResult(s);
+    igRenderTacticPill(s);
 }
 
 // 그라운드 (위에서 내려다본 구장)
@@ -2274,12 +2274,69 @@ function igCheckPlayResult(s) {
     if (!b || !stage || !ingame || !ingame.classList.contains('active')) return;
 
     const sub = done.play_summary.split(':').slice(1).join(':').replace(/!+$/, '').trim();
-    stage.querySelectorAll('.ig-banner').forEach(el => el.remove());
+    const t = s.tactic_resolution;
+    let tacticLine = '';
+    if (t) {
+        const d = t.score_delta || 0;
+        tacticLine = `<em class="ig-banner-tactic ${d > 0 ? 'good' : 'bad'}">${d > 0 ? '작전 성공!' : '작전 실패'} ${d > 0 ? '+' : ''}${d}</em>`;
+        igFlashPoints(d);
+    }
+    stage.querySelectorAll('.ig-banner, .ig-reveal').forEach(el => el.remove());
     const el = document.createElement('div');
-    el.className = `ig-banner ${b.cls}`;
-    el.innerHTML = `<strong>${b.big}</strong><span>${done.batter_name || ''} · ${sub}</span>`;
+    el.className = `ig-banner ${b.cls} ${t ? 'with-tactic' : ''}`;
+    el.innerHTML = `<strong>${b.big}</strong><span>${done.batter_name || ''} · ${sub}</span>${tacticLine}`;
     stage.appendChild(el);
-    setTimeout(() => el.remove(), 1900);
+    const ms = t ? 2900 : 1900;
+    window._igBannerUntil = Date.now() + ms;
+    setTimeout(() => el.remove(), ms);
+}
+
+// 감독 점수 칸을 잠깐 반짝 (+/-)
+function igFlashPoints(delta) {
+    const el = document.getElementById('live-score-val');
+    if (!el) return;
+    el.classList.remove('flash-up', 'flash-down');
+    void el.offsetWidth;
+    el.classList.add(delta > 0 ? 'flash-up' : 'flash-down');
+}
+
+// 작전 제출 직후: 내 선택과 실제 감독의 선택을 그라운드 가운데에 잠깐 공개
+function igShowTacticReveal(res) {
+    const stage = document.querySelector('#ingame-view .ig-stage');
+    if (!stage || !res) return;
+    const mine = res.my_choice === 'CHANGE' ? '교체' : '유지';
+    const mgr = res.actual_manager_choice === 'CHANGE' ? '교체' : '유지';
+    const same = mine === mgr;
+    const change = res.actual_manager_choice === 'CHANGE' && res.new_pitcher && res.new_pitcher !== res.old_pitcher
+        ? `<div class="ig-reveal-change">${res.old_pitcher} → <b>${res.new_pitcher}</b></div>` : '';
+    stage.querySelectorAll('.ig-reveal').forEach(el => el.remove());
+    const el = document.createElement('div');
+    el.className = 'ig-reveal';
+    el.innerHTML = `<div class="ig-reveal-row">
+            <div><span>나의 선택</span><strong>${mine}</strong></div>
+            <i class="${same ? 'same' : 'diff'}">${same ? '=' : '≠'}</i>
+            <div><span>실제 감독</span><strong>${mgr}</strong></div>
+        </div>${change}<p>다음 타석 결과로 채점돼요</p>`;
+    stage.appendChild(el);
+    window._igBannerUntil = Date.now() + 2600;
+    setTimeout(() => el.remove(), 2600);
+}
+
+// 채점 기다리는 동안 그라운드 아래 작은 표시
+function igRenderTacticPill(s) {
+    const stage = document.querySelector('#ingame-view .ig-stage');
+    if (!stage) return;
+    let pill = document.getElementById('ig-tactic-pill');
+    const pt = s && s.pending_tactic;
+    if (!pt) { if (pill) pill.remove(); return; }
+    if (!pill) {
+        pill = document.createElement('div');
+        pill.id = 'ig-tactic-pill';
+        pill.className = 'ig-tactic-pill';
+        stage.appendChild(pill);
+    }
+    const txt = `작전 채점 중 · 나 ${pt.my_choice === 'CHANGE' ? '교체' : '유지'} / 감독 ${pt.actual_manager_choice === 'CHANGE' ? '교체' : '유지'}`;
+    if (pill.textContent !== txt) pill.textContent = txt;
 }
 
 // 이번 타석 투구 (없으면 직전 타석 결과)
