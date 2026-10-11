@@ -1149,6 +1149,11 @@ class GameEngine:
                     return p.get("throws", "우투")
         return "우투"
 
+    def get_batter_bats(self):
+        name = self.get_current_batter()
+        r = TEAMS.get(self.get_current_offense_team(), {}).get("roster") or {}
+        return next((b.get("bats") for b in r.get("lineup", []) + r.get("bench", []) if b["name"] == name), "우타")
+
     def get_batter_side(self):
         """타자가 서는 타석: 'R'(우타석) 또는 'L'(좌타석). 양타는 투수 반대 손 쪽"""
         name = self.get_current_batter()
@@ -1185,6 +1190,8 @@ class GameEngine:
             "pitcher": self.get_current_pitcher(),
             "batter": self.get_current_batter(),
             "batter_side": self.get_batter_side(),
+            "batter_bats": self.get_batter_bats(),
+            "pitcher_throws": self._pitcher_throws(self.get_current_pitcher()),
             "on_deck_batters": self.get_on_deck_batters(),
             "fielders": self.get_current_defense_fielders(),
             "currentBatterPitchCount": self.currentBatterPitchCount,

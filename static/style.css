@@ -6440,3 +6440,19 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-banner-tactic.bad { background: #dc2626; color: #ffffff; }
 .ig-banner-tactic.skip { background: #475569; color: #ffffff; }
 .ig-reveal p { white-space: normal; text-align: center; line-height: 1.45; }
+
+/* 위기 팝업: 마운드 투수 / 타석 타자 */
+.igm-matchup { display: flex; flex-direction: column; gap: 6px; }
+.igm-pitcher small {
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    font-size: 0.68rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.igm-pitcher strong { white-space: nowrap; }
+.igm-batter { border-color: rgba(250, 204, 21, 0.35); }
+.igm-batter strong { color: #fde68a; }
+.igm-batter em { color: #cbd5e1; font-size: 0.8rem; }

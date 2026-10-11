@@ -12,7 +12,7 @@
     <link rel="preload" as="image" href="/brand/hero.jpg?v=8" fetchpriority="high">
     <link rel="preload" as="image" href="/brand/mascot-head.png?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261012_11">
+    <link rel="stylesheet" href="style.css?v=20261012_12">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -712,10 +712,19 @@
                 <div class="igm-bar"><div id="crisis-timer-gauge"></div></div>
                 <h3 class="igm-title" id="crisis-title">투수를 바꿀까요?</h3>
                 <p class="igm-desc" id="crisis-desc">득점권 위기</p>
-                <div class="igm-pitcher">
-                    <span>마운드</span>
-                    <strong id="crisis-pitcher-name">-</strong>
-                    <em id="crisis-pitch-count">0구</em>
+                <div class="igm-matchup">
+                    <div class="igm-pitcher">
+                        <span>마운드</span>
+                        <strong id="crisis-pitcher-name">-</strong>
+                        <small id="crisis-pitcher-hand"></small>
+                        <em id="crisis-pitch-count">0구</em>
+                    </div>
+                    <div class="igm-pitcher igm-batter">
+                        <span>타석</span>
+                        <strong id="crisis-batter-name">-</strong>
+                        <small id="crisis-batter-hand"></small>
+                        <em id="crisis-batter-info"></em>
+                    </div>
                 </div>
                 <div class="igm-choices">
                     <button class="igm-choice change" onclick="submitTactic('PITCHER_CHANGE')"><strong>투수 교체</strong><span>불펜 투입</span></button>
@@ -801,7 +810,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261012_13"></script>
+    <script src="app.js?v=20261012_14"></script>
 </body>
 
 </html>

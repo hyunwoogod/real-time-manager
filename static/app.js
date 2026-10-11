@@ -1739,6 +1739,17 @@ function openCrisisModal(crisis) {
     const countEl = document.getElementById('crisis-pitch-count');
     if (countEl) countEl.textContent = `${pCount}구`;
 
+    // 이번에 상대할 타자 (투수 손 vs 타자 손도 함께)
+    const gs = currentGameState || {};
+    const sess = gs.batter_sessions && gs.batter_sessions[0];
+    const setText = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    setText('crisis-pitcher-hand', gs.pitcher_throws || '');
+    setText('crisis-batter-name', gs.batter || '-');
+    setText('crisis-batter-hand', gs.batter_bats || '');
+    const order = sess && sess.batter_order ? sess.batter_order.replace('타자', '') : '';
+    const avg = igAvg(sess ? (sess.batter_avg || (sess.batter_stats && sess.batter_stats.avg)) : '');
+    setText('crisis-batter-info', [order, avg].filter(Boolean).join(' · '));
+
     modal.classList.add('active');
     playWebAudioAlert('tactic_modal');
 
