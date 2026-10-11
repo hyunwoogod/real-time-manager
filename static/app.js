@@ -20,6 +20,16 @@ const teamLogos = {
     '삼성': '🦁', '한화': '🦅', 'KIA': '🐯', 'LG': '🧢', '두산': '🐻',
     '롯데': '⚓', 'SSG': '🚀', 'KT': '🧙', 'NC': '🦖', '키움': '🦸'
 };
+// 실제 구단 로고 이미지 (정식 출시 전 라이선스 필요). 없는 팀은 이모지로 대신 표시
+const TEAM_LOGO_FILES = {
+    '삼성': 'samsung', '한화': 'hanwha', 'KIA': 'kia', 'LG': 'lg', '두산': 'doosan',
+    '롯데': 'lotte', 'SSG': 'ssg', 'KT': 'kt', 'NC': 'nc', '키움': 'kiwoom'
+};
+function teamLogoHtml(code) {
+    const file = TEAM_LOGO_FILES[code];
+    if (file) return `<img class="team-logo-img" src="/logos/v2/${file}.png?v=6" alt="${code}">`;
+    return teamLogos[code] || '⚾';
+}
 const teamFullMap = {
     '삼성': '삼성 라이온즈', '한화': '한화 이글스', 'KIA': 'KIA 타이거즈', 'LG': 'LG 트윈스',
     '두산': '두산 베어스', '롯데': '롯데 자이언츠', 'SSG': 'SSG 랜더스', 'KT': 'KT 위즈',
@@ -59,7 +69,7 @@ function syncUserTeamUI(teamCode, teamFullName) {
     if (teamBadge) teamBadge.innerText = `${selectedTeamCode} 팬클럽 감독`;
 
     const avatarEl = document.getElementById('lobby-user-avatar');
-    if (avatarEl && teamLogos[selectedTeamCode]) avatarEl.innerText = teamLogos[selectedTeamCode];
+    if (avatarEl && teamLogos[selectedTeamCode]) avatarEl.innerHTML = teamLogoHtml(selectedTeamCode);
 
     const headerBar = document.getElementById('lobby-header-bar');
     if (headerBar && teamColorMap[selectedTeamCode]) {
@@ -68,7 +78,7 @@ function syncUserTeamUI(teamCode, teamFullName) {
 
     // 3. Settings Modal
     const setAvatar = document.getElementById('settings-disp-avatar');
-    if (setAvatar && teamLogos[selectedTeamCode]) setAvatar.innerText = teamLogos[selectedTeamCode];
+    if (setAvatar && teamLogos[selectedTeamCode]) setAvatar.innerHTML = teamLogoHtml(selectedTeamCode);
 
     const setTeam = document.getElementById('settings-disp-team');
     if (setTeam) setTeam.innerText = `⚾ ${selectedTeamFull} 응원 구단`;
@@ -454,7 +464,7 @@ function openSettingsModal() {
 
     if (nickEl) nickEl.innerText = nick.endsWith('감독') ? nick : `${nick} 감독`;
     if (teamEl) teamEl.innerText = `⚾ ${teamFull} 응원 구단`;
-    if (avatarEl && teamLogos[teamCode]) avatarEl.innerText = teamLogos[teamCode];
+    if (avatarEl && teamLogos[teamCode]) avatarEl.innerHTML = teamLogoHtml(teamCode);
     if (idEl) {
         if (user) {
             idEl.innerText = `계정: ${user}`;
@@ -750,7 +760,7 @@ function gameState(m) {
 function teamCol(team, side, myTeam) {
     const code = normalizeTeamShort(team) || team || '-';
     return `<div class="hm-team ${code === myTeam ? 'is-mine' : ''}" style="--team-color:${teamColorMap[code] || '#334155'}">
-        <span class="hm-logo">${teamLogos[code] || '⚾'}</span>
+        <span class="hm-logo">${teamLogoHtml(code)}</span>
         <span class="hm-name">${code}</span>
         <span class="hm-side">${side}</span>
     </div>`;
@@ -823,9 +833,9 @@ function gameRowHtml(m, opts = {}) {
     return `<div class="hm-row st-${st.cls.split(' ')[0]} ${st.wx ? 'wx-' + st.wx : ''} ${mine ? 'is-mine' : ''} ${enterable ? 'is-tappable' : ''} ${compact ? 'is-compact' : ''}"${onclick}>
         ${st.wx ? '<span class="wx-row-fx" aria-hidden="true"></span>' : ''}
         <div class="hm-row-main">
-            <span class="hm-row-team"><span class="hm-row-logo">${teamLogos[a] || '⚾'}</span><span class="hm-row-name">${a}</span></span>
+            <span class="hm-row-team"><span class="hm-row-logo">${teamLogoHtml(a)}</span><span class="hm-row-name">${a}</span></span>
             <span class="hm-row-score">${showScore ? `<b class="${aWin ? 'win' : ''}">${m.away_score}</b><i>:</i><b class="${hWin ? 'win' : ''}">${m.home_score}</b>` : '<i class="vs">VS</i>'}</span>
-            <span class="hm-row-team right"><span class="hm-row-name">${h}</span><span class="hm-row-logo">${teamLogos[h] || '⚾'}</span></span>
+            <span class="hm-row-team right"><span class="hm-row-name">${h}</span><span class="hm-row-logo">${teamLogoHtml(h)}</span></span>
         </div>
         <div class="hm-row-meta">
             <span class="hm-row-chip">${st.wx ? WX_ICON[st.wx] : ''}${st.cls === 'live' ? '<i class="live-dot"></i>' : ''}${when}</span>
@@ -1178,7 +1188,7 @@ function renderKboStandingsTable() {
             <div class="st-row ${row.psType ? 'ps-' + row.psType : ''} ${isMine ? 'is-mine' : ''}" style="--team-color: ${color};">
                 <span class="st-rank">${row.rank}</span>
                 <span class="st-team">
-                    <span class="st-logo">${teamLogos[row.team] || '⚾'}</span>
+                    <span class="st-logo">${teamLogoHtml(row.team)}</span>
                     <span class="st-team-text">
                         <strong>${row.team}${isMine ? '<em class="st-my">MY</em>' : ''}</strong>
                         <small>${row.wins}승 ${row.draws}무 ${row.losses}패</small>

@@ -1,3 +1,4 @@
+from markupsafe import Markup
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, make_response, send_from_directory
 from functools import wraps
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -58,6 +59,21 @@ TEAM_LOGOS = {
     'NC': '🦖',
     '키움': '🦸'
 }
+
+# 실제 구단 로고 이미지 (정식 출시 전 라이선스 필요). 없는 팀은 위 이모지로 대신 표시
+TEAM_LOGO_FILES = {
+    '삼성': 'samsung', '한화': 'hanwha', 'KIA': 'kia', 'LG': 'lg', '두산': 'doosan',
+    '롯데': 'lotte', 'SSG': 'ssg', 'KT': 'kt', 'NC': 'nc', '키움': 'kiwoom'
+}
+TEAM_LOGO_VERSION = '6'
+
+
+def team_logo_html(team):
+    """구단 로고 이미지 태그 (이미지가 없으면 빈 문자열)"""
+    name = TEAM_LOGO_FILES.get(team)
+    if not name:
+        return ''
+    return Markup(f'<img class="team-logo-img" src="/logos/v2/{name}.png?v={TEAM_LOGO_VERSION}" alt="{team}">')
 
 TEAM_COLORS = {
     '삼성': '#005CB9',
@@ -306,7 +322,7 @@ def index():
     nickname = session['nickname']
     favorite_team = session['favorite_team']
     favorite_team_full = team_full_name(favorite_team)
-    favorite_team_logo = TEAM_LOGOS.get(favorite_team, '👑')
+    favorite_team_logo = team_logo_html(favorite_team) or TEAM_LOGOS.get(favorite_team, '👑')
     favorite_team_color = TEAM_COLORS.get(favorite_team, '#10b981')
 
     today_str = datetime.date.today().strftime('%Y-%m-%d')
