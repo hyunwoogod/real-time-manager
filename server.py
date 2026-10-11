@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, make_response
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, make_response, send_from_directory
 from functools import wraps
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
@@ -444,6 +444,18 @@ TERMS_REQUIRED_MSG = "이용약관 및 개인정보처리방침에 동의해 주
 def healthz():
     """깨우미(업타임 모니터)용 가벼운 상태 확인 주소: 무료 서버가 잠들지 않도록 주기적으로 호출"""
     return Response('ok', mimetype='text/plain')
+
+
+@app.route('/apple-touch-icon.png')
+@app.route('/apple-touch-icon-precomposed.png')
+def apple_touch_icon():
+    """사파리 즐겨찾기·홈 화면이 기본 주소로 찾는 앱 아이콘"""
+    return send_from_directory(os.path.join(app.static_folder, 'brand'), 'app-icon-180.png', mimetype='image/png')
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.static_folder, 'brand'), 'app-icon-64.png', mimetype='image/png')
 
 
 @app.route('/privacy')
