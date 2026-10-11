@@ -298,7 +298,13 @@ def authentication_guard():
 
 @app.after_request
 def add_cache_control_headers(response):
-    """모든 응답에 브라우저 캐시 및 뒤로 가기(BFCache) 완전 차단 헤더 적용"""
+    """모든 응답에 브라우저 캐시 및 뒤로 가기(BFCache) 완전 차단 헤더 적용
+    단, 이미지·글꼴은 주소에 버전(?v=)이 붙어 있으므로 길게 캐시 (매번 다시 받아 깜빡이지 않도록)"""
+    if request.path.endswith(('.png', '.jpg', '.jpeg', '.webp', '.svg', '.ico', '.woff', '.woff2', '.ttf')) and response.status_code == 200:
+        response.headers["Cache-Control"] = "public, max-age=604800"
+        response.headers.pop("Pragma", None)
+        response.headers.pop("Expires", None)
+        return response
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"

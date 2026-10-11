@@ -30,6 +30,19 @@ function teamLogoHtml(code) {
     if (file) return `<img class="team-logo-img" src="/logos/v2/${file}.png?v=6" alt="${code}">`;
     return teamLogos[code] || '⚾';
 }
+// 내용이 바뀐 경우에만 다시 그림 (같은 로고를 지웠다 다시 넣으며 깜빡이지 않도록)
+// 프로필 로고: 이미 같은 팀 로고가 있으면 그대로 둠 (서버가 처음 그린 이미지 포함)
+function setLogoIfChanged(el, code) {
+    const file = TEAM_LOGO_FILES[code];
+    const img = el.querySelector('img.team-logo-img');
+    if (file && img && img.getAttribute('src').includes(`/${file}.png`)) return;
+    el.innerHTML = teamLogoHtml(code);
+}
+function setHtmlIfChanged(el, html) {
+    if (!el || el._lastHtml === html) return;
+    el._lastHtml = html;
+    el.innerHTML = html;
+}
 const teamFullMap = {
     '삼성': '삼성 라이온즈', '한화': '한화 이글스', 'KIA': 'KIA 타이거즈', 'LG': 'LG 트윈스',
     '두산': '두산 베어스', '롯데': '롯데 자이언츠', 'SSG': 'SSG 랜더스', 'KT': 'KT 위즈',
@@ -69,7 +82,7 @@ function syncUserTeamUI(teamCode, teamFullName) {
     if (teamBadge) teamBadge.innerText = `${selectedTeamCode} 팬클럽 감독`;
 
     const avatarEl = document.getElementById('lobby-user-avatar');
-    if (avatarEl && teamLogos[selectedTeamCode]) avatarEl.innerHTML = teamLogoHtml(selectedTeamCode);
+    if (avatarEl && teamLogos[selectedTeamCode]) setLogoIfChanged(avatarEl, selectedTeamCode);
 
     const headerBar = document.getElementById('lobby-header-bar');
     if (headerBar && teamColorMap[selectedTeamCode]) {
@@ -78,7 +91,7 @@ function syncUserTeamUI(teamCode, teamFullName) {
 
     // 3. Settings Modal
     const setAvatar = document.getElementById('settings-disp-avatar');
-    if (setAvatar && teamLogos[selectedTeamCode]) setAvatar.innerHTML = teamLogoHtml(selectedTeamCode);
+    if (setAvatar && teamLogos[selectedTeamCode]) setLogoIfChanged(setAvatar, selectedTeamCode);
 
     const setTeam = document.getElementById('settings-disp-team');
     if (setTeam) setTeam.innerText = `⚾ ${selectedTeamFull} 응원 구단`;
@@ -464,7 +477,7 @@ function openSettingsModal() {
 
     if (nickEl) nickEl.innerText = nick.endsWith('감독') ? nick : `${nick} 감독`;
     if (teamEl) teamEl.innerText = `⚾ ${teamFull} 응원 구단`;
-    if (avatarEl && teamLogos[teamCode]) avatarEl.innerHTML = teamLogoHtml(teamCode);
+    if (avatarEl && teamLogos[teamCode]) setLogoIfChanged(avatarEl, teamCode);
     if (idEl) {
         if (user) {
             idEl.innerText = `계정: ${user}`;
@@ -788,15 +801,15 @@ function renderHomeMatch(match, opts = {}) {
     if (!box) return;
     const myTeam = normalizeTeamShort(selectedTeamCode);
     if (!match) {
-        box.innerHTML = `<div class="hm-card hm-empty">
+        setHtmlIfChanged(box, `<div class="hm-card hm-empty">
             <img src="/brand/mascot-head.png?v=6" alt="" width="64" height="64">
             <div><strong>오늘은 쉬는 날</strong><span>예정된 ${teamFullMap[myTeam] || ''} 경기가 없어요</span></div>
-        </div>`;
+        </div>`);
         return;
     }
     const st = gameState(match);
     const dateText = opts.isToday === false ? formatMatchDateLabel(match.game_date).replace('/', '.') : '오늘';
-    box.innerHTML = `<div class="hm-card st-${st.cls.split(' ')[0]} ${st.wx ? 'wx-' + st.wx : ''}">
+    setHtmlIfChanged(box, `<div class="hm-card st-${st.cls.split(' ')[0]} ${st.wx ? 'wx-' + st.wx : ''}">
         <span class="hm-field" aria-hidden="true"></span>
         <div class="hm-head">
             <span class="hm-meta">${dateText} ${match.start_time || ''} · ${match.stadium || '-'}</span>
@@ -810,7 +823,7 @@ function renderHomeMatch(match, opts = {}) {
         ${pitcherLine(match, st)}
         ${weatherLayer(st)}
         <button id="btn-enter-ingame" class="hm-enter" onclick="forceLiveMatchStart()" ${st.canEnter ? '' : 'disabled'}>${st.label}</button>
-    </div>`;
+    </div>`);
 }
 
 // 경기 한 줄 (홈 '오늘의 다른 경기'와 리그 '경기 일정'에서 공통 사용)
@@ -851,10 +864,10 @@ function renderOtherGames(list) {
     if (!box) return;
     if (title) title.style.display = '';
     if (!list.length) {
-        box.innerHTML = '<div class="hm-row-empty">오늘은 다른 경기가 없어요</div>';
+        setHtmlIfChanged(box, '<div class="hm-row-empty">오늘은 다른 경기가 없어요</div>');
         return;
     }
-    box.innerHTML = list.map(m => gameRowHtml(m, { compact: true })).join('');
+    setHtmlIfChanged(box, list.map(m => gameRowHtml(m, { compact: true })).join(''));
 }
 
 function renderHome(scheduleInfo, todayGames) {
