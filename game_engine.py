@@ -981,6 +981,25 @@ class GameEngine:
             on_deck.append(f"{nxt_idx + 1}.{b_name}")
         return on_deck
 
+    def _pitcher_throws(self, name):
+        for t in (self.get_current_defense_team(),):
+            r = TEAMS.get(t, {}).get("roster") or {}
+            for p in r.get("rotation", []) + r.get("bullpen", []):
+                if p["name"] == name:
+                    return p.get("throws", "우투")
+        return "우투"
+
+    def get_batter_side(self):
+        """타자가 서는 타석: 'R'(우타석) 또는 'L'(좌타석). 양타는 투수 반대 손 쪽"""
+        name = self.get_current_batter()
+        r = TEAMS.get(self.get_current_offense_team(), {}).get("roster") or {}
+        bats = next((b.get("bats") for b in r.get("lineup", []) + r.get("bench", []) if b["name"] == name), "우타")
+        if bats == "좌타":
+            return "L"
+        if bats == "양타":
+            return "R" if self._pitcher_throws(self.get_current_pitcher()).startswith("좌") else "L"
+        return "R"
+
     def get_state(self):
         return {
             "inning": self.inning,
@@ -1002,6 +1021,7 @@ class GameEngine:
             "runner_3b": self.runner_3b,
             "pitcher": self.get_current_pitcher(),
             "batter": self.get_current_batter(),
+            "batter_side": self.get_batter_side(),
             "on_deck_batters": self.get_on_deck_batters(),
             "fielders": self.get_current_defense_fielders(),
             "currentBatterPitchCount": self.currentBatterPitchCount,

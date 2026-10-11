@@ -6286,3 +6286,8 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-pdot.hit { background: #3b82f6; color: #ffffff; }
 .ig-pdot.etc { background: #64748b; color: #ffffff; }
 .ig-pdots.small .ig-pdot { width: 20px; height: 20px; font-size: 0.64rem; }
+
+/* 타석에 선 타자 */
+.ig-bat circle:nth-child(2) { stroke: #ffffff; stroke-width: 2; }
+.ig-bat-ring { fill: none; stroke: #facc15; stroke-width: 2; opacity: 0.9; }
+.ig-fname.ig-bat-name { fill: #fde68a; font-size: 12px; }

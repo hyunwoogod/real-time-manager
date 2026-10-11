@@ -2185,7 +2185,7 @@ function renderIngameField(s) {
     const fielders = (s.fielders || []).filter(f => IG_FIELD_POS[f.role]);
     const fHtml = fielders.map(f => {
         const [x, y] = IG_FIELD_POS[f.role];
-        const label = f.role === 'P' ? '' : `<text x="${x}" y="${y + 21}" class="ig-fname">${f.name}</text>`;
+        const label = `<text x="${x}" y="${y + 21}" class="ig-fname">${f.name}</text>`;
         return `<g class="ig-f"><circle cx="${x}" cy="${y}" r="8.5" fill="${defColor}"/>${label}</g>`;
     }).join('');
 
@@ -2194,6 +2194,18 @@ function renderIngameField(s) {
         const [x, y] = IG_BASES[b];
         return `<g class="ig-run"><circle cx="${x}" cy="${y}" r="8" fill="${offColor}"/><circle cx="${x}" cy="${y}" r="11" class="ig-run-ring"/></g>`;
     }).join('');
+
+    // 타석에 선 타자: 우타자는 홈플레이트 왼쪽(3루 쪽), 좌타자는 오른쪽(1루 쪽)
+    let batterHtml = '';
+    if (s.batter && !s.game_over) {
+        const left = s.batter_side !== 'L';
+        const bx = left ? 178 : 222, by = 266;
+        batterHtml = `<g class="ig-bat">
+            <circle cx="${bx}" cy="${by}" r="13" class="ig-bat-ring"/>
+            <circle cx="${bx}" cy="${by}" r="9" fill="${offColor}"/>
+            <text x="${left ? bx - 15 : bx + 15}" y="${by + 4}" class="ig-fname ig-bat-name" style="text-anchor:${left ? 'end' : 'start'}">${s.batter}</text>
+        </g>`;
+    }
 
     const base = (k, on) => {
         const [x, y] = IG_BASES[k];
@@ -2219,6 +2231,7 @@ function renderIngameField(s) {
         <path d="M${hx - 6} ${hy - 4} h12 v5 l-6 6 l-6 -6 z" class="ig-home"/>
         ${fHtml}
         ${rHtml}
+        ${batterHtml}
     </svg>`);
 }
 
