@@ -182,6 +182,194 @@ def _seed(name, salt=""):
     """선수 이름으로 고정된 0~1 값 (서버를 다시 켜도 같은 선수는 같은 가상 능력치)"""
     return zlib.crc32(f"{salt}:{name}".encode("utf-8")) / 0xFFFFFFFF
 
+
+# ------------------------------------------------------------------
+# 타석 결과 → 주자 진루·득점 (실제 경기와 '라인업 다시 계산'이 똑같은 규칙을 씀)
+# outcome = {"kind": WALK/K/SINGLE/DOUBLE/TRIPLE/HOMERUN/GROUND/FLY/LINE, "roll": 0~1, "pos", "of", "dir"}
+# roll 하나로 '깊은 타구' 여부를 정해 두므로, 같은 결과는 같은 상황에서 항상 같은 진루가 됨
+# ------------------------------------------------------------------
+def apply_outcome(bases, outs, outcome, batter):
+    """반환: (새 주자 dict{1,2,3}, 늘어난 아웃, 득점, 결과 문구)"""
+    b = {1: bases.get(1), 2: bases.get(2), 3: bases.get(3)}
+    kind, roll = outcome["kind"], outcome.get("roll", 0.5)
+    runs, add = 0, 0
+    desc = ""
+    if kind == "WALK":
+        if b[1]:
+            if b[2]:
+                if b[3]:
+                    runs += 1
+                b[3] = b[2]
+            b[2] = b[1]
+        b[1] = batter
+        desc = "밀어내기 볼넷 (1타점)" if runs else "볼넷 출루"
+    elif kind == "K":
+        add = 1
+        desc = f"{outcome.get('dir', '헛스윙')} 삼진 아웃"
+    elif kind == "SINGLE":
+        deep = roll < 0.6
+        if b[3]:
+            runs += 1
+        new = {1: batter, 2: None, 3: None}
+        if b[2]:
+            if deep:
+                runs += 1
+            else:
+                new[3] = b[2]
+        if b[1]:
+            if deep and not new[3]:
+                new[3] = b[1]
+            else:
+                new[2] = b[1]
+        b = new
+        desc = f"{outcome.get('dir', '중전')} 안타"
+    elif kind == "DOUBLE":
+        runs += (1 if b[3] else 0) + (1 if b[2] else 0)
+        new = {1: None, 2: batter, 3: None}
+        if b[1]:
+            if roll < 0.45:
+                runs += 1
+            else:
+                new[3] = b[1]
+        b = new
+        desc = f"{outcome.get('dir', '우중간')} 2루타"
+    elif kind == "TRIPLE":
+        runs += sum(1 for k in (1, 2, 3) if b[k])
+        b = {1: None, 2: None, 3: batter}
+        desc = "우중간 3루타"
+    elif kind == "HOMERUN":
+        runs += 1 + sum(1 for k in (1, 2, 3) if b[k])
+        b = {1: None, 2: None, 3: None}
+        desc = f"비거리 {outcome.get('dist', 120)}m {runs}점 홈런!"
+    elif kind == "GROUND":
+        pos = outcome.get("pos", "유격수")
+        if b[1] and outs < 2 and roll < 0.45:
+            add = 2
+            if outs + add < 3:
+                if b[3]:
+                    runs += 1
+                b = {1: None, 2: None, 3: b[2]}
+            desc = f"{pos} 앞 병살타"
+        else:
+            add = 1
+            if outs + 1 < 3:
+                forced3 = b[1] and b[2] and b[3]
+                if b[3] and (forced3 or roll < 0.4):
+                    runs += 1
+                    b[3] = None
+                if b[2] and not b[3]:
+                    b[3], b[2] = b[2], None
+                if b[1]:
+                    if b[2]:
+                        b[3] = b[3] or b[2]
+                    b[2], b[1] = b[1], None
+            desc = f"{pos} 땅볼 아웃"
+    elif kind == "FLY":
+        of = outcome.get("of", "중견수")
+        add = 1
+        if b[3] and outs < 2 and roll < 0.6:
+            runs += 1
+            b[3] = None
+            desc = f"{of} 희생플라이 아웃"
+        else:
+            if b[2] and not b[3] and outs < 2 and roll < 0.3:
+                b[3], b[2] = b[2], None
+            desc = f"{of} 뜬공 아웃"
+    else:  # LINE
+        add = 1
+        desc = f"{outcome.get('pos', '2루수')} 직선타 아웃"
+    # 세 번째 아웃과 함께 들어온 점수는 인정하지 않음
+    if outs + add >= 3:
+        runs = 0
+        b = {1: None, 2: None, 3: None}
+    if runs and kind not in ("HOMERUN", "WALK"):
+        desc += f" ({runs}타점)"
+    return b, add, runs, desc
+
+
+ON_BASE_KINDS = ("WALK", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN")
+
+
+def replay_lineup(order, pa_log, innings):
+    """기록된 타자별 타석 결과를 주어진 타순으로 다시 넣어 득점을 계산.
+    order: 1~9번 이름 / pa_log: 그 팀의 타석 기록(순서대로) / innings: 그 팀이 공격한 이닝 번호들
+    실제 기록보다 타석이 더 필요한 타자는 아웃 처리. 반환: (총 득점, 이닝별 득점 dict)"""
+    queues = {}
+    for pa in pa_log:
+        queues.setdefault(pa["batter"], []).append(pa["outcome"])
+    idx = 0
+    total = 0
+    per_inning = {}
+    for inn in innings:
+        outs = 0
+        bases = {1: None, 2: None, 3: None}
+        runs_inn = 0
+        guard = 0
+        while outs < 3 and guard < 60:
+            guard += 1
+            batter = order[idx % len(order)]
+            idx += 1
+            q = queues.get(batter)
+            outcome = q.pop(0) if q else {"kind": "LINE", "roll": 1.0}
+            bases, add, runs, _ = apply_outcome(bases, outs, outcome, batter)
+            outs += add
+            runs_inn += runs
+        per_inning[inn] = runs_inn
+        total += runs_inn
+    return total, per_inning
+
+
+def today_kst():
+    import datetime as _dt
+    return (_dt.datetime.utcnow() + _dt.timedelta(hours=9)).strftime("%Y-%m-%d")
+
+
+def daily_lineup(team, opp, date_str=None):
+    """그날 그 경기의 감독 라인업 (날짜·대진으로 고정 → 로비에서 미리 보여준 라인업과 실제 경기가 같음)"""
+    date_str = date_str or today_kst()
+    opp_r = TEAMS.get(opp, {}).get("roster") or {}
+    rot = opp_r.get("rotation") or [{}]
+    throws = rot[0].get("throws", "우투")
+    return ai_lineup(team, throws, random.Random(f"{date_str}|{team}|{opp}"))
+
+
+POS_ORDER = ["C", "1B", "2B", "3B", "SS", "LF", "CF", "RF", "DH"]
+POS_KO = {"C": "포수", "1B": "1루", "2B": "2루", "3B": "3루", "SS": "유격", "LF": "좌익", "CF": "중견", "RF": "우익", "DH": "지명"}
+
+
+def ai_lineup(team, opp_starter_throws="우투", rng=None):
+    """경기마다 감독(AI)이 짜는 라인업: 기본 라인업에서 아주 조금만 바꿈
+    - 선수 교체 0~2명: 하위 타순(6~9번)만, 같은 포지션 후보로 (상대 좌투면 좌타자 대신 우타 후보 우선)
+    - 타순 변경 0~2번: 바로 옆 타순끼리만 (1↔2, 3↔4, 4↔5, 5↔6, 6↔7, 7↔8, 8↔9)"""
+    rng = rng or random
+    r = TEAMS.get(team, {}).get("roster") or {}
+    lineup = [dict(b) for b in r.get("lineup", [])]
+    bench = [dict(b) for b in r.get("bench", [])]
+    if len(lineup) != 9:
+        return lineup
+    n_sub = rng.choices([0, 1, 2], weights=[40, 45, 15])[0]
+    for _ in range(n_sub):
+        slots = [i for i in range(5, 9)]
+        if opp_starter_throws.startswith("좌"):
+            lefty = [i for i in slots if lineup[i].get("bats") == "좌타"]
+            slots = lefty or slots
+        rng.shuffle(slots)
+        for i in slots:
+            pos = lineup[i]["pos"]
+            cands = [b for b in bench if b["pos"] == pos] if pos != "DH" else list(bench)
+            if opp_starter_throws.startswith("좌"):
+                cands = [b for b in cands if b.get("bats") != "좌타"] or cands
+            if cands:
+                pick = rng.choice(cands)
+                bench.remove(pick)
+                lineup[i] = {"name": pick["name"], "pos": pos, "bats": pick.get("bats", "우타")}
+                break
+    pairs = [(0, 1), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8)]
+    n_swap = rng.choices([0, 1, 2], weights=[50, 40, 10])[0]
+    for a, b2 in rng.sample(pairs, n_swap):
+        lineup[a], lineup[b2] = lineup[b2], lineup[a]
+    return lineup
+
 # 수비 위치별 그라운드 좌표 (화면 표시용)
 POS_COORDS = {
     "P": (50, 53), "C": (50, 84), "1B": (74, 56), "2B": (63, 37), "3B": (26, 56),
@@ -325,6 +513,14 @@ class GameEngine:
         self.crisis_seen = set()    # (이닝, 초/말, 투수): 같은 투수에게 한 이닝에 위기 한 번만
         self.runner_names = {1: None, 2: None, 3: None}
         self.tactic_log = []        # 이번 경기 작전 기록 (경기 후 성적표용)
+        # 경기마다 감독(AI)이 짜는 라인업 (상대 선발의 던지는 손을 보고 조금씩 바꿈)
+        self.lineups = {
+            self.home_team_name: daily_lineup(self.home_team_name, self.away_team_name),
+            self.away_team_name: daily_lineup(self.away_team_name, self.home_team_name),
+        }
+        self.pa_log = []            # 타석 기록 (라인업 다시 계산용)
+        self.prediction = None      # 내가 예상한 라인업 {"team", "order"}
+        self.lineup_report = None   # 경기 후 라인업 예상 결과
         self.start_score = self.manager_score
         
         self.current_crisis = None
@@ -350,7 +546,7 @@ class GameEngine:
             order = b_info.get("order", "타자")
             # 타순은 최신 라인업 기준
             for t in (self.get_current_offense_team(), self.home_team_name, self.away_team_name):
-                batters = TEAMS.get(t, {}).get("batters", [])
+                batters = self.lineup_names(t)
                 if batter_name in batters:
                     order = f"{batters.index(batter_name) + 1}번타자"
                     break
@@ -413,10 +609,23 @@ class GameEngine:
     def get_current_defense_team(self):
         return self.home_team_name if self.is_top else self.away_team_name
 
+    def _throws_of(self, team, name):
+        r = TEAMS.get(team, {}).get("roster") or {}
+        for p in r.get("rotation", []) + r.get("bullpen", []):
+            if p["name"] == name:
+                return p.get("throws", "우투")
+        return "우투"
+
+    def lineup_names(self, team):
+        lu = (getattr(self, 'lineups', None) or {}).get(team)
+        if lu:
+            return [b["name"] for b in lu]
+        return TEAMS.get(team, TEAMS["한화"])["batters"]
+
     def get_current_batter(self):
-        team = TEAMS.get(self.get_current_offense_team(), TEAMS["한화"])
+        names = self.lineup_names(self.get_current_offense_team())
         idx = self.batter_index_away if self.is_top else self.batter_index_home
-        return team["batters"][idx % len(team["batters"])]
+        return names[idx % len(names)]
 
     def get_current_pitcher(self):
         if self.is_top:
@@ -549,95 +758,32 @@ class GameEngine:
         self.runner_names = {1: b[1], 2: b[2], 3: b[3]}
         self.runner_1b, self.runner_2b, self.runner_3b = bool(b[1]), bool(b[2]), bool(b[3])
 
-    def _move_runners(self, kind, batter):
-        b = self._bases()
-        runs = 0
-        two_out = self.outs >= 2
-        if kind == "WALK":
-            if b[1]:
-                if b[2]:
-                    if b[3]:
-                        runs += 1
-                    b[3] = b[2]
-                b[2] = b[1]
-            b[1] = batter
-        elif kind == "SINGLE":
-            if b[3]:
-                runs += 1
-                b[3] = None
-            if b[2]:
-                if random.random() < (0.8 if two_out else 0.6):
-                    runs += 1
-                else:
-                    b[3] = b[2]
-                b[2] = None
-            if b[1]:
-                if not b[3] and random.random() < 0.25:
-                    b[3] = b[1]
-                else:
-                    b[2] = b[1]
-            b[1] = batter
-        elif kind == "DOUBLE":
-            runs += (1 if b[3] else 0) + (1 if b[2] else 0)
-            first = b[1]
-            b = {1: None, 2: batter, 3: None}
-            if first:
-                if random.random() < (0.65 if two_out else 0.45):
-                    runs += 1
-                else:
-                    b[3] = first
-        elif kind == "TRIPLE":
-            runs += sum(1 for k in (1, 2, 3) if b[k])
-            b = {1: None, 2: None, 3: batter}
-        elif kind == "HOMERUN":
-            runs += 1 + sum(1 for k in (1, 2, 3) if b[k])
-            b = {1: None, 2: None, 3: None}
-        self._set_bases(b)
-        return runs
+    def _make_outcome(self, kind):
+        """타석 결과 하나를 만듦 (진루는 apply_outcome 규칙으로 결정)"""
+        return {
+            "kind": kind,
+            "roll": round(random.random(), 4),
+            "pos": random.choice(["유격수", "2루수", "3루수", "1루수"]),
+            "of": random.choice(["좌익수", "중견수", "우익수"]),
+            "dir": random.choice({"SINGLE": ["좌전", "중전", "우전"], "DOUBLE": ["좌중간", "우중간", "좌익선상"],
+                                  "K": ["헛스윙", "루킹"]}.get(kind, [""])),
+            "dist": random.randint(108, 135),
+        }
 
-    def _play_out(self, kind, batter):
-        """아웃 플레이: (늘어난 아웃 수, 점수, 결과 문구)"""
-        b = self._bases()
-        pos = random.choice(["유격수", "2루수", "3루수", "1루수"])
-        of = random.choice(["좌익수", "중견수", "우익수"])
-        if kind == "GROUND":
-            if b[1] and self.outs < 2 and random.random() < 0.45:
-                outs = 2
-                runs = 0
-                if self.outs + outs < 3:
-                    if b[3]:
-                        runs += 1
-                    b = {1: None, 2: None, 3: b[2]}
-                self._set_bases(b)
-                return outs, runs, f"{pos} 앞 병살타"
-            runs = 0
-            if self.outs + 1 < 3:
-                if b[3] and (b[2] and b[1]):
-                    runs += 1
-                    b[3] = None
-                elif b[3] and random.random() < 0.4:
-                    runs += 1
-                    b[3] = None
-                if b[2] and not b[3]:
-                    b[3], b[2] = b[2], None
-                if b[1]:
-                    if b[2]:
-                        b[3] = b[3] or b[2]
-                    b[2], b[1] = b[1], None
-            self._set_bases(b)
-            return 1, runs, f"{pos} 땅볼 아웃"
-        if kind == "FLY":
-            if b[3] and self.outs < 2 and random.random() < 0.6:
-                b[3] = None
-                self._set_bases(b)
-                return 1, 1, f"{of} 희생플라이 아웃 (1타점)"
-            if b[2] and not b[3] and self.outs < 2 and random.random() < 0.3:
-                b[3], b[2] = b[2], None
-                self._set_bases(b)
-            return 1, 0, f"{of} 뜬공 아웃"
-        return 1, 0, f"{pos} 직선타 아웃"
+    def _apply(self, outcome, batter):
+        new_b, add, runs, desc = apply_outcome(self._bases(), self.outs, outcome, batter)
+        self._set_bases(new_b)
+        return add, runs, desc
 
     def step_pitch(self):
+        """1구 단위 경기 진행 (경기가 끝나면 라인업 예상 결과를 정산)"""
+        state = self._step_pitch()
+        if self.game_over and self.prediction and not self.lineup_report:
+            self._finalize_lineup_report()
+            state = self.get_state()
+        return state
+
+    def _step_pitch(self):
         """1구 단위 경기 진행 및 KBO 규정 경기 종료/연장전 반영"""
         if self.game_over:
             return self.get_state()
@@ -662,6 +808,7 @@ class GameEngine:
         head = f"[{inning_str}] {pitcher} 투수 (vs {batter} 타자), {seq}구 {pitch_desc}"
 
         res = self._simulate_pitch(batter, pitcher)
+        outcome = None
         pa_end = None      # 타석이 끝났으면 결과 종류
         code, res_text = res, ""
         summary_text = ""
@@ -674,45 +821,35 @@ class GameEngine:
             if self.balls >= 4:
                 pa_end = "WALK"
                 res_text = "볼넷 출루"
-                runs = self._move_runners("WALK", batter)
-                summary_text = f"{batter} : {'밀어내기 볼넷 (1타점)' if runs else '볼넷 출루'}"
+                outcome = self._make_outcome("WALK")
+                outs_added, runs, desc = self._apply(outcome, batter)
+                summary_text = f"{batter} : {desc}"
         elif res == "STRIKE":
             self.strikes += 1
             res_text = "스트라이크"
             if self.strikes >= 3:
                 pa_end = "K"
                 code, res_text = "OUT", "삼진 아웃"
-                outs_added = 1
-                summary_text = f"{batter} : {random.choice(['헛스윙', '루킹'])} 삼진 아웃"
+                outcome = self._make_outcome("K")
+                outs_added, runs, desc = self._apply(outcome, batter)
+                summary_text = f"{batter} : {desc}"
         elif res == "FOUL":
             if self.strikes < 2:
                 self.strikes += 1
             res_text = "파울"
         else:
             kind = self._simulate_in_play(batter, pitcher)
+            outcome = self._make_outcome(kind)
+            outs_added, runs, desc = self._apply(outcome, batter)
+            summary_text = f"{batter} : {desc}"
             if kind in ("SINGLE", "DOUBLE", "TRIPLE", "HOMERUN"):
                 pa_end = kind
                 code = kind
-                runs = self._move_runners(kind, batter)
-                rbi = f" ({runs}타점)" if runs and kind != "HOMERUN" else ""
-                if kind == "SINGLE":
-                    res_text = "타격 (안타)"
-                    summary_text = f"{batter} : {random.choice(['좌전', '중전', '우전'])} 안타{rbi}"
-                elif kind == "DOUBLE":
-                    res_text = "타격 (2루타)"
-                    summary_text = f"{batter} : {random.choice(['좌중간', '우중간', '좌익선상'])} 2루타{rbi}"
-                elif kind == "TRIPLE":
-                    res_text = "타격 (3루타)"
-                    summary_text = f"{batter} : 우중간 3루타{rbi}"
-                else:
-                    res_text = "타격 (홈런)"
-                    summary_text = f"{batter} : 비거리 {random.randint(108, 135)}m {runs}점 홈런!"
+                res_text = {"SINGLE": "타격 (안타)", "DOUBLE": "타격 (2루타)", "TRIPLE": "타격 (3루타)", "HOMERUN": "타격 (홈런)"}[kind]
             else:
                 pa_end = "OUT"
                 code = "OUT"
-                outs_added, runs, desc = self._play_out(kind, batter)
                 res_text = "아웃"
-                summary_text = f"{batter} : {desc}"
 
         sb_count_str = f"S-B: {self.strikes}-{self.balls}"
         commentary_text = f"{head} - {summary_text.split(' : ', 1)[1] if summary_text else res_text}"
@@ -722,9 +859,6 @@ class GameEngine:
 
         if pa_end:
             self.outs += outs_added
-            # 세 번째 아웃과 동시에 들어온 점수는 인정하지 않음 (병살·땅볼)
-            if runs and self.outs >= 3 and pa_end == "OUT":
-                runs = 0
             if runs:
                 if self.is_top:
                     self.score_away += runs
@@ -739,6 +873,8 @@ class GameEngine:
                 self.consecutive_hits = 0
             self.strikes = 0
             self.balls = 0
+            self.pa_log.append({"team": self.get_current_offense_team(), "inning": self.inning,
+                                "is_top": self.is_top, "batter": batter, "outcome": outcome})
             self._finish_plate_appearance(batter, pa_end, runs, summary_text, curr_session)
             if self.game_over:
                 return self.get_state()
@@ -864,6 +1000,59 @@ class GameEngine:
             self.has_crisis_popped_for_current_batter = True
             self.crisis_seen.add((self.inning, self.is_top, crisis["pitcher_name"]))
             self.commentary_logs.insert(0, f"🚨 [위기] {crisis['desc']}")
+
+    # ---------------- 라인업 예상 ----------------
+    def lineup_pool(self, team):
+        """예상할 때 고를 수 있는 타자 (선발+후보). 실제 타순이 드러나지 않게 포지션 순으로 정렬"""
+        r = TEAMS.get(team, {}).get("roster") or {}
+        pool = [dict(b) for b in r.get("lineup", []) + r.get("bench", [])]
+        pool.sort(key=lambda b: (POS_ORDER.index(b["pos"]) if b["pos"] in POS_ORDER else 99, b["name"]))
+        return pool
+
+    def can_predict(self):
+        return sum(self.pitch_counts.values()) == 0 and not self.game_over
+
+    def set_prediction(self, team, order):
+        if team not in (self.home_team_name, self.away_team_name):
+            return False, "이 경기에 없는 팀이에요"
+        if not self.can_predict():
+            return False, "경기가 시작돼서 예상할 수 없어요"
+        # 감독이 낸 선발 9명으로만 타순을 다시 짤 수 있음
+        if sorted(order) != sorted(self.lineup_names(team)):
+            return False, "감독 라인업의 9명으로 1~9번을 채워 주세요"
+        self.prediction = {"team": team, "order": list(order)}
+        return True, ""
+
+    def _finalize_lineup_report(self):
+        """경기가 끝나면 한 번: 내 라인업으로 다시 계산해 실제와 비교, 감독 점수 반영"""
+        if not self.game_over or not self.prediction or self.lineup_report:
+            return
+        team = self.prediction["team"]
+        mine = self.prediction["order"]
+        actual = self.lineup_names(team)
+        log = [p for p in self.pa_log if p["team"] == team]
+        innings = sorted({p["inning"] for p in log})
+        actual_runs = self.score_home if team == self.home_team_name else self.score_away
+        base_runs, base_inn = replay_lineup(actual, log, innings)
+        my_runs, my_inn = replay_lineup(mine, log, innings)
+        diff = my_runs - base_runs
+        matches = sum(1 for a, b in zip(mine, actual) if a == b)
+        points = diff * 10 if diff > 0 else diff * 5
+        opp = self.score_away if team == self.home_team_name else self.score_home
+        self.manager_score += points
+        self._update_manager_grade()
+        if getattr(self, 'user_id', None):
+            try:
+                database.update_user_score(self.manager_score, self.manager_grade, self.user_id)
+            except Exception as e:
+                print(f"⚠️ [라인업 점수 저장 실패] {e}")
+        self.lineup_report = {
+            "team": team, "my_order": mine, "actual_order": actual,
+            "actual_runs": actual_runs, "base_runs": base_runs, "my_runs": my_runs, "diff": diff,
+            "my_team_final": actual_runs + diff, "opp_runs": opp,
+            "innings": innings, "base_by_inning": base_inn, "my_by_inning": my_inn,
+            "matches": matches, "points": points,
+        }
 
     def finish_game(self, max_pitches=1500):
         """(테스트용) 경기를 끝까지 진행. 위기는 '자리 비움'으로 넘김"""
@@ -1146,20 +1335,19 @@ class GameEngine:
 
     def get_current_defense_fielders(self):
         def_team_name = self.get_current_defense_team()
-        team = TEAMS.get(def_team_name, TEAMS["삼성"])
-        fielders = team.get("fielders", [])
-        curr_pitcher = self.get_current_pitcher()
-        updated = []
-        for f in fielders:
-            item = dict(f)
-            if item.get("role") == "P":
-                item["name"] = curr_pitcher
-            updated.append(item)
-        return updated
+        lu = (getattr(self, 'lineups', None) or {}).get(def_team_name)
+        if not lu:
+            fielders = TEAMS.get(def_team_name, TEAMS["삼성"]).get("fielders", [])
+            return [dict(f, name=self.get_current_pitcher()) if f.get("role") == "P" else dict(f) for f in fielders]
+        out = [{"role": "P", "name": self.get_current_pitcher(), "x": 50, "y": 53, "avatar": "🧢"}]
+        for b in lu:
+            if b["pos"] in POS_COORDS and b["pos"] != "P":
+                x, y = POS_COORDS[b["pos"]]
+                out.append({"role": b["pos"], "name": b["name"], "x": x, "y": y, "avatar": "⚾" if b["pos"] == "C" else "🧢"})
+        return out
 
     def get_on_deck_batters(self):
-        team = TEAMS.get(self.get_current_offense_team(), TEAMS["한화"])
-        batters = team.get("batters", ["황영묵", "페라자", "노시환", "채은성"])
+        batters = self.lineup_names(self.get_current_offense_team())
         curr_idx = self.batter_index_away if self.is_top else self.batter_index_home
         on_deck = []
         for i in range(1, 4):
@@ -1232,6 +1420,9 @@ class GameEngine:
             "pending_tactic": getattr(self, 'pending_tactic', None),
             "tactic_resolution": getattr(self, 'last_tactic_resolution', None),
             "tactic_log": getattr(self, 'tactic_log', []),
+            "lineup_prediction": getattr(self, 'prediction', None),
+            "lineup_report": getattr(self, 'lineup_report', None),
+            "can_predict": self.can_predict(),
             "start_score": getattr(self, 'start_score', self.manager_score),
             "game_over": self.game_over,
             "win_prob": self.get_win_probability(),

@@ -924,7 +924,82 @@ def api_reset():
     engine.home_pitcher = home_p
     engine.away_pitcher = away_p
     engine.reset()
+    # 로비에서 미리 적어 둔 라인업 예상이 있으면 이 경기에 적용 (한 번 쓰면 비움)
+    my_team = session.get('favorite_team')
+    preds = dict(session.get('lineup_predictions') or {})
+    key = f"{home}|{away}"
+    if my_team in (home, away) and key in preds:
+        engine.set_prediction(my_team, preds.pop(key))
+        session['lineup_predictions'] = preds
     return jsonify({"status": "success", "message": "경기 초기화 완료", "state": engine.get_state()})
+
+
+def _match_teams():
+    data = (request.get_json(silent=True) or {}) if request.method == 'POST' else request.args
+    home = game_engine_short(data.get('home'))
+    away = game_engine_short(data.get('away'))
+    return home, away
+
+
+def game_engine_short(name):
+    name = (name or '').strip()
+    for code in game_engine.ROSTERS:
+        if name == code or name.startswith(code):
+            return code
+    return name
+
+
+@app.route('/api/lineup_pool')
+def api_lineup_pool():
+    """로비 라인업 예상 창: 감독의 오늘 라인업(9명) + 확인용 후보·다른 팀 선수 이름"""
+    home, away = _match_teams()
+    team = session.get('favorite_team')
+    if team not in (home, away):
+        return jsonify({"status": "error", "message": "내 응원 구단 경기만 예상할 수 있어요"}), 400
+    opp = away if team == home else home
+    actual = game_engine.daily_lineup(team, opp)
+    starters = {b["name"] for b in actual}
+    bench = [b["name"] for b in get_engine().lineup_pool(team) if b["name"] not in starters]
+    others = {}
+    for code, r in game_engine.ROSTERS.items():
+        if code == team:
+            continue
+        for b in r.get("lineup", []) + r.get("bench", []):
+            others.setdefault(b["name"], code)
+    saved = (session.get('lineup_predictions') or {}).get(f"{home}|{away}")
+    eng = get_engine()
+    started = False
+    if eng.home_team_name == home and eng.away_team_name == away:
+        if not saved and eng.prediction:
+            saved = eng.prediction["order"]
+        started = not eng.can_predict() and not eng.game_over
+    return jsonify({"status": "success", "team": team, "actual": actual, "bench": bench,
+                    "others": others, "saved": saved, "started": started})
+
+
+@app.route('/api/lineup', methods=['POST'])
+def api_lineup():
+    """경기 시작 전(로비) 감독 라인업 9명으로 내 타순을 다시 짜서 저장 (내 응원 구단만)"""
+    data = request.get_json(silent=True) or {}
+    home, away = _match_teams()
+    team = session.get('favorite_team')
+    if team not in (home, away):
+        return jsonify({"status": "error", "message": "내 응원 구단 경기만 예상할 수 있어요"}), 400
+    opp = away if team == home else home
+    order = [str(n).strip() for n in (data.get('order') or [])]
+    if sorted(order) != sorted(b["name"] for b in game_engine.daily_lineup(team, opp)):
+        return jsonify({"status": "error", "message": "감독 라인업의 9명으로 1~9번을 채워 주세요"}), 400
+    engine = get_engine()
+    same_game = engine.home_team_name == home and engine.away_team_name == away
+    if same_game and not engine.can_predict() and not engine.game_over:
+        return jsonify({"status": "error", "message": "이미 경기가 시작돼서 바꿀 수 없어요"}), 400
+    # 경기에 들어갈 때(새 경기 시작) 적용되도록 저장. 이미 만들어진 시작 전 경기면 바로도 적용
+    preds = dict(session.get('lineup_predictions') or {})
+    preds[f"{home}|{away}"] = order
+    session['lineup_predictions'] = preds
+    if same_game and engine.can_predict():
+        engine.set_prediction(team, order)
+    return jsonify({"status": "success"})
 
 
 @app.route('/api/finish', methods=['POST'])

@@ -942,7 +942,18 @@ function tryEnterIngame() {
     forceLiveMatchStart();
 }
 
-function forceLiveMatchStart() {
+// 실시간 경기 입장: 내 응원 구단 경기면 먼저 감독 라인업을 보고 내 타순을 짠 뒤 입장
+function forceLiveMatchStart(skipLineup) {
+    const myTeam = normalizeTeamShort(selectedTeamCode);
+    const teams = [normalizeTeamShort(currentHomeTeam), normalizeTeamShort(currentAwayTeam)];
+    if (!skipLineup && teams.includes(myTeam)) {
+        openLineupModal();
+        return;
+    }
+    enterLiveMatch();
+}
+
+function enterLiveMatch() {
     clearInterval(matchCountdownInterval);
     isMatchLive = true;
     const modal = document.getElementById('crisis-modal');
@@ -970,6 +981,147 @@ function forceLiveMatchStart() {
         switchView('ingame-view', data && data.state);
     })
     .catch(() => switchView('ingame-view'));
+}
+
+// ---------------- 라인업 예상 (로비에서 이름을 직접 입력) ----------------
+let luData = null;   // {team, pool, others}
+const LU_POS = { C: '포수', '1B': '1루', '2B': '2루', '3B': '3루', SS: '유격', LF: '좌익', CF: '중견', RF: '우익', DH: '지명' };
+
+// 한글을 자모로 풀어 비교 (오타 거리 계산용)
+function luJamo(str) {
+    const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ', JUNG = 'ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ', JONG = ' ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ';
+    let out = '';
+    for (const ch of String(str || '')) {
+        const c = ch.charCodeAt(0) - 0xAC00;
+        if (c >= 0 && c < 11172) {
+            out += CHO[Math.floor(c / 588)] + JUNG[Math.floor((c % 588) / 28)] + (c % 28 ? JONG[c % 28] : '');
+        } else out += ch.toLowerCase();
+    }
+    return out;
+}
+function luDist(a, b) {
+    const m = a.length, n = b.length, d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+    for (let j = 1; j <= n; j++) d[0][j] = j;
+    for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) {
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    return d[m][n];
+}
+
+// 입력한 이름 확인: 감독 라인업 9명 중 한 명이어야 함 (오타 추천 / 오늘 선발 아님 / 다른 팀 / 중복)
+function luCheck(name, idx, values) {
+    name = (name || '').trim();
+    if (!name) return { state: 'empty' };
+    const starters = luData.actual.map(b => b.name);
+    if (starters.includes(name)) {
+        const dup = values.findIndex((v, i) => i !== idx && v.trim() === name);
+        if (dup >= 0) return { state: 'bad', msg: `${dup + 1}번에 있어요` };
+        return { state: 'ok' };
+    }
+    if ((luData.bench || []).includes(name)) return { state: 'bad', msg: '오늘 선발이 아니에요' };
+    if (luData.others[name]) return { state: 'bad', msg: `${luData.others[name]} 선수예요` };
+    const j = luJamo(name);
+    let best = null, bestD = 99;
+    starters.forEach(n => { const d = luDist(j, luJamo(n)); if (d < bestD) { bestD = d; best = n; } });
+    if (best && bestD <= Math.max(2, Math.floor(j.length / 3))) return { state: 'typo', msg: `혹시 ${best}?`, fix: best };
+    return { state: 'bad', msg: '라인업에 없는 선수예요' };
+}
+
+function luMatchTeams() {
+    return { home: normalizeTeamShort(currentHomeTeam), away: normalizeTeamShort(currentAwayTeam) };
+}
+
+function openLineupModal() {
+    const { home, away } = luMatchTeams();
+    if (!home || !away) return;
+    fetch(`/api/lineup_pool?home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}`)
+        .then(r => r.json())
+        .then(res => {
+            // 내 팀 경기가 아니거나 이미 진행 중인 경기면 바로 입장 (이어 보기)
+            if (res.status !== 'success' || res.started) { enterLiveMatch(); return; }
+            luData = res;
+            const title = document.getElementById('lu-title');
+            if (title) title.textContent = `${res.team} 타순 다시 짜기`;
+            const dl = document.getElementById('lu-names');
+            if (dl) dl.innerHTML = res.actual.map(p => `<option value="${p.name}">`).join('');
+            const rows = document.getElementById('lu-rows');
+            if (rows) {
+                const saved = res.saved || [];
+                rows.innerHTML = Array.from({ length: 9 }, (_, i) => {
+                    const a = res.actual[i] || {};
+                    return `<div class="lu-row" data-i="${i}">
+                        <em>${i + 1}</em>
+                        <div class="lu-in">
+                            <input type="text" list="lu-names" autocomplete="off" placeholder="이름 입력" value="${saved[i] || ''}" oninput="luValidate()" onblur="luValidate()">
+                            <span class="lu-msg"></span>
+                        </div>
+                        <div class="lu-real"><b>${a.name || '-'}</b><small>${LU_POS[a.pos] || a.pos || ''}</small></div>
+                    </div>`;
+                }).join('');
+            }
+            luValidate();
+            document.getElementById('lineup-modal').classList.add('active');
+        })
+        .catch(() => enterLiveMatch());
+}
+
+// 감독 타순 그대로 채우기
+function luFillActual() {
+    if (!luData) return;
+    document.querySelectorAll('#lu-rows input').forEach((input, i) => { input.value = luData.actual[i].name; });
+    luValidate();
+}
+
+function closeLineupModal() {
+    const m = document.getElementById('lineup-modal');
+    if (m) m.classList.remove('active');
+}
+
+function luValidate() {
+    if (!luData) return;
+    const inputs = [...document.querySelectorAll('#lu-rows input')];
+    const values = inputs.map(i => i.value);
+    let allOk = true;
+    inputs.forEach((input, i) => {
+        const row = input.closest('.lu-row');
+        const msg = row.querySelector('.lu-msg');
+        const r = luCheck(input.value, i, values);
+        const same = r.state === 'ok' && luData.actual[i] && luData.actual[i].name === input.value.trim();
+        row.className = `lu-row ${r.state} ${same ? 'same' : ''}`;
+        if (r.state === 'typo') {
+            msg.innerHTML = `<button type="button" onclick="luFix(${i}, '${r.fix}')">${r.msg}</button>`;
+        } else {
+            msg.textContent = r.msg || '';
+        }
+        if (r.state !== 'ok') allOk = false;
+    });
+    const save = document.getElementById('lu-save');
+    if (save) save.disabled = !allOk;
+}
+
+function luFix(i, name) {
+    const input = document.querySelectorAll('#lu-rows input')[i];
+    if (input) { input.value = name; luValidate(); }
+}
+
+function saveLineupModal() {
+    const { home, away } = luMatchTeams();
+    const order = [...document.querySelectorAll('#lu-rows input')].map(i => i.value.trim());
+    fetch('/api/lineup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ home, away, order })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'success') {
+            closeLineupModal();
+            enterLiveMatch();
+        } else {
+            showToast(res.message || '라인업을 저장하지 못했어요');
+        }
+    })
+    .catch(() => showToast('라인업을 저장하지 못했어요'));
 }
 
 // 하단 네비게이션 바 노출/숨김 제어 함수: 로그인 완료 후 메인 로비 화면이나 게임 화면 진입 시에만 노출
@@ -2068,6 +2220,8 @@ function renderPostGameSummary(s) {
 
     const resultEl = document.getElementById('pg-result');
     let title = '', sub = '', tone = '';
+    const tacticLine = hit + miss ? `작전 ${hit + miss}번 중 ${hit}번 적중했어요`
+        : skip ? `위기 ${skip}번 모두 자리 비움이었어요` : '이번 경기는 위기 작전이 없었어요';
     if (inGame) {
         const margin = myScore - oppScore;
         const saved = savedFor(myTeam);
@@ -2078,9 +2232,9 @@ function renderPostGameSummary(s) {
         if (margin < 0 && saved > -margin) { title = '내 판단이었다면 이 경기 잡았다!'; sub = `감독이 내준 ${saved}점, 내 선택이었다면 막았어요`; tone = 'gold'; }
         else if (margin < 0 && saved === -margin) { title = '내 판단이었다면 동점까지 갔다!'; sub = `감독이 내준 ${saved}점, 내 선택이었다면 막았어요`; tone = 'gold'; }
         else if (margin < 0 && saved > 0) { title = '아쉬운 패배'; sub = `내 판단이었다면 ${saved}점은 막았어요`; tone = 'bad'; }
-        else if (margin < 0) { title = '아쉬운 패배'; sub = hit + miss ? `작전 ${hit + miss}번 중 ${hit}번 적중했어요` : '이번 경기는 위기 작전이 없었어요'; tone = 'bad'; }
-        else if (margin > 0) { title = hit > miss ? '승리! 감독 못지않은 눈' : '승리!'; sub = saved > 0 ? `내 판단이었다면 ${saved}점 더 막았어요` : (hit + miss ? `작전 ${hit + miss}번 중 ${hit}번 적중했어요` : '이번 경기는 위기 작전이 없었어요'); tone = 'good'; }
-        else { title = '무승부'; sub = saved > 0 ? `내 판단이었다면 ${saved}점 막고 이겼어요` : `작전 ${hit + miss}번 중 ${hit}번 적중했어요`; tone = saved > 0 ? 'gold' : ''; }
+        else if (margin < 0) { title = '아쉬운 패배'; sub = tacticLine; tone = 'bad'; }
+        else if (margin > 0) { title = hit > miss ? '승리! 감독 못지않은 눈' : '승리!'; sub = saved > 0 ? `내 판단이었다면 ${saved}점 더 막았어요` : tacticLine; tone = 'good'; }
+        else { title = '무승부'; sub = saved > 0 ? `내 판단이었다면 ${saved}점 막고 이겼어요` : tacticLine; tone = saved > 0 ? 'gold' : ''; }
     } else {
         if (resultEl) { resultEl.textContent = ''; resultEl.className = 'pg-result'; }
         const rate = hit + miss ? Math.round(hit / (hit + miss) * 100) : 0;
@@ -2106,6 +2260,8 @@ function renderPostGameSummary(s) {
     const titles = { S: 'S급 야신의 재림', A: 'A급 베테랑 명장', B: 'B급 열혈 감독', C: 'C급 직관 마니아', F: 'F급 초보 해설가' };
     set('post-grade-title', titles[s.manager_grade] || '');
 
+    renderLineupReport(s);
+
     const list = document.getElementById('pg-log-list');
     if (list) {
         const label = c => c === 'CHANGE' ? '교체' : c === 'KEEP' ? '유지' : '자리 비움';
@@ -2116,6 +2272,46 @@ function renderPostGameSummary(s) {
                 <span class="pg-log-res ${t.result === 'OUT' ? 'out' : 'on'}">${t.result === 'OUT' ? '아웃' : '출루'}</span>
                 <b class="pg-log-delta ${t.score_delta > 0 ? 'up' : t.score_delta < 0 ? 'down' : ''}">${t.score_delta > 0 ? '+' : t.score_delta < 0 ? '' : '±'}${t.score_delta}</b>
             </div>`).join('') : '<div class="pg-log-empty">이번 경기는 위기 작전이 없었어요</div>';
+    }
+}
+
+function renderLineupReport(s) {
+    const card = document.getElementById('pg-lineup');
+    if (!card) return;
+    const r = s && s.lineup_report;
+    if (!r) { card.hidden = true; return; }
+    card.hidden = false;
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    set('pg-lu-points', `${r.points > 0 ? '+' : ''}${r.points}P`);
+    const pts = document.getElementById('pg-lu-points');
+    if (pts) pts.className = r.points > 0 ? 'up' : r.points < 0 ? 'down' : '';
+    set('pg-lu-base', `${r.base_runs}점`);
+    set('pg-lu-mine', `${r.my_runs}점`);
+    set('pg-lu-match', `${9 - r.matches}곳`);
+    let title;
+    const wouldWin = r.my_team_final > r.opp_runs && r.actual_runs <= r.opp_runs;
+    if (r.diff > 0 && wouldWin) title = `내 타순이었다면 이겼다! (+${r.diff}점)`;
+    else if (r.diff > 0) title = `내 타순이 ${r.diff}점 더 냈어요`;
+    else if (r.diff < 0) title = `감독 타순이 ${-r.diff}점 더 나았어요`;
+    else if (r.matches === 9) title = '감독 타순 그대로 갔어요';
+    else title = '득점은 같았어요';
+    set('pg-lu-title', title);
+    // 내 타순이었다면 최종 스코어
+    const away = normalizeTeamShort(s.away_team), home = normalizeTeamShort(s.home_team);
+    const myIsHome = r.team === home;
+    const ifAway = myIsHome ? s.score_away : r.my_team_final, ifHome = myIsHome ? r.my_team_final : s.score_home;
+    set('pg-lu-if', `실제 ${away} ${s.score_away} : ${s.score_home} ${home}  →  내 타순이었다면 ${away} ${ifAway} : ${ifHome} ${home}`);
+    const title_el = document.getElementById('pg-lu-title');
+    if (title_el) title_el.className = r.diff > 0 ? 'up' : r.diff < 0 ? 'down' : '';
+    // 이닝별 비교 (차이가 난 이닝만 강조)
+    const inn = document.getElementById('pg-lu-innings');
+    if (inn) {
+        inn.innerHTML = `<div class="pg-lu-irow"><span>이닝</span>${r.innings.map(i => `<i>${i}</i>`).join('')}</div>
+            <div class="pg-lu-irow"><span>실제</span>${r.innings.map(i => `<i>${r.base_by_inning[i] ?? 0}</i>`).join('')}</div>
+            <div class="pg-lu-irow mine"><span>내 것</span>${r.innings.map(i => {
+                const m = r.my_by_inning[i] ?? 0, b = r.base_by_inning[i] ?? 0;
+                return `<i class="${m > b ? 'up' : m < b ? 'down' : ''}">${m}</i>`;
+            }).join('')}</div>`;
     }
 }
 
