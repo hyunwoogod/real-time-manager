@@ -5632,3 +5632,129 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     border: 1px dashed rgba(255, 255, 255, 0.1);
 }
 .hm-row { align-items: stretch !important; }
+
+/* ==========================================================================
+   리그 > 경기 일정: 홈과 같은 경기 줄 + 날짜 띠
+   ========================================================================== */
+#pane-schedule .schedule-sub-nav,
+#pane-records .schedule-sub-nav { margin-bottom: 16px; }
+.sc-month {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 0 4px 12px;
+}
+.sc-month-title {
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: var(--text-main);
+    white-space: nowrap;
+    padding: 0 4px;
+}
+.sc-month-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-sub);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.sc-today-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(110, 231, 183, 0.4);
+    background: rgba(16, 185, 129, 0.12);
+    color: #6ee7b7;
+    font-size: 0.82rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+.sc-dates {
+    position: relative;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 4px 10px;
+    margin-bottom: 6px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.sc-dates::-webkit-scrollbar { display: none; }
+.sc-date {
+    position: relative;
+    flex: 0 0 54px;
+    height: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 16px;
+    border: 1px solid var(--card-border);
+    background: rgba(15, 23, 42, 0.9);
+    color: var(--text-main);
+    cursor: pointer;
+}
+.sc-dow { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); }
+.sc-day { font-size: 1.2rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.sc-date.sat .sc-dow { color: #7dd3fc; }
+.sc-date.sun .sc-dow { color: #fca5a5; }
+.sc-date.is-today .sc-dow { color: #6ee7b7; }
+.sc-date.no-games { opacity: 0.6; }
+.sc-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: transparent;
+}
+.sc-date.has-games .sc-dot { background: var(--accent-emerald); }
+.sc-date.active {
+    background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+    border-color: transparent;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+    opacity: 1;
+}
+.sc-date.active .sc-dow, .sc-date.active .sc-day { color: #ffffff; }
+.sc-date.active .sc-dot { background: #ffffff; }
+.sc-day-title { display: flex; align-items: center; gap: 8px; }
+.sc-count {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-sub);
+}
+
+/* 경기 줄: 내 팀 강조 · 누르면 입장 */
+.hm-row.is-mine { border-color: rgba(16, 185, 129, 0.55); box-shadow: inset 3px 0 0 var(--accent-emerald); }
+.hm-row.is-tappable { cursor: pointer; transition: transform 0.1s ease, background 0.2s ease; }
+.hm-row.is-tappable:active { transform: scale(0.98); }
+.hm-row-go {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #6ee7b7;
+    white-space: nowrap;
+}
+.hm-row.st-live .hm-row-go { color: #fca5a5; }
+
+/* 경기 없는 날 표시 */
+.sc-none {
+    font-size: 0.56rem;
+    font-weight: 700;
+    color: var(--text-sub);
+    white-space: nowrap;
+    letter-spacing: -0.02em;
+}
+.sc-date.active .sc-none { color: rgba(255, 255, 255, 0.85); }

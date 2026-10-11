@@ -803,6 +803,37 @@ function renderHomeMatch(match, opts = {}) {
     </div>`;
 }
 
+// 경기 한 줄 (홈 '오늘의 다른 경기'와 리그 '경기 일정'에서 공통 사용)
+function gameRowHtml(m, opts = {}) {
+    const st = gameState(m);
+    const a = normalizeTeamShort(m.away_team) || m.away_team;
+    const h = normalizeTeamShort(m.home_team) || m.home_team;
+    const showScore = st.cls === 'live' || st.cls === 'final';
+    const aWin = st.cls === 'final' && m.away_score > m.home_score;
+    const hWin = st.cls === 'final' && m.home_score > m.away_score;
+    const where = m.stadium || '-';
+    const when = st.cls === 'live' ? (m.inning_text || '경기 중') : st.cls === 'final' ? '경기 종료' : st.cls === 'ready' ? `${m.start_time || ''} 시작` : `${st.reason} 취소`;
+    const extra = st.cls === 'live' && m.current_pitcher ? ` · 투구 중 ${m.current_pitcher}`
+        : st.cls === 'ready' && (m.away_pitcher || m.home_pitcher) ? ` · 선발 ${m.away_pitcher || '미정'} vs ${m.home_pitcher || '미정'}` : '';
+    const myTeam = normalizeTeamShort(selectedTeamCode);
+    const mine = a === myTeam || h === myTeam;
+    const enterable = opts.enterable && st.canEnter;
+    const onclick = enterable ? ` onclick="enterMatchupFromSchedule('${m.home_team}', '${m.away_team}', '${m.home_pitcher || ''}', '${m.away_pitcher || ''}')" role="button"` : '';
+    return `<div class="hm-row st-${st.cls.split(' ')[0]} ${st.wx ? 'wx-' + st.wx : ''} ${mine ? 'is-mine' : ''} ${enterable ? 'is-tappable' : ''}"${onclick}>
+        ${st.wx ? '<span class="wx-row-fx" aria-hidden="true"></span>' : ''}
+        <div class="hm-row-main">
+            <span class="hm-row-team"><span class="hm-row-logo">${teamLogos[a] || '⚾'}</span><span class="hm-row-name">${a}</span></span>
+            <span class="hm-row-score">${showScore ? `<b class="${aWin ? 'win' : ''}">${m.away_score}</b><i>:</i><b class="${hWin ? 'win' : ''}">${m.home_score}</b>` : '<i class="vs">VS</i>'}</span>
+            <span class="hm-row-team right"><span class="hm-row-name">${h}</span><span class="hm-row-logo">${teamLogos[h] || '⚾'}</span></span>
+        </div>
+        <div class="hm-row-meta">
+            <span class="hm-row-chip">${st.wx ? WX_ICON[st.wx] : ''}${st.cls === 'live' ? '<i class="live-dot"></i>' : ''}${when}</span>
+            <span class="hm-row-where">${where}${extra}</span>
+            ${enterable ? '<span class="hm-row-go">입장 ›</span>' : ''}
+        </div>
+    </div>`;
+}
+
 function renderOtherGames(list) {
     const box = document.getElementById('home-games-list');
     const title = document.getElementById('hm-others-title');
@@ -812,30 +843,7 @@ function renderOtherGames(list) {
         box.innerHTML = '<div class="hm-row-empty">오늘은 다른 경기가 없어요</div>';
         return;
     }
-    box.innerHTML = list.map(m => {
-        const st = gameState(m);
-        const a = normalizeTeamShort(m.away_team) || m.away_team;
-        const h = normalizeTeamShort(m.home_team) || m.home_team;
-        const showScore = st.cls === 'live' || st.cls === 'final';
-        const aWin = st.cls === 'final' && m.away_score > m.home_score;
-        const hWin = st.cls === 'final' && m.home_score > m.away_score;
-        const where = m.stadium || '-';
-        const when = st.cls === 'live' ? (m.inning_text || '경기 중') : st.cls === 'final' ? '경기 종료' : st.cls === 'ready' ? `${m.start_time || ''} 시작` : `${st.reason} 취소`;
-        const extra = st.cls === 'live' && m.current_pitcher ? ` · 투구 중 ${m.current_pitcher}`
-            : st.cls === 'ready' && (m.away_pitcher || m.home_pitcher) ? ` · 선발 ${m.away_pitcher || '미정'} vs ${m.home_pitcher || '미정'}` : '';
-        return `<div class="hm-row st-${st.cls.split(' ')[0]} ${st.wx ? 'wx-' + st.wx : ''}">
-            ${st.wx ? '<span class="wx-row-fx" aria-hidden="true"></span>' : ''}
-            <div class="hm-row-main">
-                <span class="hm-row-team"><span class="hm-row-logo">${teamLogos[a] || '⚾'}</span><span class="hm-row-name">${a}</span></span>
-                <span class="hm-row-score">${showScore ? `<b class="${aWin ? 'win' : ''}">${m.away_score}</b><i>:</i><b class="${hWin ? 'win' : ''}">${m.home_score}</b>` : '<i class="vs">VS</i>'}</span>
-                <span class="hm-row-team right"><span class="hm-row-name">${h}</span><span class="hm-row-logo">${teamLogos[h] || '⚾'}</span></span>
-            </div>
-            <div class="hm-row-meta">
-                <span class="hm-row-chip">${st.wx ? WX_ICON[st.wx] : ''}${st.cls === 'live' ? '<i class="live-dot"></i>' : ''}${when}</span>
-                <span class="hm-row-where">${where}${extra}</span>
-            </div>
-        </div>`;
-    }).join('');
+    box.innerHTML = list.map(m => gameRowHtml(m)).join('');
 }
 
 function renderHome(scheduleInfo, todayGames) {
@@ -1078,6 +1086,7 @@ function switchLobbyTab(tabName, btnEl) {
     // 탭을 바꾸면 항상 맨 위부터 보이도록 (이전 탭의 스크롤 위치가 남지 않게)
     const pregameView = document.getElementById('pregame-view');
     if (pregameView) pregameView.scrollTop = 0;
+    if (tabName === 'schedule') requestAnimationFrame(() => centerActiveDate(false));
 
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
         btn.classList.remove('active');
@@ -1396,60 +1405,56 @@ function loadScheduleTable(filterDate = getFormattedTodayStr()) {
         .catch(err => console.error("Error loading schedules:", err));
 }
 
+const SC_DOWS = ['일', '월', '화', '수', '목', '금', '토'];
+
+function scDateParts(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return { y, m, d, dow: SC_DOWS[new Date(y, m - 1, d).getDay()] };
+}
+
 function renderHorizontalDatePicker() {
-    const scrollContainer = document.getElementById('sched-date-scroll');
-    if (!scrollContainer) return;
-
-    let availableDates = [];
+    const box = document.getElementById('sched-date-scroll');
+    if (!box) return;
     const todayStr = getFormattedTodayStr();
-
-    if (cachedSchedules && cachedSchedules.length > 0) {
-        const set = new Set(cachedSchedules.map(s => s.game_date));
-        set.add(todayStr);
-        availableDates = Array.from(set).sort();
-    } else {
-        const today = new Date();
-        for (let i = -7; i <= 7; i++) {
-            const d = new Date(today);
-            d.setDate(today.getDate() + i);
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            availableDates.push(`${y}-${m}-${day}`);
-        }
-    }
-
-    const dows = ['일', '월', '화', '수', '목', '금', '토'];
-
-    const dates = availableDates.map(dateStr => {
-        const [y, m, d] = dateStr.split('-').map(Number);
-        const dateObj = new Date(y, m - 1, d);
-        const dow = dows[dateObj.getDay()];
-        const num = String(d);
-        return { date: dateStr, dow, num };
+    const gameCount = {};
+    (cachedSchedules || []).forEach(s => {
+        if (s.is_rest_day !== 1) gameCount[s.game_date] = (gameCount[s.game_date] || 0) + 1;
     });
-
-    const monthTitleEl = document.getElementById('sched-month-title');
-    if (monthTitleEl && selectedScheduleDate) {
-        const parts = selectedScheduleDate.split('-');
-        if (parts.length >= 2) {
-            monthTitleEl.innerText = `${parts[0]}.${parts[1]} ▾`;
-        }
+    // 고른 날짜가 속한 달의 1일~말일을 빠짐없이 표시 (경기 없는 날 포함)
+    const sel = scDateParts(selectedScheduleDate || todayStr);
+    const lastDay = new Date(sel.y, sel.m, 0).getDate();
+    const dates = [];
+    for (let d = 1; d <= lastDay; d++) {
+        dates.push(`${sel.y}-${String(sel.m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
     }
+    const monthTitle = document.getElementById('sched-month-title');
+    if (monthTitle) monthTitle.innerText = `${sel.y}년 ${sel.m}월`;
 
-    scrollContainer.innerHTML = dates.map(d => `
-        <div class="date-pill-item ${d.date === selectedScheduleDate ? 'active' : ''}" onclick="selectScheduleDate('${d.date}')">
-            <span class="dow">${d.dow}</span>
-            <span class="day-num">${d.num}</span>
-        </div>
-    `).join('');
+    box.innerHTML = dates.map(date => {
+        const p = scDateParts(date);
+        const cls = [
+            'sc-date',
+            date === selectedScheduleDate ? 'active' : '',
+            date === todayStr ? 'is-today' : '',
+            gameCount[date] ? 'has-games' : 'no-games',
+            p.dow === '토' ? 'sat' : p.dow === '일' ? 'sun' : '',
+        ].join(' ');
+        return `<button class="${cls}" onclick="selectScheduleDate('${date}')">
+            <span class="sc-dow">${date === todayStr ? '오늘' : p.dow}</span>
+            <span class="sc-day">${p.d}</span>
+            ${gameCount[date] ? '<i class="sc-dot"></i>' : '<span class="sc-none">경기 없음</span>'}
+        </button>`;
+    }).join('');
 
-    setTimeout(() => {
-        const activeEl = scrollContainer.querySelector('.date-pill-item.active');
-        if (activeEl) {
-            activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        }
-    }, 50);
+    setTimeout(() => centerActiveDate(true), 50);
+}
+
+// 선택한 날짜 카드를 날짜 줄 가운데로 (탭이 숨겨져 있으면 탭을 열 때 다시 호출)
+function centerActiveDate(smooth) {
+    const box = document.getElementById('sched-date-scroll');
+    const active = box && box.querySelector('.sc-date.active');
+    if (!active || !box.clientWidth) return;
+    box.scrollTo({ left: active.offsetLeft - (box.clientWidth - active.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'auto' });
 }
 
 function selectScheduleDate(dateStr) {
@@ -1459,84 +1464,44 @@ function selectScheduleDate(dateStr) {
 }
 
 function scrollDateBar(direction) {
-    const container = document.getElementById('sched-date-scroll');
-    if (container) {
-        container.scrollBy({ left: direction * 150, behavior: 'smooth' });
-    }
+    const box = document.getElementById('sched-date-scroll');
+    if (box) box.scrollBy({ left: direction * 150, behavior: 'smooth' });
 }
 
+// 이전/다음 달: 그 달의 첫 경기 날짜로 이동 (경기가 없으면 안내)
 function shiftSchedMonth(delta) {
-    showToast("🗓️ 2026년 9월 정규시즌 일정 캘린더입니다.");
+    const cur = scDateParts(selectedScheduleDate || getFormattedTodayStr());
+    const target = new Date(cur.y, cur.m - 1 + delta, 1);
+    const prefix = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}`;
+    const dates = Array.from(new Set((cachedSchedules || []).filter(s => s.is_rest_day !== 1 && s.game_date.startsWith(prefix)).map(s => s.game_date))).sort();
+    if (!dates.length) {
+        showToast(`${target.getMonth() + 1}월에는 등록된 경기가 없어요`);
+        return;
+    }
+    selectScheduleDate(dates[0]);
 }
 
 function renderMatchupsForDate(dateStr) {
-    const container = document.getElementById('sched-matchup-list');
-    if (!container) return;
+    const list = document.getElementById('sched-matchup-list');
+    const title = document.getElementById('sched-day-title');
+    if (!list) return;
+    const games = (cachedSchedules || []).filter(s => s.game_date === dateStr && s.is_rest_day !== 1 && s.home_team !== s.away_team);
+    const p = scDateParts(dateStr);
+    if (title) title.innerHTML = `${p.m}월 ${p.d}일 (${p.dow})${games.length ? ` <span class="sc-count">${games.length}경기</span>` : ''}`;
 
-    let filtered = (cachedSchedules || []).filter(s => s.game_date === dateStr);
-
-    if (filtered.length === 0) {
-        container.innerHTML = `
-            <div style="text-align:center; padding:30px; color:#94a3b8; font-weight:700;">
-                📅 ${dateStr} 에는 예정된 KBO 경기가 없습니다. (KBO 정기 휴식일)
-            </div>
-        `;
+    if (!games.length) {
+        list.innerHTML = '<div class="hm-row-empty">이 날은 경기가 없어요</div>';
         return;
     }
-
-    container.innerHTML = filtered.map(m => {
-        if (m.is_rest_day === 1) {
-            return `
-                <div class="matchup-card" style="justify-content:center; text-align:center; padding:20px; color:#fca5a5;">
-                    ⚾ KBO 정기 휴식일 (전 구단 휴식)
-                </div>
-            `;
-        }
-
-        const awayLogo = getTeamLogoHtml(m.away_team, 'matchup-team-logo-img');
-        const homeLogo = getTeamLogoHtml(m.home_team, 'matchup-team-logo-img');
-        const awayPitcher = m.away_pitcher ? m.away_pitcher : '';
-        const homePitcher = m.home_pitcher ? m.home_pitcher : '';
-
-        const awayPitcherHtml = awayPitcher ? `<span class="matchup-pitcher-name">${awayPitcher}</span>` : '';
-        const homePitcherHtml = homePitcher ? `<span class="matchup-pitcher-name">${homePitcher}</span>` : '';
-        const statusText = m.status_text || '경기전';
-        const badgeClass = statusText === '경기종료' ? 'status-badge-final' : (statusText === '취소' ? 'status-badge-canceled' : 'status-badge-cyan');
-        const hasScore = statusText === '경기종료' && m.away_score !== null && m.away_score !== undefined && m.home_score !== null && m.home_score !== undefined;
-        const awayWin = hasScore && m.away_score > m.home_score;
-        const homeWin = hasScore && m.home_score > m.away_score;
-        const awayScoreHtml = hasScore ? `<span class="matchup-score ${awayWin ? 'win' : ''}">${m.away_score}</span>` : '';
-        const homeScoreHtml = hasScore ? `<span class="matchup-score ${homeWin ? 'win' : ''}">${m.home_score}</span>` : '';
-
-        return `
-            <div class="matchup-card">
-                <div class="matchup-card-left">
-                    <div class="matchup-meta-row">
-                        <span class="${badgeClass}">${statusText}</span>
-                        <span class="match-time-stadium">${m.start_time} <span class="match-stadium-name">${m.stadium}</span></span>
-                    </div>
-                    <div class="matchup-teams-block">
-                        <div class="matchup-team-item">
-                            <span class="matchup-team-logo">${awayLogo}</span>
-                            <span class="matchup-team-name">${m.away_team}</span>
-                            ${awayScoreHtml}
-                            ${awayPitcherHtml}
-                        </div>
-                        <div class="matchup-team-item">
-                            <span class="matchup-team-logo">${homeLogo}</span>
-                            <span class="matchup-team-name">${m.home_team}</span>
-                            <span class="home-tag">홈</span>
-                            ${homeScoreHtml}
-                            ${homePitcherHtml}
-                        </div>
-                    </div>
-                </div>
-                <button class="btn-matchup-action" onclick="enterMatchupFromSchedule('${m.home_team}', '${m.away_team}', '${homePitcher}', '${awayPitcher}')">
-                    상세보기
-                </button>
-            </div>
-        `;
-    }).join('');
+    // 내 팀 경기를 맨 위로
+    const myTeam = normalizeTeamShort(selectedTeamCode);
+    games.sort((a, b) => {
+        const am = normalizeTeamShort(a.home_team) === myTeam || normalizeTeamShort(a.away_team) === myTeam;
+        const bm = normalizeTeamShort(b.home_team) === myTeam || normalizeTeamShort(b.away_team) === myTeam;
+        return (bm - am) || String(a.start_time).localeCompare(String(b.start_time));
+    });
+    const isToday = dateStr === getFormattedTodayStr();
+    list.innerHTML = games.map(m => gameRowHtml(m, { enterable: isToday })).join('');
 }
 
 function enterMatchupFromSchedule(homeTeam, awayTeam, homePitcher, awayPitcher) {
