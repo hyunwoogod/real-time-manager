@@ -331,7 +331,9 @@ def index():
         match_away_full=match_away_full,
         match_home_full=match_home_full,
         today_schedule=today_schedule_info,
-        initial_standings=database.compute_standings()['standings']
+        initial_standings=database.compute_standings()['standings'],
+        today_games=[g for g in database.get_schedules_by_date(today_str) if g.get('is_rest_day') != 1],
+        team_logos=TEAM_LOGOS
     ))
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
@@ -612,7 +614,9 @@ def admin_games():
         action = request.form.get('action')
         if action == 'save_result':
             res = database.save_game_result(request.form.get('game_id'), request.form.get('status_text'),
-                                            request.form.get('away_score'), request.form.get('home_score'))
+                                            request.form.get('away_score'), request.form.get('home_score'),
+                                            request.form.get('inning_text', ''), request.form.get('cancel_reason', ''),
+                                            request.form.get('current_pitcher', ''))
         elif action == 'add_game':
             res = database.add_game(request.form.get('game_date'), request.form.get('start_time'),
                                     request.form.get('away_team'), request.form.get('home_team'), request.form.get('stadium'))
@@ -642,6 +646,7 @@ def admin_games():
                            prev_date=(day - datetime.timedelta(days=1)).isoformat(),
                            next_date=(day + datetime.timedelta(days=1)).isoformat(),
                            standings=standings, teams=database.KBO_TEAMS, message=message, error=error,
+                           innings=database.INNING_OPTIONS, cancel_reasons=database.CANCEL_REASONS,
                            team_full_names=TEAM_FULL_NAMES)
 
 
@@ -741,6 +746,7 @@ def api_lobby():
         "favorite_team": user_team,
         "favorite_team_full": team_full,
         "today_schedule": today_info,
+        "today_games": [g for g in database.get_schedules_by_date(today_str) if g.get('is_rest_day') != 1],
         "countdown": "14분 30초",
         "current_username": session.get('username') or (user_info.get('username') if user_info else '')
     })

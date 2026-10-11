@@ -5079,3 +5079,556 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 #splash-screen .splash-welcome-text strong { font-weight: 800 !important; font-size: 1.05rem !important; }
 #splash-screen .base-label { font-weight: 700 !important; font-size: 0.74rem !important; }
 #splash-screen .loader-status { font-weight: 700 !important; font-size: 0.9rem !important; }
+
+/* ==========================================================================
+   홈 화면: 글자 최소화 · 한 줄 · 버튼 하나 (내 정보 줄 + 오늘의 경기 카드)
+   ========================================================================== */
+.home-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    border-radius: 18px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-left: 4px solid var(--team-color);
+}
+.home-avatar {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1.45rem;
+    background: color-mix(in srgb, var(--team-color) 35%, #0f172a);
+}
+.home-id {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.home-name, .home-team {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.home-name { font-size: 1.05rem; font-weight: 800; color: var(--text-main); }
+.home-team { font-size: 0.8rem; color: var(--text-sub); }
+.home-score {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.home-points {
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: var(--accent-gold);
+    white-space: nowrap;
+}
+.home-score .grade-badge { white-space: nowrap; }
+.home-gear {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--card-border);
+    color: var(--text-sub);
+    cursor: pointer;
+}
+.home-gear svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.home-match {
+    padding: 16px;
+    border-radius: 22px;
+    background: linear-gradient(160deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%);
+    border: 1px solid rgba(110, 231, 183, 0.25);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+.home-match-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.home-match-meta {
+    min-width: 0;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-sub);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.home-chip {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.chip-ready { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; }
+.chip-final { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
+.chip-cancel { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.chip-live { background: #ef4444; color: #ffffff; animation: chipPulse 1.2s ease-in-out infinite; }
+@keyframes chipPulse { 50% { opacity: 0.65; } }
+
+.home-match-teams {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.home-team-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+.mt-logo {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1.9rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+.home-team-col.is-mine .mt-logo {
+    border-color: var(--accent-emerald);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.18);
+}
+.mt-name {
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+.mt-side { font-size: 0.72rem; color: var(--text-sub); }
+.home-vs {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: var(--text-sub);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.home-enter {
+    width: 100%;
+    white-space: nowrap;
+    font-size: 1.1rem !important;
+}
+.home-enter:disabled {
+    background: rgba(148, 163, 184, 0.2) !important;
+    color: var(--text-sub) !important;
+    box-shadow: none !important;
+    animation: none !important;
+    cursor: default;
+}
+
+/* ==========================================================================
+   홈: 내 팀 경기 카드 + 다른 경기 목록 + 날씨 연출 (시작 화면과 같은 남색 카드·초록 포인트·잔디)
+   ========================================================================== */
+.hm-section {
+    margin: 4px 4px 10px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+.hm-section-sub { margin-top: 20px; color: var(--text-sub); font-size: 0.85rem; }
+
+.hm-card {
+    position: relative;
+    overflow: hidden;
+    padding: 18px 16px 16px;
+    border-radius: 22px;
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid rgba(110, 231, 183, 0.35);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+}
+/* 카드 맨 위 잔디 띠 (시작 화면 주루 로딩바와 같은 무늬) */
+.hm-field {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 6px;
+    background: repeating-linear-gradient(90deg, #5cbf62 0 18px, #4fae55 18px 36px);
+    opacity: 0.85;
+}
+.hm-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.hm-meta {
+    min-width: 0;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--text-sub);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.hm-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 800;
+    white-space: nowrap;
+    background: rgba(56, 189, 248, 0.15);
+    color: #7dd3fc;
+}
+.live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: chipPulse 1s ease-in-out infinite;
+}
+.hm-teams {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+.hm-team {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+.hm-logo {
+    width: 62px;
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1.9rem;
+    background: color-mix(in srgb, var(--team-color) 30%, #0f172a);
+    border: 2px solid rgba(255, 255, 255, 0.12);
+}
+.hm-team.is-mine .hm-logo { border-color: var(--accent-emerald); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2); }
+.hm-name { font-size: 1.1rem; font-weight: 900; color: var(--text-main); white-space: nowrap; }
+.hm-side { font-size: 0.72rem; color: var(--text-sub); }
+.hm-center {
+    min-width: 84px;
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: var(--text-sub);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.hm-enter {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+    color: #ffffff;
+    font-size: 1.08rem;
+    font-weight: 900;
+    white-space: nowrap;
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+    cursor: pointer;
+}
+.hm-enter:active { transform: translateY(2px); }
+.hm-enter:disabled {
+    background: rgba(148, 163, 184, 0.16);
+    color: var(--text-sub);
+    box-shadow: none;
+    cursor: default;
+}
+
+/* 상태별 */
+.hm-card.st-live { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.25), 0 16px 36px rgba(0, 0, 0, 0.5); }
+.hm-card.st-live .hm-chip { background: #ef4444; color: #ffffff; }
+.hm-card.st-live .hm-center { color: #ffffff; }
+.hm-card.st-live .hm-enter { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35); }
+.hm-card.st-final .hm-chip { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
+.hm-card.st-final .hm-center { color: #f8fafc; }
+.hm-card.st-cancel .hm-chip { background: rgba(148, 163, 184, 0.18); color: #e2e8f0; }
+
+/* 쉬는 날 */
+.hm-empty { display: flex; align-items: center; gap: 14px; }
+.hm-empty img { border-radius: 50%; border: 2px solid #f8fafc; box-shadow: 0 0 0 2px #10b981; }
+.hm-empty strong { display: block; font-size: 1.05rem; color: var(--text-main); }
+.hm-empty span { display: block; margin-top: 2px; font-size: 0.82rem; color: var(--text-sub); }
+
+/* ---------- 날씨 연출 (취소된 경기) ---------- */
+.wx-layer { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.wx-fx { position: absolute; inset: -40px; }
+.wx-label {
+    position: absolute;
+    z-index: 3;
+    left: 50%;
+    top: 46%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: rgba(2, 6, 14, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 900;
+    white-space: nowrap;
+    backdrop-filter: blur(4px);
+}
+.wx-label svg, .hm-row-chip svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.hm-card.st-cancel .hm-teams { opacity: 0.45; filter: saturate(0.6); }
+
+/* 비: 비스듬히 떨어지는 빗줄기 두 겹 + 어두운 하늘 */
+.hm-card.wx-rain .wx-layer { background: linear-gradient(180deg, rgba(30, 58, 95, 0.55), rgba(15, 23, 42, 0.35)); }
+.hm-card.wx-rain .wx-fx {
+    background-image: repeating-linear-gradient(105deg, transparent 0 22px, rgba(186, 220, 255, 0.45) 22px 23px);
+    animation: rainFall 0.45s linear infinite;
+}
+.hm-card.wx-rain .wx-fx2 { opacity: 0.5; background-size: 140% 140%; animation-duration: 0.7s; }
+.hm-card.wx-rain .wx-label { color: #bfdbfe; }
+@keyframes rainFall {
+    from { transform: translate(0, -40px); }
+    to { transform: translate(-10px, 0); }
+}
+
+/* 폭염: 뜨거운 햇볕 + 아지랑이 */
+.hm-card.wx-heat .wx-layer {
+    background:
+        radial-gradient(circle at 85% 0%, rgba(255, 170, 40, 0.55) 0%, transparent 45%),
+        linear-gradient(180deg, rgba(255, 94, 58, 0.22), rgba(255, 140, 0, 0.08));
+}
+.hm-card.wx-heat .wx-fx {
+    background: repeating-linear-gradient(0deg, rgba(255, 200, 120, 0.09) 0 3px, transparent 3px 10px);
+    filter: blur(1.5px);
+    animation: heatWave 1.6s ease-in-out infinite alternate;
+}
+.hm-card.wx-heat .wx-fx2 { animation-duration: 2.3s; opacity: 0.6; }
+.hm-card.wx-heat .wx-label { color: #fed7aa; }
+.hm-card.wx-heat .wx-label svg { animation: sunSpin 8s linear infinite; }
+@keyframes heatWave {
+    from { transform: translateY(0) skewX(-2deg); }
+    to { transform: translateY(-8px) skewX(2deg); }
+}
+@keyframes sunSpin { to { transform: rotate(360deg); } }
+
+/* 미세먼지: 뿌연 안개 + 떠다니는 먼지 */
+.hm-card.wx-dust .wx-layer { background: rgba(161, 140, 98, 0.35); backdrop-filter: blur(1.5px); }
+.hm-card.wx-dust .wx-fx {
+    background-image:
+        radial-gradient(circle, rgba(230, 210, 170, 0.5) 1px, transparent 2px),
+        radial-gradient(circle, rgba(230, 210, 170, 0.35) 1.5px, transparent 2.5px);
+    background-size: 26px 26px, 41px 41px;
+    animation: dustDrift 6s linear infinite;
+}
+.hm-card.wx-dust .wx-label { color: #fde68a; }
+@keyframes dustDrift { to { transform: translate(30px, -20px); } }
+
+/* 그라운드 사정·기타 */
+.hm-card.wx-ground .wx-layer { background: rgba(71, 85, 105, 0.45); }
+
+/* ---------- 다른 경기 목록 ---------- */
+.hm-list { display: flex; flex-direction: column; gap: 8px; }
+.hm-row {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 84px;
+    align-items: center;
+    gap: 6px;
+    padding: 11px 12px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.hm-row-team { display: flex; align-items: center; gap: 7px; min-width: 0; position: relative; z-index: 1; }
+.hm-row-team.right { justify-content: flex-end; }
+.hm-row-logo {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.06);
+}
+.hm-row-name { font-size: 0.92rem; font-weight: 800; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hm-row-score {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.hm-row-score b { min-width: 16px; text-align: center; font-size: 1.05rem; font-weight: 900; color: var(--text-sub); }
+.hm-row-score b.win { color: #f8fafc; }
+.hm-row-score i { font-style: normal; color: var(--text-sub); font-weight: 700; }
+.hm-row-score .vs { font-size: 0.8rem; }
+.hm-row-chip {
+    position: relative;
+    z-index: 1;
+    justify-self: end;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    white-space: nowrap;
+    background: rgba(56, 189, 248, 0.12);
+    color: #7dd3fc;
+}
+.hm-row-chip svg { width: 14px; height: 14px; }
+.hm-row.st-live { border-color: rgba(239, 68, 68, 0.45); }
+.hm-row.st-live .hm-row-chip { background: #ef4444; color: #ffffff; }
+.hm-row.st-live .hm-row-score b { color: #ffffff; }
+.hm-row.st-final .hm-row-chip { background: rgba(148, 163, 184, 0.16); color: #cbd5e1; }
+.hm-row.st-cancel .hm-row-team, .hm-row.st-cancel .hm-row-score { opacity: 0.55; }
+.hm-row.wx-rain .hm-row-chip { background: rgba(59, 130, 246, 0.2); color: #bfdbfe; }
+.hm-row.wx-heat .hm-row-chip { background: rgba(249, 115, 22, 0.2); color: #fed7aa; }
+.hm-row.wx-dust .hm-row-chip { background: rgba(202, 138, 4, 0.2); color: #fde68a; }
+.hm-row.wx-ground .hm-row-chip { background: rgba(148, 163, 184, 0.18); color: #e2e8f0; }
+/* 목록 줄에도 작은 날씨 효과 */
+.wx-row-fx { position: absolute; inset: -20px; pointer-events: none; }
+.hm-row.wx-rain .wx-row-fx { background-image: repeating-linear-gradient(105deg, transparent 0 16px, rgba(186, 220, 255, 0.25) 16px 17px); animation: rainFall 0.5s linear infinite; }
+.hm-row.wx-heat .wx-row-fx { background: radial-gradient(circle at 90% 0%, rgba(255, 170, 40, 0.3), transparent 50%); }
+.hm-row.wx-dust .wx-row-fx { background: rgba(161, 140, 98, 0.18); }
+/* 날씨 연출 다듬기: 빗줄기 가늘고 불규칙하게, 먼지는 크기 섞기 */
+.hm-card.wx-rain .wx-fx {
+    background-image:
+        repeating-linear-gradient(105deg, transparent 0 31px, rgba(186, 220, 255, 0.32) 31px 32px),
+        repeating-linear-gradient(105deg, transparent 0 47px, rgba(186, 220, 255, 0.22) 47px 48px);
+}
+.hm-card.wx-dust .wx-fx {
+    background-image:
+        radial-gradient(circle, rgba(230, 210, 170, 0.55) 1px, transparent 2px),
+        radial-gradient(circle, rgba(230, 210, 170, 0.35) 1.5px, transparent 2.5px),
+        radial-gradient(circle, rgba(230, 210, 170, 0.25) 2.5px, transparent 3.5px);
+    background-size: 23px 29px, 41px 37px, 67px 59px;
+    background-position: 0 0, 11px 7px, 30px 19px;
+}
+
+/* 설정 아이콘: 채워진 톱니바퀴 */
+.home-gear { color: #cbd5e1; }
+.home-gear svg { width: 22px; height: 22px; fill: currentColor; stroke: none; }
+.home-gear:hover { color: #ffffff; }
+
+/* 내 팀 카드: 투수 줄 (정보 없으면 숨김) */
+.hm-pitcher {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: -4px 0 14px;
+    font-size: 0.85rem;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+.hm-pitcher b { font-weight: 800; }
+.hm-pitcher i { font-style: normal; color: var(--text-sub); font-size: 0.75rem; }
+.hm-pitcher-tag {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+}
+.hm-card.st-live .hm-pitcher-tag { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+
+/* 다른 경기 줄: 위(팀·점수) / 아래(시간 또는 이닝 · 구장) */
+.hm-row {
+    display: flex !important;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 12px 10px;
+}
+.hm-row-main {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+}
+.hm-row-meta {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+    min-width: 0;
+}
+.hm-row-chip { justify-self: auto; }
+.hm-row-where {
+    min-width: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-sub);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.hm-row-empty {
+    padding: 16px;
+    border-radius: 16px;
+    text-align: center;
+    font-size: 0.86rem;
+    color: var(--text-sub);
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+.hm-row { align-items: stretch !important; }

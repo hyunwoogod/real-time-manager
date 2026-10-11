@@ -146,6 +146,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try { startLiveClock(); } catch(e) {}
     try { setupSmartAutoScroll(); } catch(e) {}
     try { syncTodayTabLabel(currentSystemDate); } catch(e) {}
+    try { renderHome(window.INITIAL_TODAY_SCHEDULE, window.INITIAL_TODAY_GAMES); } catch(e) { console.warn('renderHome error:', e); }
+    // 홈 화면이 열려 있으면 1분마다 점수·경기 상태 새로고침
+    setInterval(() => {
+        const home = document.getElementById('pane-home');
+        if (document.visibilityState === 'visible' && home && home.classList.contains('active')) loadLobbyData();
+    }, 60000);
 });
 
 // ==========================================================================
@@ -713,94 +719,157 @@ function formatMatchDateLabel(dateStr) {
     return parts.length === 3 ? `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}` : '';
 }
 
-function updateLobbyBannerForUserTeam(allMatches, scheduleInfo = {}) {
-    const tagEl = document.getElementById('banner-live-tag');
-    const titleEl = document.getElementById('match-title');
-    const countdownEl = document.getElementById('match-countdown');
-    const btn = document.getElementById('btn-enter-ingame');
+// ==========================================================================
+// 홈 화면: 내 팀 경기 카드 + 오늘의 다른 경기 + 날씨 연출(우천·폭염·미세먼지 취소)
+// ==========================================================================
+const WX_ICON = {
+    rain: '<svg viewBox="0 0 24 24"><path d="M7 14a4 4 0 0 1 .4-8 5 5 0 0 1 9.4 1.6A3.3 3.3 0 0 1 17 14z"/><path d="M8.5 17l-1 2.5M12.5 17l-1 2.5M16.5 17l-1 2.5"/></svg>',
+    heat: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.2 5.2l1.8 1.8M17 17l1.8 1.8M5.2 18.8 7 17M17 7l1.8-1.8"/></svg>',
+    dust: '<svg viewBox="0 0 24 24"><path d="M3 8c3-2 5 2 8 0s5-2 8 0M3 13c3-2 5 2 8 0s5-2 8 0M5 18c3-2 5 2 8 0s4-1.5 6 0"/></svg>',
+    ground: '<svg viewBox="0 0 24 24"><path d="M12 3 2.5 20h19z"/><path d="M12 10v4.5M12 17.2v.3"/></svg>',
+};
+const WX_KEY = { '우천': 'rain', '폭염': 'heat', '미세먼지': 'dust', '그라운드': 'ground', '기타': 'ground' };
 
+function gameState(m) {
+    const status = m.status_text || '경기전';
+    const hasScore = m.away_score != null && m.home_score != null;
+    if (status === '경기중') {
+        return { cls: 'live', chip: m.inning_text || 'LIVE', center: hasScore ? `${m.away_score} : ${m.home_score}` : 'VS', canEnter: true, label: '실시간 경기 입장' };
+    }
+    if (status === '경기종료') {
+        return { cls: 'final', chip: '종료', center: hasScore ? `${m.away_score} : ${m.home_score}` : 'VS', canEnter: false, label: '경기 종료' };
+    }
+    if (status === '취소') {
+        const reason = m.cancel_reason || '우천';
+        const wx = WX_KEY[reason] || 'ground';
+        return { cls: `cancel wx-${wx}`, wx, chip: `${reason}취소`, center: 'VS', canEnter: false, label: `${reason} 취소`, reason };
+    }
+    return { cls: 'ready', chip: m.start_time || '경기 전', center: 'VS', canEnter: true, label: '실시간 경기 입장' };
+}
+
+function teamCol(team, side, myTeam) {
+    const code = normalizeTeamShort(team) || team || '-';
+    return `<div class="hm-team ${code === myTeam ? 'is-mine' : ''}" style="--team-color:${teamColorMap[code] || '#334155'}">
+        <span class="hm-logo">${teamLogos[code] || '⚾'}</span>
+        <span class="hm-name">${code}</span>
+        <span class="hm-side">${side}</span>
+    </div>`;
+}
+
+function weatherLayer(st) {
+    if (!st.wx) return '';
+    return `<div class="wx-layer" aria-hidden="true"><span class="wx-fx"></span><span class="wx-fx wx-fx2"></span></div>
+        <div class="wx-label">${WX_ICON[st.wx]}<span>${st.reason} 취소</span></div>`;
+}
+
+// 투수 정보: 경기 중이면 지금 던지는 투수, 경기 전이면 양 팀 선발. 정보가 없으면 줄 자체를 숨김
+function pitcherLine(m, st) {
+    if (st.cls === 'live') {
+        return m.current_pitcher ? `<div class="hm-pitcher"><span class="hm-pitcher-tag">투구 중</span><b>${m.current_pitcher}</b></div>` : '';
+    }
+    if (st.cls === 'ready' && (m.away_pitcher || m.home_pitcher)) {
+        return `<div class="hm-pitcher"><span class="hm-pitcher-tag">선발</span><b>${m.away_pitcher || '미정'}</b><i>vs</i><b>${m.home_pitcher || '미정'}</b></div>`;
+    }
+    return '';
+}
+
+function renderHomeMatch(match, opts = {}) {
+    const box = document.getElementById('home-featured');
+    if (!box) return;
+    const myTeam = normalizeTeamShort(selectedTeamCode);
+    if (!match) {
+        box.innerHTML = `<div class="hm-card hm-empty">
+            <img src="/brand/mascot-head.png?v=6" alt="" width="64" height="64">
+            <div><strong>오늘은 쉬는 날</strong><span>예정된 ${teamFullMap[myTeam] || ''} 경기가 없어요</span></div>
+        </div>`;
+        return;
+    }
+    const st = gameState(match);
+    const dateText = opts.isToday === false ? formatMatchDateLabel(match.game_date).replace('/', '.') : '오늘';
+    box.innerHTML = `<div class="hm-card st-${st.cls.split(' ')[0]} ${st.wx ? 'wx-' + st.wx : ''}">
+        <span class="hm-field" aria-hidden="true"></span>
+        <div class="hm-head">
+            <span class="hm-meta">${dateText} ${match.start_time || ''} · ${match.stadium || '-'}</span>
+            <span class="hm-chip" id="banner-live-tag">${st.cls === 'live' ? '<i class="live-dot"></i>' : ''}${st.chip}</span>
+        </div>
+        <div class="hm-teams">
+            ${teamCol(match.away_team, '원정', myTeam)}
+            <div class="hm-center">${st.center}</div>
+            ${teamCol(match.home_team, '홈', myTeam)}
+        </div>
+        ${pitcherLine(match, st)}
+        ${weatherLayer(st)}
+        <button id="btn-enter-ingame" class="hm-enter" onclick="forceLiveMatchStart()" ${st.canEnter ? '' : 'disabled'}>${st.label}</button>
+    </div>`;
+}
+
+function renderOtherGames(list) {
+    const box = document.getElementById('home-games-list');
+    const title = document.getElementById('hm-others-title');
+    if (!box) return;
+    if (title) title.style.display = '';
+    if (!list.length) {
+        box.innerHTML = '<div class="hm-row-empty">오늘은 다른 경기가 없어요</div>';
+        return;
+    }
+    box.innerHTML = list.map(m => {
+        const st = gameState(m);
+        const a = normalizeTeamShort(m.away_team) || m.away_team;
+        const h = normalizeTeamShort(m.home_team) || m.home_team;
+        const showScore = st.cls === 'live' || st.cls === 'final';
+        const aWin = st.cls === 'final' && m.away_score > m.home_score;
+        const hWin = st.cls === 'final' && m.home_score > m.away_score;
+        const where = m.stadium || '-';
+        const when = st.cls === 'live' ? (m.inning_text || '경기 중') : st.cls === 'final' ? '경기 종료' : st.cls === 'ready' ? `${m.start_time || ''} 시작` : `${st.reason} 취소`;
+        const extra = st.cls === 'live' && m.current_pitcher ? ` · 투구 중 ${m.current_pitcher}`
+            : st.cls === 'ready' && (m.away_pitcher || m.home_pitcher) ? ` · 선발 ${m.away_pitcher || '미정'} vs ${m.home_pitcher || '미정'}` : '';
+        return `<div class="hm-row st-${st.cls.split(' ')[0]} ${st.wx ? 'wx-' + st.wx : ''}">
+            ${st.wx ? '<span class="wx-row-fx" aria-hidden="true"></span>' : ''}
+            <div class="hm-row-main">
+                <span class="hm-row-team"><span class="hm-row-logo">${teamLogos[a] || '⚾'}</span><span class="hm-row-name">${a}</span></span>
+                <span class="hm-row-score">${showScore ? `<b class="${aWin ? 'win' : ''}">${m.away_score}</b><i>:</i><b class="${hWin ? 'win' : ''}">${m.home_score}</b>` : '<i class="vs">VS</i>'}</span>
+                <span class="hm-row-team right"><span class="hm-row-name">${h}</span><span class="hm-row-logo">${teamLogos[h] || '⚾'}</span></span>
+            </div>
+            <div class="hm-row-meta">
+                <span class="hm-row-chip">${st.wx ? WX_ICON[st.wx] : ''}${st.cls === 'live' ? '<i class="live-dot"></i>' : ''}${when}</span>
+                <span class="hm-row-where">${where}${extra}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderHome(scheduleInfo, todayGames) {
+    scheduleInfo = scheduleInfo || {};
+    if (todayGames) window.TODAY_GAMES = todayGames;
+    todayGames = (window.TODAY_GAMES || []).filter(m => m.is_rest_day !== 1 && m.home_team !== m.away_team);
     const teamCode = normalizeTeamShort(selectedTeamCode);
-    const teamFull = teamFullMap[teamCode] || '응원 구단 미설정';
+    const games = (scheduleInfo.all_matches || []).filter(m => m.is_rest_day !== 1 && m.home_team !== m.away_team);
+    const mine = scheduleInfo.match && games.find(m => m.id === scheduleInfo.match.id) ||
+        games.find(m => normalizeTeamShort(m.home_team) === teamCode || normalizeTeamShort(m.away_team) === teamCode) ||
+        scheduleInfo.match || null;
 
-    // 동일 구단 매칭 원천 차단 필터
-    allMatches = (allMatches || []).filter(m => m.is_rest_day === 1 || m.home_team !== m.away_team);
+    const label = document.getElementById('hm-section-label');
+    if (label) label.innerText = scheduleInfo.is_today === false && scheduleInfo.game_date
+        ? `${formatMatchDateLabel(scheduleInfo.game_date).replace('/', '.')} 경기` : '오늘의 경기';
 
-    // 응원 구단 경기가 DB에 없음 (휴식일 아님)
-    if (allMatches.length === 0 && !scheduleInfo.is_rest_day) {
+    if (mine) {
+        const st = gameState(mine);
+        currentMatchIsLive = st.canEnter;
+        currentHomeTeam = mine.home_team;
+        currentAwayTeam = mine.away_team;
+        currentHomePitcher = mine.home_pitcher || teamPitcherMap[mine.home_team] || '페덱';
+        currentAwayPitcher = mine.away_pitcher || teamPitcherMap[mine.away_team] || '박준영';
+        currentStadium = mine.stadium;
+        currentStartTimeStr = mine.start_time;
+    } else {
         currentMatchIsLive = false;
-        if (tagEl) tagEl.innerText = `🔥 [MY TEAM] ${teamFull} 경기`;
-        if (titleEl) titleEl.innerText = `⚾ ${teamFull} 경기 일정 준비 중`;
-        if (countdownEl) countdownEl.innerText = `등록된 ${teamFull} 경기 일정이 없습니다.`;
-        if (btn) {
-            btn.disabled = true;
-            btn.className = 'btn-primary-glow btn-locked';
-            btn.innerText = `🔒 ${teamFull} 경기 일정 준비 중`;
-        }
-        return;
     }
+    renderHomeMatch(mine, { isToday: scheduleInfo.is_today !== false });
+    renderOtherGames(todayGames.filter(m => !mine || m.id !== mine.id));
+}
 
-    if (!allMatches || allMatches.length === 0) {
-        currentMatchIsLive = false;
-        if (tagEl) tagEl.innerText = "MONDAY REST DAY";
-        if (titleEl) titleEl.innerText = `⚾ 오늘은 ${teamFull} 경기가 없는 KBO 정기 휴식일입니다`;
-        if (countdownEl) countdownEl.innerText = `오늘은 응원 구단의 경기가 없는 휴식일입니다. 아래 소셜 랭킹 리더보드를 확인하세요!`;
-        if (btn) {
-            btn.disabled = true;
-            btn.className = 'btn-primary-glow btn-locked';
-            btn.innerText = `🔒 💤 오늘은 ${teamFull} 정기 휴식일입니다 (경기 없음)`;
-        }
-        return;
-    }
-
-    // 오늘 일정 중 유저의 응원 구단(selectedTeamCode)이 포함된 경기 탐색
-    let userMatch = allMatches.find(m => 
-        (normalizeTeamShort(m.home_team) === teamCode || normalizeTeamShort(m.away_team) === teamCode) && 
-        m.is_rest_day === 0
-    );
-
-    if (!userMatch) {
-        currentMatchIsLive = false;
-        if (tagEl) tagEl.innerText = "REST DAY";
-        if (titleEl) titleEl.innerText = `⚾ 오늘은 [${teamFull}] 경기가 없는 KBO 휴식일입니다`;
-        if (countdownEl) countdownEl.innerText = `오늘은 응원 구단(${teamFull})의 경기가 없는 휴식일입니다. 아래 소셜 랭킹에서 다른 경기 일정을 확인하세요!`;
-        if (btn) {
-            btn.disabled = true;
-            btn.className = 'btn-primary-glow btn-locked';
-            btn.innerText = `🔒 💤 오늘은 ${teamFull} 경기가 없는 휴식일입니다`;
-        }
-        return;
-    }
-
-    // 유저 구단 경기 발견
-    currentMatchIsLive = true;
-    currentHomeTeam = userMatch.home_team;
-    currentAwayTeam = userMatch.away_team;
-    currentHomePitcher = userMatch.home_pitcher || teamPitcherMap[userMatch.home_team] || '페덱';
-    currentAwayPitcher = userMatch.away_pitcher || teamPitcherMap[userMatch.away_team] || '박준영';
-    currentStadium = userMatch.stadium;
-    currentStartTimeStr = userMatch.start_time;
-
-    if (currentHomeTeam === currentAwayTeam) {
-        currentAwayTeam = (currentHomeTeam === '삼성') ? '한화' : '삼성';
-    }
-
-    const isHome = (normalizeTeamShort(userMatch.home_team) === teamCode);
-    const homeAwayTag = isHome ? `🔥 [MY TEAM] ${teamFull} 홈 경기` : `✈️ [MY TEAM] ${teamFull} 원정 경기`;
-    const awayFull = teamFullMap[normalizeTeamShort(userMatch.away_team)] || userMatch.away_team;
-    const homeFull = teamFullMap[normalizeTeamShort(userMatch.home_team)] || userMatch.home_team;
-
-    // 오늘 경기가 아니라 가장 가까운 날짜의 경기라면 날짜를 함께 표시
-    const dateLabel = scheduleInfo.is_today === false ? `[${formatMatchDateLabel(userMatch.game_date)}] ` : '';
-
-    if (tagEl) tagEl.innerText = homeAwayTag;
-    if (titleEl) titleEl.innerHTML = `⚾ ${dateLabel}${getTeamLogoHtml(userMatch.away_team)} ${awayFull} vs ${getTeamLogoHtml(userMatch.home_team)} ${homeFull} [${userMatch.stadium}]`;
-    if (countdownEl) countdownEl.innerText = `KBO ${userMatch.start_time} 라이브 경기 개시 대기 중 (${matchCountdownTime}초... 수동 클릭으로 언제든 입장 가능)`;
-    
-    if (btn) {
-        btn.disabled = false;
-        btn.className = 'btn-live-entry-glow';
-        btn.innerText = `🚨 [${teamFull} 경기 입장] 실시간 세컨드 스크린 직행하기`;
-    }
+function updateLobbyBannerForUserTeam(allMatches, scheduleInfo = {}, todayGames) {
+    renderHome(Object.assign({}, scheduleInfo, { all_matches: allMatches }), todayGames);
 }
 
 // 로비 KBO 스케줄 카운트다운 타이머
@@ -816,38 +885,25 @@ function startLobbyCountdown() {
         return;
     }
 
-    const countdownEl = document.getElementById('match-countdown');
-
     matchCountdownInterval = setInterval(() => {
         matchCountdownTime--;
-        if (matchCountdownTime > 0) {
-            if (countdownEl) countdownEl.innerText = `KBO ${currentStartTimeStr} 라이브 경기 개시 대기 중 (${matchCountdownTime}초... 수동 클릭으로 입장)`;
-        } else {
+        if (matchCountdownTime <= 0) {
             clearInterval(matchCountdownInterval);
             triggerLiveMatchReady();
         }
     }, 1000);
 }
 
-// 15초 경과 후 수동 입장 안내
+// 대기 시간이 지나면 '오늘의 경기' 칩을 LIVE로
 function triggerLiveMatchReady() {
     if (!currentMatchIsLive) return;
     isMatchLive = true;
-    const btn = document.getElementById('btn-enter-ingame');
-    const countdownEl = document.getElementById('match-countdown');
+    const card = document.querySelector('#home-featured .hm-card.st-ready');
     const tagEl = document.getElementById('banner-live-tag');
-    const teamCode = normalizeTeamShort(selectedTeamCode);
-    const teamFull = teamFullMap[teamCode] || '응원 구단 미설정';
-
-    if (btn) {
-        btn.disabled = false;
-        btn.className = 'btn-live-entry-glow';
-        btn.innerText = `🚨 [${teamFull} 경기 입장] 실시간 세컨드 스크린 직행하기`;
-    }
-    if (countdownEl) countdownEl.innerText = `🚨 KBO ${currentStartTimeStr} 라이브 경기 준비 완료! [입장하기] 버튼을 누르면 경기로 이동합니다.`;
-    if (tagEl) tagEl.innerText = "🔴 LIVE BROADCASTING";
-
-    showToast(`🚨 [${currentHomeTeam} vs ${currentAwayTeam}] 라이브 경기가 준비되었습니다. 입장 버튼을 눌러 직행하세요!`);
+    if (!card || !tagEl) return;
+    card.classList.replace('st-ready', 'st-live');
+    tagEl.innerHTML = '<i class="live-dot"></i>LIVE';
+    showToast('경기가 시작됐어요. 입장해 보세요!');
 }
 
 function tryEnterIngame() {
@@ -1230,7 +1286,7 @@ function selectTeam(home, away) {
     })
     .then(r => r.json())
     .then(data => {
-        document.getElementById('match-title').innerText = `⚾ ${away} vs ${home}`;
+        renderHomeMatch({ away_team: away, home_team: home, stadium: currentStadium, start_time: currentStartTimeStr });
     });
 }
 
@@ -1240,11 +1296,11 @@ function loadLobbyData() {
         .then(res => res.json())
         .then(data => {
             const scoreEl = document.getElementById('lobby-my-score');
-            if (scoreEl) scoreEl.innerText = `${data.user_score.toLocaleString()} pts`;
+            if (scoreEl) scoreEl.innerText = `${data.user_score.toLocaleString()}P`;
             
             const gradeBadge = document.getElementById('lobby-my-grade');
             if (gradeBadge) {
-                gradeBadge.innerText = `${data.user_grade}급 명장`;
+                gradeBadge.innerText = `${data.user_grade}급`;
                 gradeBadge.className = `grade-badge grade-${data.user_grade.toLowerCase()}`;
             }
 
@@ -1269,7 +1325,7 @@ function loadLobbyData() {
                 if (data.today_schedule.game_date) {
                     currentSystemDate = data.today_schedule.game_date;
                 }
-                updateLobbyBannerForUserTeam(data.today_schedule.all_matches || [], data.today_schedule);
+                updateLobbyBannerForUserTeam(data.today_schedule.all_matches || [], data.today_schedule, data.today_games);
                 if (data.today_schedule.match) {
                     const match = data.today_schedule.match;
                     currentHomeTeam = match.home_team;
@@ -1554,7 +1610,7 @@ function selectMatchFromSchedule(dateStr, home, away, stadium, timeStr, homePitc
     selectTeam(home, away, currentHomePitcher, currentAwayPitcher);
     const homeFull = teamFullMap[normalizeTeamShort(home)] || home;
     const awayFull = teamFullMap[normalizeTeamShort(away)] || away;
-    document.getElementById('match-title').innerText = `⚾ ${awayFull} vs ${homeFull} [${stadium}]`;
+    renderHomeMatch({ away_team: away, home_team: home, stadium, start_time: timeStr, game_date: dateStr }, { isToday: dateStr === getFormattedTodayStr() });
     showToast(`🎯 [${away} vs ${home}] ${dateStr} ${stadium} 대진이 로비 메인 매치업으로 선택되었습니다.`);
 }
 

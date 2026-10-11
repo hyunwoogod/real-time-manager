@@ -67,6 +67,9 @@
         .score-box .home-tag { font-size: 0.7rem; color: var(--sub); font-weight: 400; }
         .game-row form.result { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; flex: 1; }
         .status-final { color: #6ee7b7; }
+        .status-live { color: #fca5a5; }
+        .extra { display: none; }
+        form.show-live .extra-live, form.show-cancel .extra-cancel { display: inline-block; }
         .status-canceled { color: var(--red); }
         .empty { color: var(--sub); font-size: 0.88rem; padding: 18px 0 4px; }
 
@@ -102,7 +105,7 @@
         <!-- 1. 날짜별 경기 결과 입력 -->
         <section class="card">
             <h2>📝 경기 결과 입력</h2>
-            <p class="desc">경기가 끝나면 점수를 넣고 <strong>경기종료</strong>로 저장하세요. 비로 취소된 경기는 <strong>취소</strong>로 바꾸면 순위 계산에서 빠져요.</p>
+            <p class="desc">경기 중에는 <strong>경기중</strong>+점수+이닝, 끝나면 <strong>경기종료</strong>로 저장하세요. 취소된 경기는 <strong>취소</strong>와 사유(우천·폭염 등)를 고르면 홈 화면에 날씨 연출이 나오고 순위 계산에서 빠져요.</p>
 
             {% set d = selected_date %}
             <form method="GET" action="/admin/games" class="date-bar">
@@ -125,10 +128,17 @@
                         <input type="number" name="home_score" min="0" max="99" value="{{ g.home_score if g.home_score is not none else '' }}" aria-label="{{ g.home_team }} 점수">
                         <span class="team">{{ g.home_team }} <span class="home-tag">홈</span></span>
                     </div>
-                    <select name="status_text" class="{{ 'status-final' if g.status_text == '경기종료' else ('status-canceled' if g.status_text == '취소' else '') }}">
-                        {% for st in ['경기전', '경기종료', '취소'] %}
+                    <select name="status_text" class="status-select {{ 'status-final' if g.status_text == '경기종료' else ('status-canceled' if g.status_text == '취소' else ('status-live' if g.status_text == '경기중' else '')) }}" onchange="toggleExtra(this)">
+                        {% for st in ['경기전', '경기중', '경기종료', '취소'] %}
                         <option value="{{ st }}" {% if (g.status_text or '경기전') == st %}selected{% endif %}>{{ st }}</option>
                         {% endfor %}
+                    </select>
+                    <input type="text" name="current_pitcher" class="extra extra-live" value="{{ g.current_pitcher or '' }}" placeholder="현재 투수" maxlength="20" style="width: 96px;" title="지금 던지는 투수">
+                    <select name="inning_text" class="extra extra-live" title="진행 이닝">
+                        {% for inn in innings %}<option value="{{ inn }}" {% if g.inning_text == inn %}selected{% endif %}>{{ inn }}</option>{% endfor %}
+                    </select>
+                    <select name="cancel_reason" class="extra extra-cancel" title="취소 사유">
+                        {% for r in cancel_reasons %}<option value="{{ r }}" {% if g.cancel_reason == r %}selected{% endif %}>{{ r }} 취소</option>{% endfor %}
                     </select>
                     <button type="submit" class="btn-primary">저장</button>
                 </form>
@@ -215,6 +225,14 @@
         </div>
     </div>
     <script>
+        // 상태에 따라 이닝(경기중)·취소 사유(취소) 칸 보이기
+        function toggleExtra(sel) {
+            const f = sel.form;
+            f.classList.toggle('show-live', sel.value === '경기중');
+            f.classList.toggle('show-cancel', sel.value === '취소');
+        }
+        document.querySelectorAll('.status-select').forEach(toggleExtra);
+
         // 홈팀을 고르면 구장 칸을 자동으로 채움
         const homeStadium = {'KT':'수원','삼성':'대구','KIA':'광주','LG':'잠실','두산':'잠실','SSG':'문학','NC':'창원','롯데':'사직','한화':'대전','키움':'고척'};
         document.getElementById('add-home-team').addEventListener('change', function () {

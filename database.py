@@ -349,6 +349,14 @@ def init_db():
         cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN away_score INTEGER")
     if "home_score" not in cols:
         cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN home_score INTEGER")
+    # 진행 중 경기의 이닝(예: 5회말), 취소 사유(우천·폭염·미세먼지 등)
+    if "inning_text" not in cols:
+        cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN inning_text TEXT DEFAULT ''")
+    if "cancel_reason" not in cols:
+        cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN cancel_reason TEXT DEFAULT ''")
+    # 지금 마운드에 있는 투수 (실시간 정보가 들어오면 표시, 비어 있으면 화면에서 숨김)
+    if "current_pitcher" not in cols:
+        cursor.execute("ALTER TABLE kbo_schedules ADD COLUMN current_pitcher TEXT DEFAULT ''")
 
     # 팀 순위 기준값: 이 시점까지의 승·패·무 (이후 경기 결과는 자동으로 더해서 계산)
     cursor.execute('''
@@ -1145,6 +1153,9 @@ STANDINGS_AS_OF_KEY = 'standings_as_of'
 STATUS_FINAL = '경기종료'
 STATUS_CANCELED = '취소'
 STATUS_SCHEDULED = '경기전'
+STATUS_LIVE = '경기중'
+CANCEL_REASONS = ['우천', '폭염', '미세먼지', '그라운드', '기타']
+INNING_OPTIONS = [f"{i}회{half}" for i in range(1, 10) for half in ('초', '말')] + ['연장']
 
 # 처음 한 번 넣는 기준값 (관리자 화면에서 실제 값으로 고칠 수 있음)
 DEFAULT_STANDINGS_BASE = [
@@ -1340,23 +1351,33 @@ def add_game(game_date, start_time, away_team, home_team, stadium):
     return {"status": "success", "message": f"{fields['game_date']} {fields['away_team']} vs {fields['home_team']} 경기를 추가했습니다."}
 
 
-def save_game_result(game_id, status_text, away_score, home_score):
-    """관리자: 경기 상태와 점수 저장. '경기종료'면 점수 필수, 그 외에는 점수를 비움"""
-    if status_text not in (STATUS_SCHEDULED, STATUS_FINAL, STATUS_CANCELED):
+def save_game_result(game_id, status_text, away_score, home_score, inning_text='', cancel_reason='', current_pitcher=''):
+    """관리자: 경기 상태·점수 저장.
+    경기종료: 점수 필수 / 경기중: 점수(빈칸은 0)+이닝 / 취소: 사유 / 경기전: 점수 비움"""
+    if status_text not in (STATUS_SCHEDULED, STATUS_LIVE, STATUS_FINAL, STATUS_CANCELED):
         return {"status": "error", "message": "경기 상태를 선택해 주세요."}
-    if status_text == STATUS_FINAL:
+    inning, reason, pitcher = '', '', ''
+    if status_text in (STATUS_FINAL, STATUS_LIVE):
         try:
+            if status_text == STATUS_LIVE:
+                away_score = away_score if str(away_score or '').strip() else 0
+                home_score = home_score if str(home_score or '').strip() else 0
             a, h = int(away_score), int(home_score)
             if a < 0 or h < 0 or a > 99 or h > 99:
                 raise ValueError
         except (TypeError, ValueError):
-            return {"status": "error", "message": "경기종료로 저장하려면 두 팀 점수를 0~99 숫자로 입력해 주세요."}
+            return {"status": "error", "message": f"{status_text}(으)로 저장하려면 두 팀 점수를 0~99 숫자로 입력해 주세요."}
+        if status_text == STATUS_LIVE:
+            inning = inning_text if inning_text in INNING_OPTIONS else '1회초'
+            pitcher = (current_pitcher or '').strip()[:20]
     else:
         a = h = None
+        if status_text == STATUS_CANCELED:
+            reason = cancel_reason if cancel_reason in CANCEL_REASONS else '우천'
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("UPDATE kbo_schedules SET status_text = ?, away_score = ?, home_score = ? WHERE id = ?",
-                   (status_text, a, h, int(game_id)))
+    cursor.execute("UPDATE kbo_schedules SET status_text = ?, away_score = ?, home_score = ?, inning_text = ?, cancel_reason = ?, current_pitcher = ? WHERE id = ?",
+                   (status_text, a, h, inning, reason, pitcher, int(game_id)))
     conn.commit()
     conn.close()
     return {"status": "success", "message": "경기 결과를 저장했습니다."}
