@@ -199,6 +199,7 @@ def authentication_guard():
     # 1. 정적 에셋 파일 허용
     if (path.startswith('/static') or 
         path.startswith('/logos') or
+        path == '/manifest.json' or
         path.endswith(('.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.map', '.webp'))):
         return None
 
