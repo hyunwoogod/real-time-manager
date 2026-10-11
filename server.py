@@ -832,7 +832,7 @@ def api_lobby():
 
     return jsonify({
         "rankings": rankings,
-        "history": database.get_tactics_history(),
+        "history": database.get_tactics_history(session.get('user_id')),
         "user_score": user_score,
         "user_grade": user_grade,
         "user_info": user_info,

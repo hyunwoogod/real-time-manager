@@ -2222,7 +2222,7 @@ function renderIngameField(s) {
     };
     const [hx, hy] = IG_BASES.home;
 
-    setHtmlIfChanged(box, `<svg viewBox="14 8 372 312" preserveAspectRatio="xMidYMax meet" class="ig-svg" role="img" aria-label="그라운드 수비 배치">
+    setHtmlIfChanged(box, `<svg viewBox="14 8 372 312" preserveAspectRatio="xMidYMid meet" class="ig-svg" role="img" aria-label="그라운드 수비 배치">
         <defs>
             <pattern id="igMow" width="34" height="34" patternUnits="userSpaceOnUse" patternTransform="rotate(45 200 268)">
                 <rect width="17" height="34" fill="#1f6b37"/><rect x="17" width="17" height="34" fill="#1b5f31"/>
@@ -2254,8 +2254,10 @@ function igPlayBanner(summary) {
     if (t.includes('안타') || t.includes('1루타')) return { cls: 'hit', big: 'HIT!' };
     if (t.includes('볼넷')) return { cls: 'walk', big: '4 BALL' };
     if (t.includes('사구')) return { cls: 'walk', big: 'DEAD BALL' };
+    if (t.includes('병살')) return { cls: 'out', big: 'DOUBLE PLAY!' };
+    if (t.includes('희생플라이')) return { cls: 'sac', big: 'SAC FLY' };
     if (t.includes('삼진')) return { cls: 'out', big: 'STRIKE OUT!' };
-    if (t.includes('아웃') || t.includes('병살')) return { cls: 'out', big: 'OUT!' };
+    if (t.includes('아웃')) return { cls: 'out', big: 'OUT!' };
     return null;
 }
 

@@ -1,5 +1,6 @@
 import random
 import time
+import zlib
 import database
 from rosters import ROSTERS
 
@@ -176,6 +177,11 @@ TEAMS = {
     }
 }
 
+
+def _seed(name, salt=""):
+    """선수 이름으로 고정된 0~1 값 (서버를 다시 켜도 같은 선수는 같은 가상 능력치)"""
+    return zlib.crc32(f"{salt}:{name}".encode("utf-8")) / 0xFFFFFFFF
+
 # 수비 위치별 그라운드 좌표 (화면 표시용)
 POS_COORDS = {
     "P": (50, 53), "C": (50, 84), "1B": (74, 56), "2B": (63, 37), "3B": (26, 56),
@@ -313,6 +319,11 @@ class GameEngine:
         self.totalPitcherCount = 0
         self.consecutive_hits = 0
         self.consecutive_on_base = 0
+        self.pitch_counts = {}      # 투수별 투구수
+        self.outing_runs = {}       # 투수별 실점
+        self.used_pitchers = {self.home_team_name: {self.home_pitcher}, self.away_team_name: {self.away_pitcher}}
+        self.crisis_seen = set()    # (이닝, 초/말, 투수): 같은 투수에게 한 이닝에 위기 한 번만
+        self.runner_names = {1: None, 2: None, 3: None}
         
         self.current_crisis = None
         self.crisis_active = False
@@ -333,7 +344,7 @@ class GameEngine:
 
     def get_batter_in_game_stats(self, batter_name):
         if batter_name not in self.in_game_batter_stats:
-            b_info = BATTER_STATS.get(batter_name, {"order": "타자", "avg": "0.285"})
+            b_info = {"order": "타자", "avg": f"{self._batter_rating(batter_name)['avg']:.3f}"}
             order = b_info.get("order", "타자")
             # 타순은 최신 라인업 기준
             for t in (self.get_current_offense_team(), self.home_team_name, self.away_team_name):
@@ -369,7 +380,7 @@ class GameEngine:
     def init_first_session(self):
         self.currentBatterPitchCount = 0
         self.has_crisis_popped_for_current_batter = False
-        if self.totalPitcherCount == 0 or (self.inning == 1 and self.is_top and len(self.batter_sessions) <= 1):
+        if not self.batter_sessions:
             self.runner_1b = False
             self.runner_2b = False
             self.runner_3b = False
@@ -412,7 +423,7 @@ class GameEngine:
             return getattr(self, 'away_pitcher', None) or TEAMS.get(self.away_team_name, {}).get('pitcher', '박준영')
 
     def _make_pitch_obj(self, seq, code, res_text, pitch_desc, sb_count_str, commentary_text):
-        if code in ["STRIKE", "FOUL", "SINGLE", "DOUBLE", "HOMERUN", "OUT"]:
+        if code in ["STRIKE", "FOUL", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN", "OUT"]:
             pz_x = round(random.uniform(-0.65, 0.65), 2)
             pz_y = round(random.uniform(-0.65, 0.65), 2)
             is_strike = True
@@ -445,6 +456,185 @@ class GameEngine:
             "commentary_text": commentary_text
         }
 
+    # ------------------------------------------------------------------
+    # 가상 경기 시뮬레이션
+    # - 선수마다 이름으로 고정된 가상 능력치(타율·장타력 / 제구·구위·체력)
+    # - 투수는 투구수가 체력을 넘으면 지치고(볼·피안타 증가), 투구수는 투수별로 셈
+    # - '실제 감독'(AI)은 투구수·실점·연속 출루·경기 후반 접전 여부로 교체를 판단
+    # ------------------------------------------------------------------
+    def _pitcher_role(self, name, team=None):
+        r = TEAMS.get(team or self.get_current_defense_team(), {}).get("roster") or {}
+        if any(p["name"] == name for p in r.get("rotation", [])):
+            return "starter"
+        if r.get("closer") == name:
+            return "closer"
+        return "reliever"
+
+    def _pitcher_rating(self, name):
+        q = _seed(name, "pit")
+        role = self._pitcher_role(name)
+        stamina = (84 + int(q * 20)) if role == "starter" else (18 + int(q * 14))
+        control = 0.315 + (1 - q) * 0.06
+        return {"q": q, "stamina": stamina, "control": control, "role": role}
+
+    def _batter_rating(self, name):
+        sess_order = 5
+        batters = TEAMS.get(self.get_current_offense_team(), {}).get("batters", [])
+        if name in batters:
+            sess_order = batters.index(name)
+        avg = 0.235 + _seed(name, "avg") * 0.09 + (0.01 if sess_order <= 1 else 0)
+        power = (0.45 + _seed(name, "pow") * 0.55) if 2 <= sess_order <= 4 else (0.12 + _seed(name, "pow") * 0.5)
+        return {"avg": avg, "power": power}
+
+    def _fatigue(self, pitcher):
+        rt = self._pitcher_rating(pitcher)
+        pc = self.pitch_counts.get(pitcher, 0)
+        return max(0.0, min(1.5, (pc - rt["stamina"]) / 25.0)), rt
+
+    def _pitch_desc(self, pitcher):
+        f, rt = self._fatigue(pitcher)
+        kinds = [("직구", 0), ("투심", -5), ("슬라이더", -12), ("체인지업", -17), ("커브", -24), ("포크볼", -14)]
+        name, off = random.choice(kinds)
+        top = 144 + int(rt["q"] * 10) - int(f * 3)
+        return f"{top + off + random.randint(-2, 1)}km/h {name}"
+
+    def _simulate_pitch(self, batter, pitcher):
+        """한 구의 결과: BALL / STRIKE / FOUL / INPLAY"""
+        f, rt = self._fatigue(pitcher)
+        ball_p = min(0.5, rt["control"] + 0.045 * f)
+        if self.balls == 3:
+            ball_p -= 0.06
+        if self.strikes == 2 and self.balls < 2:
+            ball_p += 0.04
+        if random.random() < ball_p:
+            return "BALL"
+        strike_p = 0.285 - 0.05 * f + (rt["q"] - 0.5) * 0.06
+        foul_p = 0.41 + (0.06 if self.strikes == 2 else 0)
+        r = random.random()
+        if r < strike_p:
+            return "STRIKE"
+        if r < strike_p + foul_p:
+            return "FOUL"
+        return "INPLAY"
+
+    def _simulate_in_play(self, batter, pitcher):
+        f, rt = self._fatigue(pitcher)
+        br = self._batter_rating(batter)
+        hit_p = 0.335 + (br["avg"] - 0.27) * 1.3 + 0.07 * f - (rt["q"] - 0.5) * 0.07
+        if random.random() < hit_p:
+            hr = 0.045 + br["power"] * 0.12
+            triple = 0.02
+            double = 0.15 + br["power"] * 0.08
+            r = random.random()
+            if r < hr:
+                return "HOMERUN"
+            if r < hr + triple:
+                return "TRIPLE"
+            if r < hr + triple + double:
+                return "DOUBLE"
+            return "SINGLE"
+        r = random.random()
+        return "GROUND" if r < 0.46 else ("FLY" if r < 0.84 else "LINE")
+
+    # 주자 이동 (이름과 함께). 반환: 이번 플레이로 들어온 점수
+    def _bases(self):
+        names = getattr(self, 'runner_names', None) or {1: None, 2: None, 3: None}
+        return {1: names.get(1) if self.runner_1b else None,
+                2: names.get(2) if self.runner_2b else None,
+                3: names.get(3) if self.runner_3b else None}
+
+    def _set_bases(self, b):
+        self.runner_names = {1: b[1], 2: b[2], 3: b[3]}
+        self.runner_1b, self.runner_2b, self.runner_3b = bool(b[1]), bool(b[2]), bool(b[3])
+
+    def _move_runners(self, kind, batter):
+        b = self._bases()
+        runs = 0
+        two_out = self.outs >= 2
+        if kind == "WALK":
+            if b[1]:
+                if b[2]:
+                    if b[3]:
+                        runs += 1
+                    b[3] = b[2]
+                b[2] = b[1]
+            b[1] = batter
+        elif kind == "SINGLE":
+            if b[3]:
+                runs += 1
+                b[3] = None
+            if b[2]:
+                if random.random() < (0.8 if two_out else 0.6):
+                    runs += 1
+                else:
+                    b[3] = b[2]
+                b[2] = None
+            if b[1]:
+                if not b[3] and random.random() < 0.25:
+                    b[3] = b[1]
+                else:
+                    b[2] = b[1]
+            b[1] = batter
+        elif kind == "DOUBLE":
+            runs += (1 if b[3] else 0) + (1 if b[2] else 0)
+            first = b[1]
+            b = {1: None, 2: batter, 3: None}
+            if first:
+                if random.random() < (0.65 if two_out else 0.45):
+                    runs += 1
+                else:
+                    b[3] = first
+        elif kind == "TRIPLE":
+            runs += sum(1 for k in (1, 2, 3) if b[k])
+            b = {1: None, 2: None, 3: batter}
+        elif kind == "HOMERUN":
+            runs += 1 + sum(1 for k in (1, 2, 3) if b[k])
+            b = {1: None, 2: None, 3: None}
+        self._set_bases(b)
+        return runs
+
+    def _play_out(self, kind, batter):
+        """아웃 플레이: (늘어난 아웃 수, 점수, 결과 문구)"""
+        b = self._bases()
+        pos = random.choice(["유격수", "2루수", "3루수", "1루수"])
+        of = random.choice(["좌익수", "중견수", "우익수"])
+        if kind == "GROUND":
+            if b[1] and self.outs < 2 and random.random() < 0.45:
+                outs = 2
+                runs = 0
+                if self.outs + outs < 3:
+                    if b[3]:
+                        runs += 1
+                    b = {1: None, 2: None, 3: b[2]}
+                self._set_bases(b)
+                return outs, runs, f"{pos} 앞 병살타"
+            runs = 0
+            if self.outs + 1 < 3:
+                if b[3] and (b[2] and b[1]):
+                    runs += 1
+                    b[3] = None
+                elif b[3] and random.random() < 0.4:
+                    runs += 1
+                    b[3] = None
+                if b[2] and not b[3]:
+                    b[3], b[2] = b[2], None
+                if b[1]:
+                    if b[2]:
+                        b[3] = b[3] or b[2]
+                    b[2], b[1] = b[1], None
+            self._set_bases(b)
+            return 1, runs, f"{pos} 땅볼 아웃"
+        if kind == "FLY":
+            if b[3] and self.outs < 2 and random.random() < 0.6:
+                b[3] = None
+                self._set_bases(b)
+                return 1, 1, f"{of} 희생플라이 아웃 (1타점)"
+            if b[2] and not b[3] and self.outs < 2 and random.random() < 0.3:
+                b[3], b[2] = b[2], None
+                self._set_bases(b)
+            return 1, 0, f"{of} 뜬공 아웃"
+        return 1, 0, f"{pos} 직선타 아웃"
+
     def step_pitch(self):
         """1구 단위 경기 진행 및 KBO 규정 경기 종료/연장전 반영"""
         if self.game_over:
@@ -454,267 +644,197 @@ class GameEngine:
             return self.get_state()
 
         self.last_tactic_resolution = None
-
-        self.totalPitcherCount += 1
-        self.currentBatterPitchCount += 1
-
-        pitch_options = [
-            ("직구", "148km/h"), ("슬라이더", "136km/h"), ("투심", "142km/h"), 
-            ("체인지업", "131km/h"), ("커브", "125km/h"), ("포크볼", "134km/h")
-        ]
-        p_name, p_speed = random.choice(pitch_options)
-        pitch_desc = f"{p_speed} {p_name}"
-
-        # 야구 실제 타석 확률 반영: 스트라이크/볼/파울 비율 92%, 타격/아웃 8% -> 타석당 4~6구 유지
-        outcomes = ["STRIKE", "BALL", "FOUL", "SINGLE", "DOUBLE", "HOMERUN", "OUT"]
-        weights = [0.38, 0.38, 0.16, 0.03, 0.01, 0.005, 0.035]
-        res = random.choices(outcomes, weights=weights)[0]
+        if not self.batter_sessions:
+            self.init_first_session()
 
         batter = self.get_current_batter()
         pitcher = self.get_current_pitcher()
         inning_str = f"{self.inning}회{'초' if self.is_top else '말'}"
-
-        if not self.batter_sessions:
-            self.init_first_session()
-        
         curr_session = self.batter_sessions[0]
 
+        self.pitch_counts[pitcher] = self.pitch_counts.get(pitcher, 0) + 1
+        self.totalPitcherCount = self.pitch_counts[pitcher]
+        self.currentBatterPitchCount += 1
+        seq = self.currentBatterPitchCount
+        pitch_desc = self._pitch_desc(pitcher)
+        head = f"[{inning_str}] {pitcher} 투수 (vs {batter} 타자), {seq}구 {pitch_desc}"
+
+        res = self._simulate_pitch(batter, pitcher)
+        pa_end = None      # 타석이 끝났으면 결과 종류
+        code, res_text = res, ""
         summary_text = ""
-        is_turn_over = False
-        at_bat_pitch_seq = self.currentBatterPitchCount
+        runs = 0
+        outs_added = 0
 
-        if res == "STRIKE":
-            self.strikes += 1
-            res_text = "스트라이크"
-            sb_count_str = f"S-B: {self.strikes}-{self.balls}"
-            commentary_text = f"[{inning_str}] {pitcher} 투수 (vs {batter} 타자), {at_bat_pitch_seq}구 {pitch_desc} - {res_text}!"
-            if self.strikes >= 3:
-                self.outs += 1
-                self.consecutive_on_base = 0
-                summary_text = f"{batter} : 헛스윙 삼진 아웃"
-                self.commentary_logs.insert(0, f"⚾ {commentary_text} ({batter} 삼진 아웃!)")
-                is_turn_over = True
-                curr_session["pitches"].append(self._make_pitch_obj(at_bat_pitch_seq, "OUT", "삼진 아웃", pitch_desc, sb_count_str, f"⚾ {commentary_text} ({batter} 삼진 아웃!)"))
-                self.strikes = 0
-                self.balls = 0
-            else:
-                self.commentary_logs.insert(0, f"⚾ {commentary_text} (카운트 {sb_count_str})")
-                curr_session["pitches"].append(self._make_pitch_obj(at_bat_pitch_seq, "STRIKE", res_text, pitch_desc, sb_count_str, commentary_text))
-
-        elif res == "BALL":
+        if res == "BALL":
             self.balls += 1
             res_text = "볼"
-            sb_count_str = f"S-B: {self.strikes}-{self.balls}"
-            commentary_text = f"[{inning_str}] {pitcher} 투수 (vs {batter} 타자), {at_bat_pitch_seq}구 {pitch_desc} - {res_text}!"
             if self.balls >= 4:
-                self.consecutive_on_base += 1
-                summary_text = f"{batter} : 볼넷 출루"
-                self.commentary_logs.insert(0, f"⚾ {commentary_text} ({batter} 볼넷 출루!)")
-                self._advance_runners(1)
-                is_turn_over = True
-                curr_session["pitches"].append(self._make_pitch_obj(at_bat_pitch_seq, "BALL", "볼넷 출루", pitch_desc, sb_count_str, f"⚾ {commentary_text} ({batter} 볼넷 출루!)"))
-                self.strikes = 0
-                self.balls = 0
-            else:
-                self.commentary_logs.insert(0, f"⚾ {commentary_text} (카운트 {sb_count_str})")
-                curr_session["pitches"].append(self._make_pitch_obj(at_bat_pitch_seq, "BALL", res_text, pitch_desc, sb_count_str, commentary_text))
-
+                pa_end = "WALK"
+                res_text = "볼넷 출루"
+                runs = self._move_runners("WALK", batter)
+                summary_text = f"{batter} : {'밀어내기 볼넷 (1타점)' if runs else '볼넷 출루'}"
+        elif res == "STRIKE":
+            self.strikes += 1
+            res_text = "스트라이크"
+            if self.strikes >= 3:
+                pa_end = "K"
+                code, res_text = "OUT", "삼진 아웃"
+                outs_added = 1
+                summary_text = f"{batter} : {random.choice(['헛스윙', '루킹'])} 삼진 아웃"
         elif res == "FOUL":
             if self.strikes < 2:
                 self.strikes += 1
             res_text = "파울"
-            sb_count_str = f"S-B: {self.strikes}-{self.balls}"
-            commentary_text = f"[{inning_str}] {pitcher} 투수 (vs {batter} 타자), {at_bat_pitch_seq}구 {pitch_desc} - {res_text}!"
-            self.commentary_logs.insert(0, f"⚾ {commentary_text}")
-            curr_session["pitches"].append(self._make_pitch_obj(at_bat_pitch_seq, "FOUL", res_text, pitch_desc, sb_count_str, commentary_text))
-
-        elif res == "SINGLE":
-            self.consecutive_hits += 1
-            self.consecutive_on_base += 1
-            res_text = "타격 (안타)"
-            sb_count_str = f"S-B: {self.strikes}-{self.balls}"
-            commentary_text = f"[{inning_str}] {pitcher} 투수 (vs {batter} 타자), {at_bat_pitch_seq}구 {pitch_desc} - {res_text}!"
-            summary_text = f"{batter} : 좌전 1루타 안타 출루"
-            self.commentary_logs.insert(0, f"🔥 {commentary_text}")
-            self._advance_runners(1)
-            is_turn_over = True
-            curr_session["pitches"].append(self._make_pitch_obj(at_bat_pitch_seq, "SINGLE", res_text, pitch_desc, sb_count_str, commentary_text))
-            self.strikes = 0
-            self.balls = 0
-
-        elif res == "DOUBLE":
-            self.consecutive_hits += 1
-            self.consecutive_on_base += 1
-            res_text = "타격 (2루타)"
-            sb_count_str = f"S-B: {self.strikes}-{self.balls}"
-            commentary_text = f"[{inning_str}] {pitcher} 투수 (vs {batter} 타자), {at_bat_pitch_seq}구 {pitch_desc} - {res_text}!"
-            summary_text = f"{batter} : 우중간 2루타 적시타"
-            self.commentary_logs.insert(0, f"💥 {commentary_text}")
-            self._advance_runners(2)
-            is_turn_over = True
-            curr_session["pitches"].append(self._make_pitch_obj(at_bat_pitch_seq, "DOUBLE", res_text, pitch_desc, sb_count_str, commentary_text))
-            self.strikes = 0
-            self.balls = 0
-
-        elif res == "HOMERUN":
-            self.consecutive_on_base += 1
-            runners_count = (1 if self.runner_1b else 0) + (1 if self.runner_2b else 0) + (1 if self.runner_3b else 0)
-            pts = 1 + runners_count
-            res_text = "타격 (홈런)"
-            sb_count_str = f"S-B: {self.strikes}-{self.balls}"
-            commentary_text = f"[{inning_str}] {pitcher} 투수 (vs {batter} 타자), {at_bat_pitch_seq}구 {pitch_desc} - 비거리 125m {pts}점 대형 홈런!"
-            if self.is_top:
-                self.score_away += pts
+        else:
+            kind = self._simulate_in_play(batter, pitcher)
+            if kind in ("SINGLE", "DOUBLE", "TRIPLE", "HOMERUN"):
+                pa_end = kind
+                code = kind
+                runs = self._move_runners(kind, batter)
+                rbi = f" ({runs}타점)" if runs and kind != "HOMERUN" else ""
+                if kind == "SINGLE":
+                    res_text = "타격 (안타)"
+                    summary_text = f"{batter} : {random.choice(['좌전', '중전', '우전'])} 안타{rbi}"
+                elif kind == "DOUBLE":
+                    res_text = "타격 (2루타)"
+                    summary_text = f"{batter} : {random.choice(['좌중간', '우중간', '좌익선상'])} 2루타{rbi}"
+                elif kind == "TRIPLE":
+                    res_text = "타격 (3루타)"
+                    summary_text = f"{batter} : 우중간 3루타{rbi}"
+                else:
+                    res_text = "타격 (홈런)"
+                    summary_text = f"{batter} : 비거리 {random.randint(108, 135)}m {runs}점 홈런!"
             else:
-                self.score_home += pts
-            self.runner_1b = False
-            self.runner_2b = False
-            self.runner_3b = False
-            summary_text = f"{batter} : 비거리 125m {pts}점 대형 홈런!!!"
-            self.commentary_logs.insert(0, f"🚀 {commentary_text}")
-            is_turn_over = True
-            curr_session["pitches"].append(self._make_pitch_obj(at_bat_pitch_seq, "HOMERUN", res_text, pitch_desc, sb_count_str, commentary_text))
+                pa_end = "OUT"
+                code = "OUT"
+                outs_added, runs, desc = self._play_out(kind, batter)
+                res_text = "아웃"
+                summary_text = f"{batter} : {desc}"
+
+        sb_count_str = f"S-B: {self.strikes}-{self.balls}"
+        commentary_text = f"{head} - {summary_text.split(' : ', 1)[1] if summary_text else res_text}"
+        curr_session["pitches"].append(self._make_pitch_obj(seq, code, res_text, pitch_desc, sb_count_str, commentary_text))
+        self.commentary_logs.insert(0, f"⚾ {commentary_text}")
+        del self.commentary_logs[60:]
+
+        if pa_end:
+            self.outs += outs_added
+            # 세 번째 아웃과 동시에 들어온 점수는 인정하지 않음 (병살·땅볼)
+            if runs and self.outs >= 3 and pa_end == "OUT":
+                runs = 0
+            if runs:
+                if self.is_top:
+                    self.score_away += runs
+                else:
+                    self.score_home += runs
+                self.outing_runs[pitcher] = self.outing_runs.get(pitcher, 0) + runs
+            if pa_end in ("WALK", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN"):
+                self.consecutive_on_base += 1
+                self.consecutive_hits += 0 if pa_end == "WALK" else 1
+            else:
+                self.consecutive_on_base = 0
+                self.consecutive_hits = 0
             self.strikes = 0
             self.balls = 0
-
-        elif res == "OUT":
-            self.outs += 1
-            self.consecutive_on_base = 0
-            res_text = "아웃"
-            sb_count_str = f"S-B: {self.strikes}-{self.balls}"
-            commentary_text = f"[{inning_str}] {pitcher} 투수 (vs {batter} 타자), {at_bat_pitch_seq}구 {pitch_desc} - {batter} 땅볼 아웃!"
-            summary_text = f"{batter} : 내야 땅볼 아웃"
-            self.commentary_logs.insert(0, f"⚾ {commentary_text}")
-            is_turn_over = True
-            curr_session["pitches"].append(self._make_pitch_obj(at_bat_pitch_seq, "OUT", res_text, pitch_desc, sb_count_str, commentary_text))
-            self.strikes = 0
-            self.balls = 0
-
-        # 끝내기 승리 체크 (9회말 이상 말 공격 중 홈팀 리드 발생 시 즉시 종료)
-        if self._check_walk_off_win():
+            self._finish_plate_appearance(batter, pa_end, runs, summary_text, curr_session)
+            if self.game_over:
+                return self.get_state()
+        elif self._check_walk_off_win():
             return self.get_state()
 
-        if is_turn_over:
-            b_stats = self.get_batter_in_game_stats(batter)
-            b_stats["tasuk"] += 1
-
-            if res == "STRIKE" and self.strikes >= 3:
-                b_stats["tasu"] += 1
-                b_stats["samjin"] += 1
-            elif res == "BALL" and self.balls >= 4:
-                b_stats["bolnet"] += 1
-            elif res == "SINGLE":
-                b_stats["tasu"] += 1
-                b_stats["anta"] += 1
-            elif res == "DOUBLE":
-                b_stats["tasu"] += 1
-                b_stats["anta"] += 1
-            elif res == "HOMERUN":
-                b_stats["tasu"] += 1
-                b_stats["anta"] += 1
-                b_stats["homerun"] += 1
-                b_stats["deukjeom"] += 1
-                b_stats["tajeom"] += (1 + runners_count)
-            elif res == "OUT":
-                b_stats["tasu"] += 1
-
-            curr_session["batter_stats"] = dict(b_stats)
-
-            new_win_prob = self.get_win_probability()
-            delta = round(new_win_prob - curr_session["win_prob"], 1)
-            curr_session["win_prob"] = new_win_prob
-            curr_session["win_prob_delta"] = delta
-            curr_session["play_summary"] = summary_text
-
-            if getattr(self, 'pending_tactic', None):
-                actual_result = "OUT" if (res == "OUT" or (res == "STRIKE" and self.strikes >= 3)) else "NOT_OUT"
-                my = self.pending_tactic["my_choice"]              # "CHANGE" or "KEEP"
-                mgr = self.pending_tactic["actual_manager_choice"] # "CHANGE" or "KEEP"
-                
-                if my == "CHANGE" and mgr == "CHANGE" and actual_result == "OUT":
-                    case_no = 1
-                    score_delta = +10
-                    title = "동일 선택 & 방어 성공!"
-                    commentary = "🟢 [1번 케이스 (+10)] 나(교체) = 감독(교체), 타자 아웃으로 실점 방어 성공!"
-                elif my == "CHANGE" and mgr == "CHANGE" and actual_result == "NOT_OUT":
-                    case_no = 2
-                    score_delta = -10
-                    title = "동일 선택 & 실점 허용"
-                    commentary = "🔴 [2번 케이스 (-10)] 나(교체) = 감독(교체), 투수 교체에도 불구하고 출루/실점 허용."
-                elif my == "CHANGE" and mgr == "KEEP" and actual_result == "OUT":
-                    case_no = 3
-                    score_delta = -15
-                    title = "감독 판단 적중 (교체 불필요)"
-                    commentary = "🔴 [3번 케이스 (-15)] 나(교체) vs 감독(유지), 선발 투수가 스스로 아웃을 잡아 교체가 불필요했습니다."
-                elif my == "CHANGE" and mgr == "KEEP" and actual_result == "NOT_OUT":
-                    case_no = 4
-                    score_delta = +15
-                    title = "의견 불일치 & 통찰력 적중!"
-                    commentary = "🔥 [4번 케이스 (+15)] 나(교체) vs 감독(유지), 감독의 강행 투구 실패! 명장 감독의 투수 교체 통찰력 적중!"
-                elif my == "KEEP" and mgr == "CHANGE" and actual_result == "OUT":
-                    case_no = 5
-                    score_delta = -15
-                    title = "감독 투수 교체 적중"
-                    commentary = "🔴 [5번 케이스 (-15)] 나(유지) vs 감독(교체), 감독의 투수 교체가 적중하여 아웃을 잡았습니다."
-                elif my == "KEEP" and mgr == "CHANGE" and actual_result == "NOT_OUT":
-                    case_no = 6
-                    score_delta = +15
-                    title = "의견 불일치 & 통찰력 적중!"
-                    commentary = "🔥 [6번 케이스 (+15)] 나(유지) vs 감독(교체), 감독의 구원 투수 등판 실패! 나의 투수 유지 통찰력 적중!"
-                elif my == "KEEP" and mgr == "KEEP" and actual_result == "OUT":
-                    case_no = 7
-                    score_delta = +10
-                    title = "동일 선택 & 선발 믿음 성공!"
-                    commentary = "🟢 [7번 케이스 (+10)] 나(유지) = 감독(유지), 선발 투수 신뢰가 삼진/아웃으로 결실을 맺었습니다!"
-                else:
-                    case_no = 8
-                    score_delta = -10
-                    title = "동일 선택 & 강행 투구 실패"
-                    commentary = "🔴 [8번 케이스 (-10)] 나(유지) = 감독(유지), 강행 투구 선택 결과 출루/실점을 허용했습니다."
-
-                self.manager_score += score_delta
-                self._update_manager_grade()
-                if getattr(self, 'user_id', None):
-                    database.update_user_score(self.manager_score, self.manager_grade, self.user_id)
-
-                log_msg = f"📊 [위기 채점 {case_no}번 케이스] {commentary}"
-                self.commentary_logs.insert(0, log_msg)
-                database.log_tactic(self.pending_tactic["inning_str"], self.pending_tactic["situation_title"], f"CASE_{case_no}", score_delta, self.manager_grade, commentary)
-
-                self.last_tactic_resolution = {
-                    "case_no": case_no,
-                    "my_choice": my,
-                    "actual_manager_choice": mgr,
-                    "actual_result": actual_result,
-                    "my_choice_label": "교체 (O)" if my == "CHANGE" else "유지 (X)",
-                    "mgr_choice_label": "교체 (O)" if mgr == "CHANGE" else "유지 (X)",
-                    "actual_result_label": "아웃 (O)" if actual_result == "OUT" else "아웃 외 상황 (X)",
-                    "score_delta": score_delta,
-                    "total_score": self.manager_score,
-                    "grade": self.manager_grade,
-                    "title": title,
-                    "commentary": commentary
-                }
-                self.pending_tactic = None
-
-            self._next_batter()
-            self._check_half_inning_transition()
-            if not self.game_over:
-                self.init_first_session()
-        else:
-            self._check_half_inning_transition()
-
-        if not self.game_over and not getattr(self, 'has_crisis_popped_for_current_batter', False) and not getattr(self, 'pending_tactic', None):
-            crisis = self.check_crisis_trigger()
-            if crisis:
-                self.crisis_active = True
-                self.current_crisis = crisis
-                self.has_crisis_popped_for_current_batter = True
-                log_msg = f"🚨 [위기 경보] {crisis['title']} - {crisis['desc']}"
-                if not self.commentary_logs or log_msg not in self.commentary_logs[0]:
-                    self.commentary_logs.insert(0, log_msg)
-
+        self._check_crisis()
         return self.get_state()
+
+    def _finish_plate_appearance(self, batter, pa_end, runs, summary_text, curr_session):
+        b_stats = self.get_batter_in_game_stats(batter)
+        b_stats["tasuk"] += 1
+        if pa_end == "WALK":
+            b_stats["bolnet"] += 1
+        else:
+            b_stats["tasu"] += 1
+        if pa_end == "K":
+            b_stats["samjin"] += 1
+        if pa_end in ("SINGLE", "DOUBLE", "TRIPLE", "HOMERUN"):
+            b_stats["anta"] += 1
+        if pa_end == "HOMERUN":
+            b_stats["homerun"] += 1
+            b_stats["deukjeom"] += 1
+        b_stats["tajeom"] += runs
+        curr_session["batter_stats"] = dict(b_stats)
+
+        if not self.is_top and self.inning >= 9 and self.score_home > self.score_away and runs:
+            summary_text = summary_text.replace(" : ", " : 끝내기 ", 1)
+        new_win_prob = self.get_win_probability()
+        curr_session["win_prob_delta"] = round(new_win_prob - curr_session["win_prob"], 1)
+        curr_session["win_prob"] = new_win_prob
+        curr_session["play_summary"] = summary_text
+
+        if getattr(self, 'pending_tactic', None):
+            self._score_tactic("OUT" if pa_end in ("K", "OUT") else "NOT_OUT")
+
+        if self._check_walk_off_win():
+            return
+        self._next_batter()
+        self._check_half_inning_transition()
+        if not self.game_over:
+            self._maybe_auto_change()
+            self.init_first_session()
+
+    # 위기 작전 채점: 내 선택 × 실제 감독(AI) 선택 × 다음 타석 결과(아웃/출루)
+    TACTIC_CASES = {
+        ("CHANGE", "CHANGE", "OUT"): (1, 10, "동일 선택 & 방어 성공!", "나와 감독 모두 교체, 타자를 잡아냈어요"),
+        ("CHANGE", "CHANGE", "NOT_OUT"): (2, -10, "동일 선택 & 출루 허용", "나와 감독 모두 교체했지만 출루를 허용했어요"),
+        ("CHANGE", "KEEP", "OUT"): (3, -15, "감독 판단 적중", "감독은 유지, 기존 투수가 타자를 잡았어요"),
+        ("CHANGE", "KEEP", "NOT_OUT"): (4, 15, "통찰력 적중!", "감독은 유지했지만 출루 허용, 내 교체 판단이 옳았어요"),
+        ("KEEP", "CHANGE", "OUT"): (5, -15, "감독 교체 적중", "감독의 투수 교체가 아웃을 잡았어요"),
+        ("KEEP", "CHANGE", "NOT_OUT"): (6, 15, "통찰력 적중!", "감독의 구원 투수가 출루 허용, 내 유지 판단이 옳았어요"),
+        ("KEEP", "KEEP", "OUT"): (7, 10, "동일 선택 & 믿음 성공!", "나와 감독 모두 유지, 투수가 타자를 잡았어요"),
+        ("KEEP", "KEEP", "NOT_OUT"): (8, -10, "동일 선택 & 출루 허용", "나와 감독 모두 유지했지만 출루를 허용했어요"),
+    }
+
+    def _score_tactic(self, actual_result):
+        my = self.pending_tactic["my_choice"]
+        mgr = self.pending_tactic["actual_manager_choice"]
+        case_no, score_delta, title, commentary = self.TACTIC_CASES[(my, mgr, actual_result)]
+        self.manager_score += score_delta
+        self._update_manager_grade()
+        if getattr(self, 'user_id', None):
+            try:
+                database.update_user_score(self.manager_score, self.manager_grade, self.user_id)
+                database.log_tactic(self.pending_tactic["inning_str"], self.pending_tactic["situation_title"],
+                                    f"CASE_{case_no}", score_delta, self.manager_grade, commentary, self.user_id)
+            except Exception as e:
+                print(f"⚠️ [작전 기록 저장 실패] {e}")
+        self.commentary_logs.insert(0, f"📊 [위기 채점 {case_no}번] {commentary} ({score_delta:+d})")
+        self.last_tactic_resolution = {
+            "case_no": case_no,
+            "my_choice": my,
+            "actual_manager_choice": mgr,
+            "actual_result": actual_result,
+            "my_choice_label": "교체" if my == "CHANGE" else "유지",
+            "mgr_choice_label": "교체" if mgr == "CHANGE" else "유지",
+            "actual_result_label": "아웃" if actual_result == "OUT" else "출루",
+            "score_delta": score_delta,
+            "total_score": self.manager_score,
+            "grade": self.manager_grade,
+            "title": title,
+            "commentary": commentary
+        }
+        self.pending_tactic = None
+
+    def _check_crisis(self):
+        if self.game_over or self.pending_tactic or self.crisis_active:
+            return
+        if getattr(self, 'has_crisis_popped_for_current_batter', False):
+            return
+        crisis = self.check_crisis_trigger()
+        if crisis:
+            self.crisis_active = True
+            self.current_crisis = crisis
+            self.has_crisis_popped_for_current_batter = True
+            self.crisis_seen.add((self.inning, self.is_top, crisis["pitcher_name"]))
+            self.commentary_logs.insert(0, f"🚨 [위기] {crisis['desc']}")
 
     def _check_walk_off_win(self):
         """9회말 이상 말 공격 중 홈팀 리드 시 끝내기 경기 종료"""
@@ -740,6 +860,7 @@ class GameEngine:
             self.runner_1b = False
             self.runner_2b = False
             self.runner_3b = False
+            self.runner_names = {1: None, 2: None, 3: None}
             self.currentBatterPitchCount = 0
             self.consecutive_hits = 0
             self.consecutive_on_base = 0
@@ -783,123 +904,172 @@ class GameEngine:
             self.is_top = not self.is_top
 
     def check_crisis_trigger(self):
-        """[위기 감지 조건문 (Crisis Detection Logic)]
-        조건 A: 현재 투수 투구수 < 70구 AND 연속 4타자 출루 발생 시
-        조건 B: 현재 투수 투구수 >= 70구 AND 주자 득점권(2루 또는 3루) 진출 시
+        """[위기 감지]
+        조건 A: 현재 투수 투구수 < 70구 AND 연속 4타자 출루
+        조건 B: 현재 투수 투구수 >= 70구 AND 득점권(2루 또는 3루) 주자
+        같은 투수에게는 한 이닝(초/말)에 한 번만 띄움
         """
         if self.outs >= 3 or self.game_over:
             return None
+        pitcher = self.get_current_pitcher()
+        if (self.inning, self.is_top, pitcher) in self.crisis_seen:
+            return None
 
-        p_count = self.totalPitcherCount
-        on_base_4 = (self.consecutive_on_base >= 4)
-        has_scoring_pos = self.runner_2b or self.runner_3b
-
-        is_cond_a = (p_count < 70) and on_base_4
-        is_cond_b = (p_count >= 70) and has_scoring_pos
-
+        p_count = self.pitch_counts.get(pitcher, 0)
+        is_cond_a = (p_count < 70) and (self.consecutive_on_base >= 4)
+        is_cond_b = (p_count >= 70) and (self.runner_2b or self.runner_3b)
         if not (is_cond_a or is_cond_b):
             return None
 
         inning_str = f"{self.inning}회{'초' if self.is_top else '말'}"
-        pitcher = self.get_current_pitcher()
         batter = self.get_current_batter()
-
         if is_cond_a:
             condition_type = "CONDITION_A"
-            condition_label = "조건 A: 70구 미만 4타자 연속 출루 위기!"
-            reason_str = f"투구수 {p_count}구, 연속 4타자 출루 허용!"
+            condition_label = "조건 A: 70구 미만 4타자 연속 출루 위기"
+            reason_str = "4타자 연속 출루"
         else:
             condition_type = "CONDITION_B"
-            condition_label = "조건 B: 70구 이상 득점권 실점 위기!"
-            reason_str = f"투구수 {p_count}구, 득점권(2/3루) 주자 진출!"
+            condition_label = "조건 B: 70구 이상 득점권 실점 위기"
+            reason_str = "득점권 주자"
 
         return {
             "id": "PITCHER_CHANGE_CRISIS",
             "condition_type": condition_type,
             "condition_label": condition_label,
-            "title": "🚨 [위기 관리] 투수 교체 감독 지시 팝업",
-            "desc": f"{inning_str} {reason_str} (현재 투수: {pitcher}, 다음 타석: {batter})",
+            "title": "투수를 바꿀까요?",
+            "desc": f"{inning_str} · {reason_str} · {pitcher} {p_count}구 · 다음 타자 {batter}",
             "pitcher_name": pitcher,
             "pitch_count": p_count,
             "consecutive_on_base": self.consecutive_on_base,
             "runner_2b": self.runner_2b,
             "runner_3b": self.runner_3b,
             "options": [
-                {
-                    "id": "PITCHER_CHANGE",
-                    "name": "투수 교체하기",
-                    "risk": "교체 (+)",
-                    "desc": "불펜 구원 투수로 마운드를 교체하고 감독 스코어 가산"
-                },
-                {
-                    "id": "KEEP_PITCHER",
-                    "name": "투수 교체하지 않기",
-                    "risk": "유지 (-)",
-                    "desc": "현재 투수로 계속 진행 (강행 투구)"
-                }
+                {"id": "PITCHER_CHANGE", "name": "투수 교체", "risk": "교체", "desc": "불펜 투입"},
+                {"id": "KEEP_PITCHER", "name": "그대로 간다", "risk": "유지", "desc": "지금 투수 유지"}
             ]
         }
 
+    def manager_change_probability(self):
+        """'실제 감독'(AI)이 지금 투수를 바꿀 확률.
+        지칠수록·실점이 많을수록·연속 출루가 길수록·경기 후반 접전일수록 높아지고,
+        막 올라온 투수는 잘 안 바꿈"""
+        pitcher = self.get_current_pitcher()
+        f, rt = self._fatigue(pitcher)
+        pc = self.pitch_counts.get(pitcher, 0)
+        p = 0.12
+        if pc >= rt["stamina"] - 15:
+            p += 0.25
+        p += 0.35 * min(1.0, f)
+        runs = self.outing_runs.get(pitcher, 0)
+        p += 0.12 if runs >= 3 else 0
+        p += 0.15 if runs >= 5 else 0
+        p += 0.12 if self.consecutive_on_base >= 3 else 0
+        if self.inning >= 7 and abs(self.score_home - self.score_away) <= 3:
+            p += 0.12
+        if rt["role"] != "starter" and pc < 15:
+            p -= 0.25
+        if rt["role"] == "closer":
+            p -= 0.15
+        return max(0.05, min(0.92, p))
+
+    def _pick_reliever(self, team, save_situation=False):
+        r = TEAMS.get(team, {}).get("roster") or {}
+        used = self.used_pitchers.setdefault(team, set())
+        closer = r.get("closer")
+        if save_situation and closer and closer not in used:
+            return closer
+        pool = [p["name"] for p in r.get("bullpen", []) if p["name"] not in used and p["name"] != closer]
+        if pool:
+            return random.choice(pool)
+        if closer and closer not in used:
+            return closer
+        return None
+
+    def _change_pitcher(self, new_pitcher, reason=""):
+        old = self.get_current_pitcher()
+        team = self.get_current_defense_team()
+        self.used_pitchers.setdefault(team, set()).add(new_pitcher)
+        if self.is_top:
+            self.home_pitcher = new_pitcher
+        else:
+            self.away_pitcher = new_pitcher
+        self.consecutive_on_base = 0
+        self.commentary_logs.insert(0, f"🔄 [투수 교체] {team}: {old} → {new_pitcher}{(' (' + reason + ')') if reason else ''}")
+        return old
+
+    def _maybe_auto_change(self):
+        """위기 팝업과 별개로, 감독이 알아서 하는 교체 (지친 투수·대량 실점·세이브 상황 마무리)"""
+        if self.game_over or self.pending_tactic:
+            return
+        team = self.get_current_defense_team()
+        pitcher = self.get_current_pitcher()
+        f, rt = self._fatigue(pitcher)
+        pc = self.pitch_counts.get(pitcher, 0)
+        lead = (self.score_home - self.score_away) if self.is_top else (self.score_away - self.score_home)
+        fresh_half = self.outs == 0 and not (self.runner_1b or self.runner_2b or self.runner_3b)
+
+        if self.inning >= 9 and fresh_half and 1 <= lead <= 3 and rt["role"] != "closer":
+            closer = (TEAMS.get(team, {}).get("roster") or {}).get("closer")
+            if closer and closer not in self.used_pitchers.get(team, set()):
+                self._change_pitcher(closer, "세이브 상황")
+                return
+        tired = pc >= rt["stamina"] + 8
+        shelled = self.outing_runs.get(pitcher, 0) >= 6
+        # 불펜 투수는 보통 한 이닝만: 새 이닝 시작 때 이미 10구 이상 던졌으면 교체
+        reliever_done = fresh_half and rt["role"] == "reliever" and pc >= 10
+        if tired or shelled or reliever_done or (fresh_half and pc >= rt["stamina"] - 5):
+            new = self._pick_reliever(team)
+            if new:
+                self._change_pitcher(new, "체력 소진" if not shelled else "대량 실점")
+
     def apply_tactic(self, tactic_id):
-        """[위기 관리 전략 수립 및 채점 대기 상태 전환]"""
+        """[위기 작전] 내 선택을 받고, 실제 감독(AI)의 선택을 정해 다음 타석 결과로 채점 대기"""
         inning_str = f"{self.inning}회{'초' if self.is_top else '말'}"
-        situation_title = self.current_crisis["title"] if self.current_crisis else "투수 교체 위기 상황"
+        situation_title = "투수 교체 위기"
         old_pitcher = self.get_current_pitcher()
 
         my_choice = "CHANGE" if tactic_id == "PITCHER_CHANGE" else "KEEP"
-        actual_manager_choice = "CHANGE" if random.random() < 0.5 else "KEEP"
+        actual_manager_choice = "CHANGE" if random.random() < self.manager_change_probability() else "KEEP"
 
-        def_team = self.get_current_defense_team()
-        relief_pitchers = {
-            "삼성": "김재윤", "한화": "주현상", "KIA": "정해영", "LG": "유영찬",
-            "SSG": "조병현", "두산": "김택연", "NC": "류진욱", "KT": "박영현",
-            "키움": "조상우", "롯데": "김원중"
-        }
-        relief_name = relief_pitchers.get(def_team, "구원투수")
-        new_pitcher_fullname = f"{relief_name} (구원)" if actual_manager_choice == "CHANGE" else old_pitcher
-
+        new_pitcher = old_pitcher
         if actual_manager_choice == "CHANGE":
-            # 실제 감독이 [투수 교체]를 선택한 경우 -> 실제 마운드 교체 및 투구수 초기화
-            self.totalPitcherCount = 0
-            self.consecutive_on_base = 0
-            self.currentBatterPitchCount = 0
-
-            if self.is_top:
-                self.home_pitcher = new_pitcher_fullname
+            team = self.get_current_defense_team()
+            lead = (self.score_home - self.score_away) if self.is_top else (self.score_away - self.score_home)
+            picked = self._pick_reliever(team, save_situation=(self.inning >= 9 and 1 <= lead <= 3))
+            if picked:
+                new_pitcher = picked
+                self._change_pitcher(picked, "위기 교체")
             else:
-                self.away_pitcher = new_pitcher_fullname
+                actual_manager_choice = "KEEP"
 
         if not self.batter_sessions:
             self.init_first_session()
-
         curr_session = self.batter_sessions[0]
-        pitch_seq = len(curr_session.get("pitches", [])) + 1
-
-        change_event = {
-            "seq": pitch_seq,
+        curr_session["pitches"].append({
+            "seq": len(curr_session.get("pitches", [])) + 1,
             "type": "PITCHER_CHANGE",
+            "code": "CHANGE",
             "is_pitcher_change": True,
             "old_pitcher": old_pitcher,
-            "new_pitcher": new_pitcher_fullname,
+            "new_pitcher": new_pitcher,
             "result": "투수 교체" if actual_manager_choice == "CHANGE" else "투수 유지",
-            "commentary_text": f"🔄 [실제 감독 선택: 투수 교체] 마운드 투수 교체: {old_pitcher} ➔ {new_pitcher_fullname}" if actual_manager_choice == "CHANGE" else f"🛡️ [실제 감독 선택: 투수 유지] 선발 투수 {old_pitcher} 마운드 계속 투구"
-        }
-        curr_session["pitches"].append(change_event)
+            "speed_type": f"{old_pitcher} → {new_pitcher}" if actual_manager_choice == "CHANGE" else f"{old_pitcher} 계속 투구",
+            "commentary_text": f"실제 감독 선택: {'투수 교체 ' + old_pitcher + ' → ' + new_pitcher if actual_manager_choice == 'CHANGE' else '투수 유지'}"
+        })
 
         self.pending_tactic = {
             "my_choice": my_choice,
             "actual_manager_choice": actual_manager_choice,
             "old_pitcher": old_pitcher,
-            "new_pitcher": new_pitcher_fullname,
+            "new_pitcher": new_pitcher,
             "inning_str": inning_str,
             "situation_title": situation_title
         }
-
         self.has_crisis_popped_for_current_batter = True
         self.crisis_active = False
         self.current_crisis = None
 
-        log_msg = f"📋 [위기 관리 작전 제출] 나의 선택: {'교체 (O)' if my_choice == 'CHANGE' else '유지 (X)'} | 실제 감독: {'교체 (O)' if actual_manager_choice == 'CHANGE' else '유지 (X)'} (다음 타석 결과로 판정)"
+        log_msg = f"📋 [작전 제출] 나: {'교체' if my_choice == 'CHANGE' else '유지'} | 실제 감독: {'교체' if actual_manager_choice == 'CHANGE' else '유지'} (다음 타석 결과로 채점)"
         self.commentary_logs.insert(0, log_msg)
 
         return {
@@ -909,38 +1079,10 @@ class GameEngine:
             "my_choice": my_choice,
             "actual_manager_choice": actual_manager_choice,
             "old_pitcher": old_pitcher,
-            "new_pitcher": new_pitcher_fullname,
+            "new_pitcher": new_pitcher,
             "commentary": log_msg,
             "state": self.get_state()
         }
-
-    def _advance_runners(self, bases):
-        # 주자 이름도 같은 방식으로 함께 옮김 (주자 있음/없음 표시와 항상 짝을 이룸)
-        names = getattr(self, 'runner_names', None) or {1: None, 2: None, 3: None}
-        batter = self.get_current_batter()
-        if bases == 1:
-            if self.runner_3b:
-                self._score_run()
-            self.runner_3b = self.runner_2b
-            self.runner_2b = self.runner_1b
-            self.runner_1b = True
-            names = {3: names.get(2), 2: names.get(1), 1: batter}
-        elif bases == 2:
-            if self.runner_3b:
-                self._score_run()
-            if self.runner_2b:
-                self._score_run()
-            self.runner_3b = self.runner_1b
-            self.runner_2b = True
-            self.runner_1b = False
-            names = {3: names.get(1), 2: batter, 1: None}
-        self.runner_names = names
-
-    def _score_run(self):
-        if self.is_top:
-            self.score_away += 1
-        else:
-            self.score_home += 1
 
     def _next_batter(self):
         self.currentBatterPitchCount = 0
@@ -1034,8 +1176,8 @@ class GameEngine:
             "on_deck_batters": self.get_on_deck_batters(),
             "fielders": self.get_current_defense_fielders(),
             "currentBatterPitchCount": self.currentBatterPitchCount,
-            "totalPitcherCount": self.totalPitcherCount,
-            "pitch_count": self.totalPitcherCount,
+            "totalPitcherCount": self.pitch_counts.get(self.get_current_pitcher(), 0),
+            "pitch_count": self.pitch_counts.get(self.get_current_pitcher(), 0),
             "manager_score": self.manager_score,
             "manager_grade": self.manager_grade,
             "crisis_active": self.crisis_active,

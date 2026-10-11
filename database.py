@@ -307,6 +307,9 @@ def init_db():
         )
     '''))
 
+    if "user_id" not in _table_columns(cursor, 'tactics_history'):
+        cursor.execute("ALTER TABLE tactics_history ADD COLUMN user_id INTEGER")
+
     # 2026 KBO 9~10월 공식 일정 테이블
     cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS kbo_schedules (
@@ -941,20 +944,23 @@ def get_user_friends_ranking(user_id=1):
 def get_friend_rankings():
     return get_user_friends_ranking(1)
 
-def log_tactic(inning, situation, tactic_chosen, score_change, result_grade, commentary):
+def log_tactic(inning, situation, tactic_chosen, score_change, result_grade, commentary, user_id=None):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO tactics_history (inning, situation, tactic_chosen, score_change, result_grade, commentary)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (inning, situation, tactic_chosen, score_change, result_grade, commentary))
+        INSERT INTO tactics_history (inning, situation, tactic_chosen, score_change, result_grade, commentary, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (inning, situation, tactic_chosen, score_change, result_grade, commentary, user_id))
     conn.commit()
     conn.close()
 
-def get_tactics_history():
+def get_tactics_history(user_id=None):
+    """내 작전 기록만 (다른 사용자 기록이 섞이지 않게). 로그인 정보가 없으면 빈 목록"""
+    if not user_id:
+        return []
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM tactics_history ORDER BY id DESC LIMIT 10")
+    cursor.execute("SELECT * FROM tactics_history WHERE user_id = ? ORDER BY id DESC LIMIT 10", (user_id,))
     rows = [dict(r) for r in cursor.fetchall()]
     for r in rows:
         if r.get('timestamp'):
