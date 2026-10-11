@@ -989,7 +989,11 @@ function updateBottomNavVisibility() {
     // 로그인 여부 확인: 서버가 제공한 세션 사용자 변수 존재 여부로 엄격히 판정
     const isLoggedIn = Boolean(window.CURRENT_SESSION_USER);
 
-    if (isLoggedIn && !isLoginActive && !isTeamSelectActive) {
+    // 경기 화면은 화면 전체를 경기에 쓰도록 하단 탭을 숨김 (위쪽 ‹ 버튼으로 로비 복귀)
+    const ingame = document.getElementById('ingame-view');
+    const isIngameActive = ingame && ingame.classList.contains('active');
+
+    if (isLoggedIn && !isLoginActive && !isTeamSelectActive && !isIngameActive) {
         bottomNav.style.setProperty('display', 'flex', 'important');
         bottomNav.classList.remove('hidden');
         bottomNav.classList.add('visible');
@@ -1656,52 +1660,7 @@ function updateScoreboardUI(s) {
     if (!s) return;
 
     try {
-        const awayEl = document.getElementById('sb-away-team');
-        if (awayEl) awayEl.innerHTML = `${getTeamLogoHtml(s.away_team, 'sb-team-logo-img')} ${s.away_team || '어웨이'}`;
-
-        const homeEl = document.getElementById('sb-home-team');
-        if (homeEl) homeEl.innerHTML = `${s.home_team || '홈'} ${getTeamLogoHtml(s.home_team, 'sb-team-logo-img')}`;
-
-        const scoreEl = document.getElementById('sb-score');
-        if (scoreEl) scoreEl.innerText = `${s.score_away ?? 0} : ${s.score_home ?? 0}`;
-
-        const inningEl = document.getElementById('sb-inning');
-        if (inningEl) inningEl.innerText = s.inning_str || '1회초';
-
-        const liveScoreEl = document.getElementById('live-score-val');
-        if (liveScoreEl) {
-            const scoreVal = (s.manager_score !== undefined && s.manager_score !== null) ? s.manager_score : 2000;
-            liveScoreEl.innerText = `${scoreVal.toLocaleString()} pts`;
-        }
-
-        const pitcherEl = document.getElementById('live-pitcher');
-        if (pitcherEl) pitcherEl.innerText = s.pitcher || '투수';
-
-        const pitcherCountEl = document.getElementById('pitcher-count');
-        const totalPCount = (s && s.totalPitcherCount !== undefined) ? s.totalPitcherCount : (s ? (s.pitch_count ?? 0) : 0);
-        if (pitcherCountEl) pitcherCountEl.innerText = `(투구수 ${totalPCount}구)`;
-
-        const session = (s && s.batter_sessions && s.batter_sessions.length > 0) ? s.batter_sessions[0] : null;
-        const currentBatterAvg = session ? (session.batter_avg || (session.batter_stats ? session.batter_stats.avg : '0.312')) : '0.312';
-
-        const batterEl = document.getElementById('live-batter');
-        if (batterEl) batterEl.innerText = s.batter || '타자';
-
-        const batterAvgEl = document.getElementById('live-batter-avg');
-        if (batterAvgEl) batterAvgEl.innerText = `(타율 ${currentBatterAvg})`;
-
-        updateLeds('led-b', s.balls ?? 0, 'active-b');
-        updateLeds('led-s', s.strikes ?? 0, 'active-s');
-        updateLeds('led-o', s.outs ?? 0, 'active-o');
-
-        const b1 = document.getElementById('mini-1b');
-        if (b1) b1.classList.toggle('occupied', !!s.runner_1b);
-
-        const b2 = document.getElementById('mini-2b');
-        if (b2) b2.classList.toggle('occupied', !!s.runner_2b);
-
-        const b3 = document.getElementById('mini-3b');
-        if (b3) b3.classList.toggle('occupied', !!s.runner_3b);
+        renderIngame(s);
     } catch (err) {
         console.error("Scoreboard UI Error:", err);
     }
@@ -1712,13 +1671,14 @@ function updateScoreboardUI(s) {
         console.error("Render Feed Error:", err);
     }
 
-    if (s && s.crisis_active && s.current_crisis) {
-        openCrisisModal(s.current_crisis);
-    }
-
+    // 작전 결과를 먼저 보여주고, 새 위기는 결과 팝업을 닫은 뒤에 띄움
     if (s && s.tactic_resolution && window._lastHandledCaseId !== (s.tactic_resolution.case_no + '_' + s.totalPitcherCount)) {
         window._lastHandledCaseId = s.tactic_resolution.case_no + '_' + s.totalPitcherCount;
         openTacticResultModal(s.tactic_resolution);
+    }
+
+    if (s && s.crisis_active && s.current_crisis) {
+        openCrisisModal(s.current_crisis);
     }
 }
 
@@ -1740,286 +1700,6 @@ const pitchPresets = [
 
 let userIsReadingHistory = false;
 
-function setupSmartAutoScroll() {
-    const streamContainer = document.getElementById('text-stream') || document.getElementById('naver-live-feed');
-    if (!streamContainer) return;
-
-    streamContainer.addEventListener('scroll', () => {
-        // userIsReadingHistory is true whenever user has scrolled down away from the top active area (> 20px)
-        userIsReadingHistory = (streamContainer.scrollTop > 20);
-    });
-}
-
-let userSelectedInningTab = 'all';
-
-function selectInningTab(tabKey) {
-    userSelectedInningTab = tabKey;
-    updateInningTabBarUI(currentGameState ? currentGameState.inning : 1);
-    if (currentGameState) {
-        renderNaverSportsLiveFeed(currentGameState);
-    }
-}
-
-function updateInningTabBarUI(currentInning) {
-    const tabBar = document.getElementById('inning-tab-bar');
-    if (!tabBar) return;
-
-    let activeKey = (userSelectedInningTab !== null && userSelectedInningTab !== undefined) ? userSelectedInningTab : 'all';
-
-    const pills = tabBar.querySelectorAll('.inning-tab-pill');
-    pills.forEach(pill => {
-        const attr = pill.getAttribute('data-tab');
-        let isActive = false;
-        if (typeof activeKey === 'number' || !isNaN(Number(activeKey))) {
-            isActive = (attr === String(activeKey));
-        } else {
-            isActive = (attr === String(activeKey).toLowerCase());
-        }
-
-        if (isActive) {
-            pill.classList.add('active');
-        } else {
-            pill.classList.remove('active');
-        }
-    });
-}
-
-function appendPitchTextLog(s) {
-    renderNaverSportsLiveFeed(s);
-}
-
-function renderNaverSportsLiveFeed(s) {
-    const headerContainer = document.getElementById('batter-profile-header');
-    const resultContainer = document.getElementById('at-bat-result-banner');
-    const streamContainer = document.getElementById('text-stream') || document.getElementById('naver-live-feed');
-
-    if (!s) return;
-
-    // Synchronize Top Inning Tab Bar Navigation UI
-    updateInningTabBarUI(s.inning || 1);
-
-    // 1. Current Batter Profile Card (현재 타자 프로필 카드 상단 고정)
-    let session = (s.batter_sessions && s.batter_sessions.length > 0) ? s.batter_sessions[0] : null;
-    if (session && s.batter && session.batter_name !== s.batter) {
-        const matching = s.batter_sessions.find(bs => bs.batter_name === s.batter);
-        if (matching) {
-            session = matching;
-        }
-    }
-
-    const bName = s.batter || (session ? session.batter_name : '황성빈');
-    const bOrder = session ? (session.batter_order || '1번타자') : '1번타자';
-    const bAvg = session ? (session.batter_avg || '0.288') : '0.288';
-
-    // Single Source of Truth for Season Batting Average & Zero-Start Rule for In-Game Stats
-    const stats = (session && session.batter_stats) ? session.batter_stats : {
-        order: bOrder,
-        avg: bAvg,
-        tasuk: 0,
-        tasu: 0,
-        anta: 0,
-        deukjeom: 0,
-        tajeom: 0,
-        homerun: 0,
-        bolnet: 0,
-        samjin: 0
-    };
-
-    const finalSeasonAvg = stats.avg || bAvg;
-
-    if (headerContainer) {
-        headerContainer.innerHTML = `
-            <div class="batter-header-flex">
-                <div class="batter-avatar-box">
-                    <span class="batter-avatar-emoji">🧢</span>
-                </div>
-                <div class="batter-info-box">
-                    <div class="batter-name-row">
-                        <strong class="batter-name-text">${bName}</strong>
-                        <span class="batter-meta-text">${bOrder} · 타율 ${finalSeasonAvg}</span>
-                    </div>
-                    <div class="batter-stats-row">
-                        <span>타석 <strong>${stats.tasuk ?? 0}</strong></span>
-                        <span class="sep">|</span>
-                        <span>타수 <strong>${stats.tasu ?? 0}</strong></span>
-                        <span class="sep">|</span>
-                        <span>안타 <strong>${stats.anta ?? 0}</strong></span>
-                        <span class="sep">|</span>
-                        <span>득점 <strong>${stats.deukjeom ?? 0}</strong></span>
-                        <span class="sep">|</span>
-                        <span>타점 <strong>${stats.tajeom ?? 0}</strong></span>
-                        <span class="sep">|</span>
-                        <span>홈런 <strong>${stats.homerun ?? 0}</strong></span>
-                        <span class="sep">|</span>
-                        <span>볼넷 <strong>${stats.bolnet ?? 0}</strong></span>
-                        <span class="sep">|</span>
-                        <span>삼진 <strong>${stats.samjin ?? 0}</strong></span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // 2. Pitch Timeline & At-Bat History Archive Stack (#text-stream)
-    if (!streamContainer) return;
-
-    const allSessions = (s.batter_sessions && s.batter_sessions.length > 0) ? s.batter_sessions : [];
-
-    // Filter sessions by active tab
-    const activeKey = (userSelectedInningTab !== null && userSelectedInningTab !== undefined) ? userSelectedInningTab : 'all';
-
-    let filteredSessions = [];
-    if (activeKey === 'all') {
-        filteredSessions = allSessions;
-    } else if (activeKey === 'score') {
-        filteredSessions = allSessions.filter(sess => {
-            const summary = sess.play_summary || '';
-            const isScoringSummary = summary.includes('득점') || summary.includes('홈런') || summary.includes('타점') || summary.includes('점');
-            const hasScoringPitch = (sess.pitches || []).some(p => p.code === 'HOMERUN' || (p.result && (p.result.includes('홈런') || p.result.includes('득점'))));
-            return isScoringSummary || hasScoringPitch;
-        });
-    } else {
-        const targetInningNum = Number(activeKey);
-        filteredSessions = allSessions.filter(sess => {
-            const inn = sess.inning || (sess.inning_str ? parseInt(sess.inning_str, 10) : 1);
-            return inn === targetInningNum;
-        });
-    }
-
-    // Safety fallback: If filtered sessions is empty, fallback to allSessions so live stream is always active and visible
-    if (filteredSessions.length === 0) {
-        filteredSessions = allSessions;
-    }
-
-    if (filteredSessions.length === 0) {
-        streamContainer.innerHTML = `
-            <div class="stream-log-card default-log" style="padding:16px; text-align:center; color:#94a3b8; font-size:0.85rem; background:#0f172a; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
-                ⚾ <strong>[라이브 중계 진행 대기]</strong> 우측 상단의 <strong>[1구 투구]</strong> 버튼을 누르시면 투구 타임라인이 라이브 스트림으로 차곡차곡 쌓입니다.
-            </div>
-        `;
-        return;
-    }
-
-    let fullStreamHtml = '';
-
-    filteredSessions.forEach((sess, sessIdx) => {
-        const innNum = sess.inning || (sess.inning_str ? parseInt(sess.inning_str, 10) : 1);
-        const isTop = (sess.is_top !== undefined) ? sess.is_top : (sess.inning_str ? sess.inning_str.includes('초') : true);
-        const innStr = sess.inning_str || `${innNum}회${isTop ? '초' : '말'}`;
-        const offenseTeam = sess.offense_team || (isTop ? (s.away_team_name || s.away_team || '한화') : (s.home_team_name || s.home_team || '롯데'));
-
-        // Check if half-inning section changes compared to previous rendered session in loop
-        const prevSess = sessIdx > 0 ? filteredSessions[sessIdx - 1] : null;
-        const prevInnNum = prevSess ? (prevSess.inning || (prevSess.inning_str ? parseInt(prevSess.inning_str, 10) : 1)) : null;
-        const prevIsTop = prevSess ? ((prevSess.is_top !== undefined) ? prevSess.is_top : (prevSess.inning_str ? prevSess.inning_str.includes('초') : true)) : null;
-
-        const isNewSection = (sessIdx === 0) || (innNum !== prevInnNum) || (isTop !== prevIsTop);
-
-        let dividerHtml = '';
-        if (isNewSection) {
-            const dividerClass = isTop ? 'top-divider' : 'bottom-divider';
-            dividerHtml = `
-                <div class="half-inning-divider ${dividerClass}">
-                    <span>--- ${innStr} ${offenseTeam} 공격 ---</span>
-                </div>
-            `;
-        }
-
-        const sessPitches = sess.pitches || [];
-        const reversedPitches = [...sessPitches].reverse();
-        
-        let headerHtml = '';
-        if (sess.play_summary && sess.play_summary.trim() !== '') {
-            // Completed at-bat final result title header (Strict rule: NO win probability string)
-            headerHtml = `
-                <div class="at-bat-final-result-title">
-                    <span class="result-title-icon">⚾</span>
-                    <span class="result-title-text">${sess.play_summary}</span>
-                </div>
-            `;
-        } else {
-            // Active ongoing at-bat header
-            const inningInfo = sess.inning_str ? `[${sess.inning_str}] ` : '';
-            headerHtml = `
-                <div class="at-bat-block-header">
-                    <span class="at-bat-active-tag">⚾ ${inningInfo}${sess.batter_name || bName} (${sess.batter_order || bOrder})</span>
-                    <span class="at-bat-status-badge">진행 중</span>
-                </div>
-            `;
-        }
-
-        let timelineHtml = '';
-        if (reversedPitches.length === 0) {
-            timelineHtml = `
-                <div class="pitch-pending-text" style="color:#64748b; font-size:0.82rem; padding:6px 0; text-align:center;">
-                    ⚾ 투구 준비 중입니다.
-                </div>
-            `;
-        } else {
-            timelineHtml = reversedPitches.map((p, idx) => {
-                if (p.is_pitcher_change || p.type === 'PITCHER_CHANGE') {
-                    const isChange = (p.result === '투수 교체') || (p.old_pitcher && p.new_pitcher && p.old_pitcher !== p.new_pitcher);
-                    return `
-                        <div class="pitcher-change-timeline-banner ${isChange ? 'is-change' : 'is-keep'}">
-                            <div class="pitcher-change-header">
-                                <span class="pitcher-change-badge">${isChange ? '🔄 투수 교체' : '🛡️ 투수 유지'}</span>
-                                <span class="pitcher-change-names">${p.old_pitcher || '투수'} ➔ <strong class="new-p-highlight">${p.new_pitcher || '구원투수'}</strong></span>
-                            </div>
-                            <div class="pitcher-change-desc">
-                                ${p.commentary_text || '마운드 투수가 교체되었습니다.'}
-                            </div>
-                        </div>
-                    `;
-                }
-
-                const seq = p.seq || (sessPitches.length - idx);
-                const resText = p.result || '스트라이크';
-                const speedType = p.speed_type || '141km/h 커터';
-                const countText = p.count ? (p.count.startsWith('S-B:') ? p.count.replace('S-B: ', '').replace('-', ' - ') : p.count) : `${s.strikes || 0} - ${s.balls || 0}`;
-
-                let badgeClass = 'badge-orange';
-                if (p.code === 'BALL' || resText.includes('볼')) {
-                    badgeClass = 'badge-green';
-                } else if (p.code === 'SINGLE' || p.code === 'DOUBLE' || p.code === 'HOMERUN' || resText.includes('타격') || resText.includes('안타')) {
-                    badgeClass = 'badge-blue';
-                } else if (p.code === 'OUT' || resText.includes('아웃') || resText.includes('삼진')) {
-                    badgeClass = 'badge-red';
-                } else {
-                    badgeClass = 'badge-orange';
-                }
-
-                return `
-                    <div class="pitch-timeline-row">
-                        <div class="pitch-badge-group ${badgeClass}">
-                            <span class="pitch-num-circle">${seq}</span>
-                            <span class="pitch-result-label">${resText}</span>
-                        </div>
-                        <div class="pitch-detail-desc">
-                            <span class="pitch-speed-type">${speedType}</span>
-                            <span class="pitch-count-split">| ${countText}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        fullStreamHtml += `
-            ${dividerHtml}
-            <div class="at-bat-history-block">
-                ${headerHtml}
-                <div class="pitch-timeline-list">
-                    ${timelineHtml}
-                </div>
-            </div>
-        `;
-    });
-
-    streamContainer.innerHTML = fullStreamHtml;
-    if (!userIsReadingHistory) {
-        streamContainer.scrollTop = 0;
-    }
-}
-
 function updateLeds(containerId, count, activeClass) {
     const ids = [containerId, `mini-${containerId}`];
     ids.forEach(id => {
@@ -2038,51 +1718,26 @@ function updateLeds(containerId, count, activeClass) {
 
 function openCrisisModal(crisis) {
     const modal = document.getElementById('crisis-modal');
-    if (!modal) return;
+    if (!modal || !crisis) return;
     if (modal.classList.contains('active')) return;
-
-    const titleEl = document.getElementById('crisis-title');
-    if (titleEl) titleEl.innerText = crisis.title || '🚨 [위기 관리] 투수 교체 감독 지시';
-
-    const descEl = document.getElementById('crisis-desc');
-    if (descEl) descEl.innerText = crisis.desc || '위기 상황 발생!';
+    // 작전 결과 팝업을 보는 중이면, 닫은 뒤에 띄움 (뒤에서 타이머가 흘러가지 않게)
+    const resultModal = document.getElementById('tactic-result-modal');
+    if (resultModal && resultModal.classList.contains('active')) {
+        window._pendingCrisis = crisis;
+        return;
+    }
 
     const pName = crisis.pitcher_name || (currentGameState ? currentGameState.pitcher : '투수');
     const pCount = crisis.pitch_count !== undefined ? crisis.pitch_count : (currentGameState ? currentGameState.totalPitcherCount : 0);
-    const condLabel = crisis.condition_label || (pCount >= 70 ? '조건 B: 70구 이상 득점권 실점 위기' : '조건 A: 70구 미만 4타자 연속 출루 위기');
+    const inning = (currentGameState && currentGameState.inning_str) || '';
+    const reason = crisis.condition_type === 'CONDITION_A' ? '4타자 연속 출루' : '득점권 주자 · 실점 위기';
 
-    const statusBox = document.getElementById('crisis-pitcher-status-box');
-    if (statusBox) {
-        statusBox.innerHTML = `
-            <div class="crisis-status-row">
-                <span class="lbl">🧢 마운드 투수:</span>
-                <strong class="val-pitcher">${pName} 투수</strong>
-            </div>
-            <div class="crisis-status-row">
-                <span class="lbl">📊 현재 투구수:</span>
-                <span class="val-count">${pCount}구 투구 중</span>
-            </div>
-            <div class="crisis-status-row">
-                <span class="lbl">⚠️ 감지된 위기:</span>
-                <span class="val-cond-badge">${condLabel}</span>
-            </div>
-        `;
-    }
-
-    const optionsContainer = document.getElementById('tactics-options-container');
-    if (optionsContainer) {
-        optionsContainer.className = 'tactics-options-bold';
-        optionsContainer.innerHTML = `
-            <button class="btn-tactic-block btn-pitcher-change" onclick="submitTactic('PITCHER_CHANGE')">
-                <span class="btn-block-text">🚨 [ 투수 교체하기 ]</span>
-                <span class="btn-sub-text">불펜 구원 투수로 마운드 교체 (+감독 스코어 가산)</span>
-            </button>
-            <button class="btn-tactic-block btn-stay-pitcher" onclick="submitTactic('KEEP_PITCHER')">
-                <span class="btn-block-text">🛡️ [ 투수 교체하지 않기 ]</span>
-                <span class="btn-sub-text">현재 투수로 계속 진행 (강행 투구)</span>
-            </button>
-        `;
-    }
+    const descEl = document.getElementById('crisis-desc');
+    if (descEl) descEl.textContent = [inning, reason].filter(Boolean).join(' · ');
+    const nameEl = document.getElementById('crisis-pitcher-name');
+    if (nameEl) nameEl.textContent = pName;
+    const countEl = document.getElementById('crisis-pitch-count');
+    if (countEl) countEl.textContent = `${pCount}구`;
 
     modal.classList.add('active');
     playWebAudioAlert('tactic_modal');
@@ -2126,9 +1781,7 @@ function submitTactic(tacticId) {
                 updateScoreboardUI(res.state);
                 drawBaseballField(res.state);
             }
-            const myLabel = (tacticId === 'PITCHER_CHANGE') ? '교체 (O)' : '유지 (X)';
-            const mgrLabel = (res.actual_manager_choice === 'CHANGE') ? '교체 (O)' : '유지 (X)';
-            showToast(`📋 [위기 작전 제출 완료] 나의 선택: ${myLabel} | 실제 감독: ${mgrLabel} ➔ 타석 승부 결과(아웃/출루) 확정 시 채점됩니다!`);
+            showToast('작전 제출! 이번 타석 결과가 나오면 채점돼요');
         }
     });
 }
@@ -2136,66 +1789,29 @@ function submitTactic(tacticId) {
 function openTacticResultModal(res) {
     const modal = document.getElementById('tactic-result-modal');
     if (!modal || !res) return;
-
-    const caseEl = document.getElementById('res-case-no');
-    if (caseEl) {
-        caseEl.innerText = res.case_no ? `${res.case_no}번 케이스 (${res.title || '판정'})` : '위기 채점';
-    }
+    const strip = t => String(t || '').replace(/\s*\([OX]\)\s*/g, '').trim();
 
     const badge = document.getElementById('res-grade-badge');
     if (badge) {
-        badge.innerText = res.grade || 'B';
+        badge.textContent = res.grade || 'B';
         badge.className = `result-badge grade-${(res.grade || 'b').toLowerCase()}`;
     }
-
+    const delta = res.score_delta || 0;
     const deltaEl = document.getElementById('res-score-delta');
     if (deltaEl) {
-        const delta = res.score_delta || 0;
-        if (delta > 0) {
-            deltaEl.innerText = `+${delta} pts`;
-            deltaEl.className = 'delta-plus';
-        } else if (delta < 0) {
-            deltaEl.innerText = `${delta} pts`;
-            deltaEl.className = 'delta-minus';
-        } else {
-            deltaEl.innerText = `0 pts`;
-            deltaEl.className = 'delta-zero';
-        }
+        deltaEl.textContent = delta > 0 ? `+${delta}` : `${delta}`;
+        deltaEl.className = delta > 0 ? 'delta-plus' : delta < 0 ? 'delta-minus' : 'delta-zero';
     }
-
-    const myChoiceEl = document.getElementById('res-my-choice');
-    if (myChoiceEl) {
-        myChoiceEl.innerText = res.my_choice_label || ((res.my_choice === 'CHANGE' || res.tactic_id === 'PITCHER_CHANGE') ? '교체 (O)' : '유지 (X)');
-    }
-
-    const actualChoiceEl = document.getElementById('res-actual-choice');
-    if (actualChoiceEl) {
-        actualChoiceEl.innerText = res.mgr_choice_label || (res.actual_manager_choice === 'CHANGE' ? '교체 (O)' : '유지 (X)');
-    }
-
-    const resultEl = document.getElementById('res-atbat-result');
-    if (resultEl) {
-        resultEl.innerText = res.actual_result_label || (res.actual_result === 'OUT' ? '아웃 (O)' : '아웃 외 상황 (X)');
-    }
-
-    const commEl = document.getElementById('res-commentary');
-    if (commEl) {
-        commEl.innerText = res.commentary || '';
-        const delta = res.score_delta || 0;
-        if (delta > 0) {
-            commEl.style.background = 'rgba(16, 185, 129, 0.12)';
-            commEl.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-            commEl.style.color = '#34d399';
-        } else if (delta < 0) {
-            commEl.style.background = 'rgba(239, 68, 68, 0.12)';
-            commEl.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-            commEl.style.color = '#f87171';
-        } else {
-            commEl.style.background = 'rgba(148, 163, 184, 0.12)';
-            commEl.style.borderColor = 'rgba(148, 163, 184, 0.4)';
-            commEl.style.color = '#cbd5e1';
-        }
-    }
+    const mine = strip(res.my_choice_label) || ((res.my_choice === 'CHANGE' || res.tactic_id === 'PITCHER_CHANGE') ? '교체' : '유지');
+    const mgr = strip(res.mgr_choice_label) || (res.actual_manager_choice === 'CHANGE' ? '교체' : '유지');
+    const out = res.actual_result === 'OUT' || /^아웃/.test(res.actual_result_label || '');
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    set('res-my-choice', mine);
+    set('res-actual-choice', mgr);
+    set('res-atbat-result', out ? '아웃' : '출루');
+    set('res-commentary', delta > 0 ? '좋은 판단이었어요!' : delta < 0 ? '아쉬운 판단이었어요' : '무난한 판단이었어요');
+    const comm = document.getElementById('res-commentary');
+    if (comm) comm.className = `igm-comment ${delta > 0 ? 'good' : delta < 0 ? 'bad' : ''}`;
 
     modal.classList.add('active');
     playWebAudioAlert('tactic_result');
@@ -2205,6 +1821,11 @@ function closeTacticResultModal() {
     const modal = document.getElementById('tactic-result-modal');
     if (modal) {
         modal.classList.remove('active');
+    }
+    const pending = window._pendingCrisis;
+    window._pendingCrisis = null;
+    if (pending && currentGameState && currentGameState.crisis_active) {
+        openCrisisModal(currentGameState.current_crisis || pending);
     }
 }
 
@@ -2243,9 +1864,15 @@ function triggerStep() {
         return;
     }
     resetAutoPitchTimer();
+    // 응답이 올 때까지 버튼을 눌린 상태로 (연타로 요청이 쌓이지 않게)
+    const pitchBtn = document.getElementById('btn-pitch-step');
+    if (pitchBtn && pitchBtn.classList.contains('busy')) return;
+    if (pitchBtn) pitchBtn.classList.add('busy');
+    const done = () => { if (pitchBtn) pitchBtn.classList.remove('busy'); };
     fetch('/api/step', { method: 'POST' })
         .then(r => r.json())
         .then(state => {
+            done();
             currentGameState = state;
             saveGameStateToStorage(state);
 
@@ -2274,6 +1901,7 @@ function triggerStep() {
             }
         })
         .catch(err => {
+            done();
             console.warn("API step failed, running local pitch simulation fallback:", err);
             runLocalPitchFallback();
         });
@@ -2452,502 +2080,238 @@ function showToast(msg) {
 }
 
 let ctx = null;
-function initCanvas() {
-    const canvas = document.getElementById('baseballFieldCanvas');
-    if (canvas) {
-        ctx = canvas.getContext('2d');
-    }
+
+// ==========================================================================
+// 인게임 화면: 점수판 · 카운트 · 투수 vs 타자 · 그라운드 · 이번 타석 투구 · 중계 기록 시트
+// ==========================================================================
+function igSetText(id, text) {
+    const el = document.getElementById(id);
+    if (el && el.textContent !== String(text)) el.textContent = text;
 }
 
-let graphicViewMode = 'FIELD'; // Default: 'FIELD' (주루/필드 뷰), 'BATTING' (타석 3D 뷰)
-
-function toggleGraphicView() {
-    graphicViewMode = (graphicViewMode === 'FIELD') ? 'BATTING' : 'FIELD';
-    const btnLabel = document.getElementById('toggle-btn-label');
-    if (btnLabel) {
-        btnLabel.innerText = (graphicViewMode === 'FIELD') ? '타석보기' : '주루보기';
-    }
-    if (currentGameState) {
-        drawBaseballField(currentGameState);
-    }
+function igDots(id, count) {
+    const box = document.getElementById(id);
+    if (!box) return;
+    box.querySelectorAll('i').forEach((dot, i) => dot.classList.toggle('on', i < count));
 }
 
-function updateMiniLeds(containerId, count, activeClass) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const dots = container.querySelectorAll('.dot');
-    dots.forEach((dot, i) => {
-        if (i < count) {
-            dot.classList.add(activeClass);
-        } else {
-            dot.className = 'dot';
-        }
+function igAvg(v) {
+    const n = parseFloat(v);
+    if (isNaN(n)) return '';
+    return n.toFixed(3).replace(/^0/, '');
+}
+
+// 투구 결과를 색·짧은 이름으로
+function igPitchKind(p) {
+    const code = (p && p.code) || '';
+    const res = (p && p.result) || '';
+    if (code === 'BALL') return { cls: 'b', label: '볼' };
+    if (code === 'STRIKE') return { cls: 's', label: '스트라이크' };
+    if (code === 'FOUL') return { cls: 'f', label: '파울' };
+    if (code === 'OUT') return { cls: 'out', label: res.replace('타격 ', '') || '아웃' };
+    if (['SINGLE', 'DOUBLE', 'TRIPLE', 'HOMERUN'].includes(code)) {
+        return { cls: 'hit', label: (res.match(/\(([^)]+)\)/) || [])[1] || '안타' };
+    }
+    return { cls: 'etc', label: res || '투구' };
+}
+
+// 한 타석의 투구들을 순서대로 판정: 파울은 2스트라이크 전까지는 스트라이크(노랑), 그 뒤로는 파울(회색)
+function igSeqKinds(pitches) {
+    let strikes = 0;
+    return (pitches || []).map(p => {
+        const k = igPitchKind(p);
+        if (k.cls === 's') strikes++;
+        else if (k.cls === 'f' && strikes < 2) { strikes++; return { cls: 's', label: '파울' }; }
+        return k;
     });
 }
+
+function igCurrentSession(s) {
+    return (s.batter_sessions && s.batter_sessions.length) ? s.batter_sessions[0] : null;
+}
+
+function renderIngame(s) {
+    if (!s) return;
+    const away = normalizeTeamShort(s.away_team) || s.away_team || '원정';
+    const home = normalizeTeamShort(s.home_team) || s.home_team || '홈';
+    igSetText('ig-away-name', away);
+    igSetText('ig-home-name', home);
+    setHtmlIfChanged(document.getElementById('ig-away-logo'), teamLogoHtml(away));
+    setHtmlIfChanged(document.getElementById('ig-home-logo'), teamLogoHtml(home));
+    igSetText('ig-away-score', s.score_away ?? 0);
+    igSetText('ig-home-score', s.score_home ?? 0);
+
+    const pts = (s.manager_score !== undefined && s.manager_score !== null) ? s.manager_score : 2000;
+    igSetText('live-score-val', `${Number(pts).toLocaleString()}P`);
+
+    igSetText('ig-inning', s.inning_str || '1회초');
+    igDots('ig-b', s.balls ?? 0);
+    igDots('ig-s', s.strikes ?? 0);
+    igDots('ig-o', s.outs ?? 0);
+    [['ig-mb-1', s.runner_1b], ['ig-mb-2', s.runner_2b], ['ig-mb-3', s.runner_3b]].forEach(([id, on]) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('on', !!on);
+    });
+
+    igSetText('ig-pitcher', s.pitcher || '-');
+    const pc = s.totalPitcherCount ?? s.pitch_count ?? 0;
+    igSetText('ig-pitch-count', `투구 ${pc}구`);
+
+    igSetText('ig-batter', s.batter || '-');
+    const sess = igCurrentSession(s);
+    const order = sess && sess.batter_order ? sess.batter_order.replace('타자', '') : '';
+    const avg = igAvg(sess ? (sess.batter_avg || (sess.batter_stats && sess.batter_stats.avg)) : '');
+    igSetText('ig-batter-sub', [order, avg && `타율 ${avg}`].filter(Boolean).join(' · ') || '-');
+
+    const btn = document.getElementById('btn-pitch-step');
+    if (btn) btn.disabled = !!s.game_over;
+}
+
+// 그라운드 (위에서 내려다본 구장)
+const IG_FIELD_POS = {
+    P: [200, 206], C: [200, 292], '1B': [280, 178], '2B': [242, 146], SS: [158, 146],
+    '3B': [120, 178], LF: [94, 100], CF: [200, 64], RF: [306, 100]
+};
+const IG_BASES = { home: [200, 268], b1: [262, 206], b2: [200, 144], b3: [138, 206] };
+
+function renderIngameField(s) {
+    const box = document.getElementById('ig-field');
+    if (!box || !s) return;
+    const defTeam = normalizeTeamShort(s.is_top !== false ? s.home_team : s.away_team);
+    const offTeam = normalizeTeamShort(s.is_top !== false ? s.away_team : s.home_team);
+    const defColor = teamColorMap[defTeam] || '#334155';
+    const offColor = teamColorMap[offTeam] || '#f59e0b';
+
+    const fielders = (s.fielders || []).filter(f => IG_FIELD_POS[f.role]);
+    const fHtml = fielders.map(f => {
+        const [x, y] = IG_FIELD_POS[f.role];
+        const label = f.role === 'P' ? '' : `<text x="${x}" y="${y + 21}" class="ig-fname">${f.name}</text>`;
+        return `<g class="ig-f"><circle cx="${x}" cy="${y}" r="8.5" fill="${defColor}"/>${label}</g>`;
+    }).join('');
+
+    const runners = [['b1', s.runner_1b], ['b2', s.runner_2b], ['b3', s.runner_3b]].filter(r => r[1]);
+    const rHtml = runners.map(([b]) => {
+        const [x, y] = IG_BASES[b];
+        return `<g class="ig-run"><circle cx="${x}" cy="${y}" r="8" fill="${offColor}"/><circle cx="${x}" cy="${y}" r="11" class="ig-run-ring"/></g>`;
+    }).join('');
+
+    const base = (k, on) => {
+        const [x, y] = IG_BASES[k];
+        return `<rect x="${x - 6}" y="${y - 6}" width="12" height="12" transform="rotate(45 ${x} ${y})" class="ig-base ${on ? 'on' : ''}"/>`;
+    };
+    const [hx, hy] = IG_BASES.home;
+
+    setHtmlIfChanged(box, `<svg viewBox="14 8 372 312" preserveAspectRatio="xMidYMax meet" class="ig-svg" role="img" aria-label="그라운드 수비 배치">
+        <defs>
+            <pattern id="igMow" width="34" height="34" patternUnits="userSpaceOnUse" patternTransform="rotate(45 200 268)">
+                <rect width="17" height="34" fill="#1f6b37"/><rect x="17" width="17" height="34" fill="#1b5f31"/>
+            </pattern>
+        </defs>
+        <path d="M200 268 L22 90 A252 252 0 0 1 378 90 Z" fill="url(#igMow)"/>
+        <path d="M22 90 A252 252 0 0 1 378 90" class="ig-track"/>
+        <path d="M200 294 L110 204 Q200 52 290 204 Z" class="ig-dirt"/>
+        <polygon points="200,252 246,206 200,160 154,206" fill="#1f6b37"/>
+        <circle cx="200" cy="206" r="12" class="ig-dirt"/>
+        <circle cx="${hx}" cy="${hy}" r="20" class="ig-dirt"/>
+        <path d="M200 268 L22 90 M200 268 L378 90" class="ig-line"/>
+        <path d="M${hx} ${hy} L262 206 L200 144 L138 206 Z" class="ig-path"/>
+        ${base('b1', s.runner_1b)}${base('b2', s.runner_2b)}${base('b3', s.runner_3b)}
+        <path d="M${hx - 6} ${hy - 4} h12 v5 l-6 6 l-6 -6 z" class="ig-home"/>
+        ${fHtml}
+        ${rHtml}
+    </svg>`);
+}
+
+// 이번 타석 투구 (없으면 직전 타석 결과)
+function renderIngameLast(s) {
+    const box = document.getElementById('ig-last');
+    if (!box || !s) return;
+    const pitches = s.current_batter_pitches || [];
+    if (!pitches.length) {
+        const prev = (s.batter_sessions || []).find(b => b.play_summary);
+        const text = prev ? prev.play_summary.replace(/\s*:\s*/, ' ') : '첫 투구를 기다리고 있어요';
+        setHtmlIfChanged(box, `<div class="ig-last-line"><span class="ig-chip etc">${prev ? '직전 타석' : '대기'}</span><span class="ig-last-text">${text}</span></div>`);
+        return;
+    }
+    const last = pitches[pitches.length - 1];
+    const kinds = igSeqKinds(pitches);
+    const k = kinds[kinds.length - 1];
+    const dots = pitches.map((p, i) => `<span class="ig-pdot ${kinds[i].cls}">${p.seq}</span>`).join('');
+    setHtmlIfChanged(box, `<div class="ig-last-line"><span class="ig-chip ${k.cls}">${k.label}</span><span class="ig-last-text">${last.seq}구 · ${last.speed_type || ''}</span></div>
+        <div class="ig-pdots">${dots}</div>`);
+}
+
+// 중계 기록 시트
+let igLogTab = 'all';
+
+function openIngameLog() {
+    const sheet = document.getElementById('ig-log-sheet');
+    const bg = document.getElementById('ig-log-bg');
+    if (!sheet) return;
+    renderIngameLog(currentGameState);
+    sheet.classList.add('open');
+    sheet.setAttribute('aria-hidden', 'false');
+    if (bg) bg.classList.add('open');
+}
+
+function closeIngameLog() {
+    const sheet = document.getElementById('ig-log-sheet');
+    const bg = document.getElementById('ig-log-bg');
+    if (sheet) { sheet.classList.remove('open'); sheet.setAttribute('aria-hidden', 'true'); }
+    if (bg) bg.classList.remove('open');
+}
+
+function selectInningTab(tabKey) {
+    igLogTab = String(tabKey);
+    renderIngameLog(currentGameState);
+}
+
+function renderIngameLog(s) {
+    const list = document.getElementById('ig-log-list');
+    const tabs = document.getElementById('ig-log-tabs');
+    if (!list || !s) return;
+    const sessions = s.batter_sessions || [];
+    const innings = Array.from(new Set(sessions.map(b => b.inning))).filter(Boolean).sort((a, b) => a - b);
+    if (tabs) {
+        const keys = ['all', ...innings.map(String)];
+        if (!keys.includes(igLogTab)) igLogTab = 'all';
+        setHtmlIfChanged(tabs, keys.map(k => `<button class="ig-tab ${k === igLogTab ? 'active' : ''}" onclick="selectInningTab('${k}')">${k === 'all' ? '전체' : k + '회'}</button>`).join(''));
+    }
+    const shown = sessions.filter(b => igLogTab === 'all' || String(b.inning) === igLogTab);
+    if (!shown.length) {
+        setHtmlIfChanged(list, '<div class="ig-log-empty">아직 기록이 없어요</div>');
+        return;
+    }
+    setHtmlIfChanged(list, shown.map((b, i) => {
+        const pitches = b.pitches || [];
+        const live = i === 0 && igLogTab === 'all' && !b.play_summary;
+        const result = b.play_summary ? b.play_summary.split(':').slice(1).join(':').trim() : (live ? '타석 진행 중' : '');
+        const kinds = igSeqKinds(pitches);
+        const lastKind = kinds.length ? kinds[kinds.length - 1].cls : 'etc';
+        return `<div class="ig-log-item ${live ? 'live' : ''}">
+            <div class="ig-log-top">
+                <span class="ig-log-inn">${b.inning_str || ''}</span>
+                <strong class="ig-log-name">${b.batter_name || ''}</strong>
+                <span class="ig-log-res ${b.play_summary ? lastKind : ''}">${result}</span>
+            </div>
+            <div class="ig-pdots small">${pitches.map((p, i) => `<span class="ig-pdot ${kinds[i].cls}">${p.seq}</span>`).join('')}</div>
+        </div>`;
+    }).join(''));
+}
+
+// 예전 이름으로 부르는 곳이 있어 그대로 연결
+function renderNaverSportsLiveFeed(s) {
+    const sheet = document.getElementById('ig-log-sheet');
+    if (sheet && sheet.classList.contains('open')) renderIngameLog(s);
+}
+function appendPitchTextLog(s) { renderNaverSportsLiveFeed(s); }
+function setupSmartAutoScroll() {}
+function initCanvas() {}
+function toggleGraphicView() {}
 
 function drawBaseballField(s) {
     if (!s) s = currentGameState;
-    const canvas = document.getElementById('baseballFieldCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const w = canvas.width || 600;
-    const h = canvas.height || 340;
-
-    // 1. Update Left-Top Mini Scoreboard Overlay Widget
-    if (s) {
-        const awayNameEl = document.getElementById('mini-away-name');
-        if (awayNameEl) awayNameEl.innerText = s.away_team || '한화';
-
-        const awayLogoEl = document.getElementById('mini-away-logo');
-        if (awayLogoEl) awayLogoEl.innerHTML = getTeamLogoHtml(s.away_team || '한화', 'mini-team-logo-img');
-
-        const awayScoreEl = document.getElementById('mini-away-score');
-        if (awayScoreEl) awayScoreEl.innerText = s.score_away ?? 0;
-
-        const homeNameEl = document.getElementById('mini-home-name');
-        if (homeNameEl) homeNameEl.innerText = s.home_team || '삼성';
-
-        const homeLogoEl = document.getElementById('mini-home-logo');
-        if (homeLogoEl) homeLogoEl.innerHTML = getTeamLogoHtml(s.home_team || '삼성', 'mini-team-logo-img');
-
-        const homeScoreEl = document.getElementById('mini-home-score');
-        if (homeScoreEl) homeScoreEl.innerText = s.score_home ?? 0;
-
-        const innNumEl = document.getElementById('mini-inning-num');
-        if (innNumEl) innNumEl.innerText = s.inning || 1;
-
-        const innDirEl = document.getElementById('mini-inning-dir');
-        if (innDirEl) innDirEl.innerText = s.is_top ? '▲' : '▼';
-
-        const isInitStart = s && (s.inning === 1 || !s.inning) && (s.is_top !== false) && (!s.totalPitcherCount || s.totalPitcherCount === 0);
-
-        const b1 = document.getElementById('mini-base-1b');
-        if (b1) b1.classList.toggle('occupied', isInitStart ? false : !!s.runner_1b);
-        const b2 = document.getElementById('mini-base-2b');
-        if (b2) b2.classList.toggle('occupied', isInitStart ? false : !!s.runner_2b);
-        const b3 = document.getElementById('mini-base-3b');
-        if (b3) b3.classList.toggle('occupied', isInitStart ? false : !!s.runner_3b);
-
-        updateMiniLeds('mini-led-b', s.balls ?? 0, 'active-b');
-        updateMiniLeds('mini-led-s', s.strikes ?? 0, 'active-s');
-        updateMiniLeds('mini-led-o', s.outs ?? 0, 'active-o');
-
-        const activePitcher = s.pitcher || (s.is_top ? (teamPitcherMap[s.home_team] || '원태인') : (teamPitcherMap[s.away_team] || '류현진'));
-        const pNameEl = document.getElementById('mini-p-name');
-        if (pNameEl) pNameEl.innerText = activePitcher;
-
-        const pCountEl = document.getElementById('mini-p-count');
-        const pCount = (s.totalPitcherCount !== undefined) ? s.totalPitcherCount : (s.pitch_count || 0);
-        if (pCountEl) pCountEl.innerText = `투구수 ${pCount}`;
-
-        // Top Matchup Bar Sync
-        const liveP = document.getElementById('live-pitcher');
-        if (liveP) liveP.innerText = activePitcher;
-        const pCountDetail = document.getElementById('pitcher-count');
-        if (pCountDetail) pCountDetail.innerText = `(투구수 ${pCount}구)`;
-
-        const activeBatter = s.batter || (s.is_top ? (teamBatterMap[s.away_team] || '황영묵') : (teamBatterMap[s.home_team] || '김지찬'));
-        const liveB = document.getElementById('live-batter');
-        if (liveB) liveB.innerText = activeBatter;
-    }
-
-    // 2. Update Left-Bottom On-Deck List Widget
-    const onDeckListEl = document.getElementById('on-deck-list');
-    const onDeckWidget = document.getElementById('on-deck-widget');
-
-    if (onDeckWidget) {
-        onDeckWidget.style.display = (graphicViewMode === 'FIELD') ? 'block' : 'none';
-    }
-
-    if (onDeckListEl && s) {
-        if (s.on_deck_batters && s.on_deck_batters.length > 0) {
-            onDeckListEl.innerHTML = s.on_deck_batters.map(b => `<div>${b}</div>`).join('');
-        } else {
-            const fallbackOnDeck = s.is_top ? ["2.최인호", "3.한지윤", "4.강백호"] : ["2.김성윤", "3.구자욱", "4.최형우"];
-            onDeckListEl.innerHTML = fallbackOnDeck.map(b => `<div>${b}</div>`).join('');
-        }
-    }
-
-    // 3. Render View Mode (FIELD vs BATTING)
-    const overlayLayer = document.getElementById('fielders-overlay-layer');
-
-    if (graphicViewMode === 'FIELD') {
-        if (overlayLayer) {
-            overlayLayer.style.display = 'block';
-            renderFieldersOverlay(overlayLayer, s);
-        }
-        drawGroundFieldCanvas(ctx, w, h, s);
-    } else {
-        if (overlayLayer) {
-            overlayLayer.style.display = 'none';
-        }
-        drawBatting3DCanvas(ctx, w, h, s);
-    }
-}
-
-function renderFieldersOverlay(layer, s) {
-    if (!layer) return;
-
-    // Defense Fielders from state or default Samsung/Hanwha defense
-    const defaultSamsungFielders = [
-        { role: 'P', name: (s && s.pitcher) ? s.pitcher : '최원태', x: 50, y: 53, avatar: '🧢' },
-        { role: 'C', name: '강민호', x: 50, y: 84, avatar: '⚾' },
-        { role: '1B', name: '디아즈', x: 74, y: 56, avatar: '🧢' },
-        { role: '2B', name: '류지혁', x: 63, y: 37, avatar: '🧢' },
-        { role: '3B', name: '김영웅', x: 26, y: 56, avatar: '🧢' },
-        { role: 'SS', name: '이재현', x: 37, y: 37, avatar: '🧢' },
-        { role: 'LF', name: '구자욱', x: 22, y: 24, avatar: '🧢' },
-        { role: 'CF', name: '김지찬', x: 50, y: 15, avatar: '🧢' },
-        { role: 'RF', name: '김성윤', x: 78, y: 24, avatar: '🧢' }
-    ];
-
-    const defaultHanwhaFielders = [
-        { role: 'P', name: (s && s.pitcher) ? s.pitcher : '이상규', x: 50, y: 53, avatar: '🧢' },
-        { role: 'C', name: '허인서', x: 50, y: 84, avatar: '⚾' },
-        { role: '1B', name: '강백호', x: 74, y: 56, avatar: '🧢' },
-        { role: '2B', name: '황영묵', x: 63, y: 37, avatar: '🧢' },
-        { role: '3B', name: '박정현', x: 26, y: 56, avatar: '🧢' },
-        { role: 'SS', name: '심우준', x: 37, y: 37, avatar: '🧢' },
-        { role: 'LF', name: '한지윤', x: 22, y: 24, avatar: '🧢' },
-        { role: 'CF', name: '권광민', x: 50, y: 15, avatar: '🧢' },
-        { role: 'RF', name: '최인호', x: 78, y: 24, avatar: '🧢' }
-    ];
-
-    const isHomeDefense = (s && s.is_top !== false); // In top inning, home team is defending
-    const defTeam = isHomeDefense ? (s ? s.home_team : '삼성') : (s ? s.away_team : '한화');
-    const defaultFielders = (defTeam === '한화') ? defaultHanwhaFielders : defaultSamsungFielders;
-
-    let fielders = (s && s.fielders && s.fielders.length > 0) ? s.fielders : defaultFielders;
-
-    let html = fielders.map(f => `
-        <div class="fielder-node" style="left: ${f.x}%; top: ${f.y}%;">
-            <div class="fielder-avatar">${f.avatar || '🧢'}</div>
-            <div class="fielder-name-pill">${f.name}</div>
-        </div>
-    `).join('');
-
-    // Offense Runners on base (Enforce bases empty at initial game start)
-    const isInitStart = s && (s.inning === 1 || !s.inning) && (s.is_top !== false) && (!s.totalPitcherCount || s.totalPitcherCount === 0);
-    const defaultRunners = (s && s.is_top === false) ? { r1: '김성윤', r2: '구자욱', r3: '최형우' } : { r1: '최인호', r2: '한지윤', r3: '강백호' };
-
-    if (!isInitStart && s && s.runner_1b) {
-        const r1Name = s.runner_1b_name || defaultRunners.r1;
-        html += `
-            <div class="runner-node" style="left: 67%; top: 49%;">
-                <div class="runner-avatar">🏃</div>
-                <div class="fielder-name-pill" style="border-color:#fef08a; color:#fef08a;">${r1Name}</div>
-            </div>
-        `;
-    }
-    if (!isInitStart && s && s.runner_2b) {
-        const r2Name = s.runner_2b_name || defaultRunners.r2;
-        html += `
-            <div class="runner-node" style="left: 50%; top: 31%;">
-                <div class="runner-avatar">🏃</div>
-                <div class="fielder-name-pill" style="border-color:#fef08a; color:#fef08a;">${r2Name}</div>
-            </div>
-        `;
-    }
-    if (!isInitStart && s && s.runner_3b) {
-        const r3Name = s.runner_3b_name || defaultRunners.r3;
-        html += `
-            <div class="runner-node" style="left: 33%; top: 49%;">
-                <div class="runner-avatar">🏃</div>
-                <div class="fielder-name-pill" style="border-color:#fef08a; color:#fef08a;">${r3Name}</div>
-            </div>
-        `;
-    }
-
-    layer.innerHTML = html;
-}
-
-function drawGroundFieldCanvas(ctx, w, h, s) {
-    ctx.clearRect(0, 0, w, h);
-
-    // 1. Lush Green Grass Field Gradient Background
-    const grassGrad = ctx.createLinearGradient(0, 0, 0, h);
-    grassGrad.addColorStop(0, '#15803d');
-    grassGrad.addColorStop(0.5, '#166534');
-    grassGrad.addColorStop(1, '#14532d');
-    ctx.fillStyle = grassGrad;
-    ctx.fillRect(0, 0, w, h);
-
-    // Outfield warning track arc
-    ctx.beginPath();
-    ctx.arc(w / 2, h * 0.85, w * 0.58, Math.PI * 1.1, Math.PI * 1.9);
-    ctx.strokeStyle = 'rgba(161, 98, 7, 0.4)';
-    ctx.lineWidth = 14;
-    ctx.stroke();
-
-    // 2. Infield Dirt Diamond Arc & Dirt Base Paths
-    const homeX = w / 2;
-    const homeY = h * 0.82;
-    const b1X = w * 0.74;
-    const b1Y = h * 0.56;
-    const b2X = w / 2;
-    const b2Y = h * 0.35;
-    const b3X = w * 0.26;
-    const b3Y = h * 0.56;
-
-    // Dirt Infield Arc Fill
-    ctx.beginPath();
-    ctx.arc(w / 2, h * 0.53, w * 0.28, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(161, 98, 7, 0.55)';
-    ctx.fill();
-
-    // Infield Grass Diamond Fill
-    ctx.beginPath();
-    ctx.moveTo(homeX, homeY - 12);
-    ctx.lineTo(b1X - 12, b1Y);
-    ctx.lineTo(b2X, b2Y + 12);
-    ctx.lineTo(b3X + 12, b3Y);
-    ctx.closePath();
-    ctx.fillStyle = '#166534';
-    ctx.fill();
-
-    // White Foul Lines
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(homeX, homeY);
-    ctx.lineTo(w * 0.96, h * 0.15);
-    ctx.moveTo(homeX, homeY);
-    ctx.lineTo(w * 0.04, h * 0.15);
-    ctx.stroke();
-
-    // Pitcher's Mound Dirt Circle & Rubber
-    const pX = w / 2;
-    const pY = h * 0.53;
-    ctx.beginPath();
-    ctx.arc(pX, pY, 14, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(180, 83, 9, 0.85)';
-    ctx.fill();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(pX - 5, pY - 2, 10, 3);
-
-    // Home Plate Pentagon
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.moveTo(homeX, homeY - 6);
-    ctx.lineTo(homeX + 8, homeY);
-    ctx.lineTo(homeX + 5, homeY + 8);
-    ctx.lineTo(homeX - 5, homeY + 8);
-    ctx.lineTo(homeX - 8, homeY);
-    ctx.closePath();
-    ctx.fill();
-
-    // Base Diamonds (1B, 2B, 3B) - Enforce empty at initial match start
-    const isInitStartCanvas = s && (s.inning === 1 || !s.inning) && (s.is_top !== false) && (!s.totalPitcherCount || s.totalPitcherCount === 0);
-    const run1 = isInitStartCanvas ? false : !!(s && s.runner_1b);
-    const run2 = isInitStartCanvas ? false : !!(s && s.runner_2b);
-    const run3 = isInitStartCanvas ? false : !!(s && s.runner_3b);
-
-    drawSingleBase(ctx, b1X, b1Y, run1);
-    drawSingleBase(ctx, b2X, b2Y, run2);
-    drawSingleBase(ctx, b3X, b3Y, run3);
-}
-
-function drawSingleBase(ctx, x, y, isOccupied) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(Math.PI / 4);
-    if (isOccupied) {
-        ctx.fillStyle = '#fef08a';
-        ctx.fillRect(-7, -7, 14, 14);
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-7, -7, 14, 14);
-    } else {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(-5, -5, 10, 10);
-    }
-    ctx.restore();
-}
-
-function drawBatting3DCanvas(ctx, w, h, s) {
-    ctx.clearRect(0, 0, w, h);
-
-    // 1. Stadium Perspective Background Gradient
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
-    bgGrad.addColorStop(0, '#0f172a');
-    bgGrad.addColorStop(0.45, '#1e293b');
-    bgGrad.addColorStop(1, '#064e3b');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, w, h);
-
-    // Outfield Horizon & Fence Line
-    ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, h * 0.46);
-    ctx.lineTo(w, h * 0.46);
-    ctx.stroke();
-
-    // 2. Batter Box & Home Plate
-    const homeX = w / 2;
-    const homeY = h - 25;
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.beginPath();
-    ctx.moveTo(homeX, homeY - 8);
-    ctx.lineTo(homeX + 15, homeY);
-    ctx.lineTo(homeX + 10, homeY + 12);
-    ctx.lineTo(homeX - 10, homeY + 12);
-    ctx.lineTo(homeX - 15, homeY);
-    ctx.closePath();
-    ctx.fill();
-
-    // Batter Boxes
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(homeX - 55, homeY - 15, 30, 42);
-    ctx.strokeRect(homeX + 25, homeY - 15, 30, 42);
-
-    // Batter Avatar Graphic (Home Plate Left Side)
-    ctx.fillStyle = '#60a5fa';
-    ctx.beginPath();
-    ctx.arc(homeX - 40, homeY - 25, 10, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Bat
-    ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(homeX - 35, homeY - 25);
-    ctx.lineTo(homeX - 20, homeY - 60);
-    ctx.stroke();
-
-    // 3. Centered Strike Zone Box (3x3 Grid)
-    const zoneW = 125;
-    const zoneH = 145;
-    const zoneX = (w - zoneW) / 2;
-    const zoneY = 60;
-
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-    ctx.fillRect(zoneX, zoneY, zoneW, zoneH);
-
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 3;
-    ctx.shadowColor = '#0284c7';
-    ctx.shadowBlur = 8;
-    ctx.strokeRect(zoneX, zoneY, zoneW, zoneH);
-    ctx.shadowBlur = 0;
-
-    // 3x3 Grid
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-    ctx.lineWidth = 1;
-    const cellW = zoneW / 3;
-    const cellH = zoneH / 3;
-
-    ctx.beginPath();
-    ctx.moveTo(zoneX + cellW, zoneY);
-    ctx.lineTo(zoneX + cellW, zoneY + zoneH);
-    ctx.moveTo(zoneX + cellW * 2, zoneY);
-    ctx.lineTo(zoneX + cellW * 2, zoneY + zoneH);
-    ctx.moveTo(zoneX, zoneY + cellH);
-    ctx.lineTo(zoneX + zoneW, zoneY + cellH);
-    ctx.moveTo(zoneX, zoneY + cellH * 2);
-    ctx.lineTo(zoneX + zoneW, zoneY + cellH * 2);
-    ctx.stroke();
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = 'bold 9px Orbitron, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('STRIKE ZONE', w / 2, zoneY - 6);
-
-    // 4. Pitch Trajectories & Floating Markers
-    const rawPitches = (s && (s.current_batter_pitches || s.pitches || (s.batter_sessions && s.batter_sessions[0] && s.batter_sessions[0].pitches))) || [];
-    // Filter out non-pitch items (e.g. pitcher change events)
-    const pitches = rawPitches.filter(p => p && !p.is_pitcher_change && p.type !== 'PITCHER_CHANGE' && (p.code || p.result));
-    const moundX = w / 2;
-    const moundY = 32;
-
-    pitches.forEach((p, idx) => {
-        const seq = p.seq || (idx + 1);
-        let px = zoneX + zoneW / 2;
-        let py = zoneY + zoneH / 2;
-
-        if (p.pz_x !== undefined && p.pz_y !== undefined) {
-            px = zoneX + zoneW / 2 + p.pz_x * (zoneW / 2);
-            py = zoneY + zoneH / 2 + p.pz_y * (zoneH / 2);
-        } else {
-            const isStk = (p.code === 'STRIKE' || p.code === 'FOUL' || p.code === 'SINGLE' || p.code === 'DOUBLE' || p.code === 'HOMERUN' || p.code === 'OUT');
-            const offsets = [
-                { x: 0, y: -0.2 }, { x: -0.4, y: 0.3 }, { x: 0.4, y: -0.4 },
-                { x: -0.3, y: -0.5 }, { x: 0.5, y: 0.4 }, { x: 0.1, y: 0.5 }
-            ];
-            const off = offsets[(seq - 1) % offsets.length];
-            if (isStk) {
-                px = zoneX + zoneW / 2 + off.x * (zoneW / 2 * 0.7);
-                py = zoneY + zoneH / 2 + off.y * (zoneH / 2 * 0.7);
-            } else {
-                px = zoneX + zoneW / 2 + (off.x > 0 ? 1.3 : -1.3) * (zoneW / 2);
-                py = zoneY + zoneH / 2 + (off.y > 0 ? 1.3 : -1.3) * (zoneH / 2);
-            }
-        }
-
-        const isInsideZone = (px >= zoneX - 3 && px <= zoneX + zoneW + 3 && py >= zoneY - 3 && py <= zoneY + zoneH + 3);
-
-        // Dynamic 3D Trajectory Line (Mound to Target Location)
-        ctx.beginPath();
-        ctx.moveTo(moundX, moundY);
-        ctx.lineTo(px, py);
-        ctx.strokeStyle = isInsideZone ? 'rgba(245, 158, 11, 0.65)' : 'rgba(59, 130, 246, 0.65)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Numbered Sequence Circle Marker
-        const markerRadius = 11;
-        const isLatest = (idx === pitches.length - 1);
-
-        if (isLatest) {
-            ctx.beginPath();
-            ctx.arc(px, py, markerRadius + 5, 0, Math.PI * 2);
-            ctx.fillStyle = isInsideZone ? 'rgba(245, 158, 11, 0.35)' : 'rgba(59, 130, 246, 0.35)';
-            ctx.fill();
-        }
-
-        ctx.beginPath();
-        ctx.arc(px, py, markerRadius, 0, Math.PI * 2);
-        ctx.fillStyle = isInsideZone ? '#f59e0b' : '#3b82f6';
-        ctx.strokeStyle = isInsideZone ? '#ffffff' : '#93c5fd';
-        ctx.lineWidth = 2;
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 11px Noto Sans KR, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(seq, px, py);
-
-        // Speed & Pitch Type Tooltip for Latest Pitch
-        const pLabel = p.speed_type || p.result;
-        if (isLatest && pLabel) {
-            const tooltipText = `${seq} ${pLabel}`;
-            ctx.font = 'bold 10px Noto Sans KR, sans-serif';
-            const tw = ctx.measureText(tooltipText).width + 12;
-            const tx = Math.max(tw / 2 + 5, Math.min(w - tw / 2 - 5, px));
-            const ty = py - 22;
-
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 1;
-            ctx.fillRect(tx - tw / 2, ty - 9, tw, 18);
-            ctx.strokeRect(tx - tw / 2, ty - 9, tw, 18);
-
-            ctx.fillStyle = '#34d399';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(tooltipText, tx, ty);
-        }
-    });
+    if (!s) return;
+    renderIngameField(s);
+    renderIngameLast(s);
 }
