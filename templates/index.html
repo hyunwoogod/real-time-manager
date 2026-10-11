@@ -9,6 +9,8 @@
     <meta http-equiv="Expires" content="0">
     <title>방구석 감독</title>
 {% include '_favicon.html' %}
+    <link rel="preload" as="image" href="/brand/hero.jpg?v=8" fetchpriority="high">
+    <link rel="preload" as="image" href="/brand/mascot-head.png?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=20261011_42">
     <!-- Google Fonts for Professional Sports Platform -->
@@ -91,7 +93,7 @@
             ontouchstart="window.dismissSplash()" onpointerdown="window.dismissSplash()">
             <div class="splash-content ballpark-splash" style="--team-color: {{ favorite_team_color or '#10b981' }};">
                 <h1 class="zg-wordmark sr-only">방구석 감독</h1>
-                <img class="splash-hero" src="/brand/hero.png?v=7" alt="" width="420" height="420">
+                <img class="splash-hero" src="/brand/hero.jpg?v=8" alt="" width="420" height="420" fetchpriority="high" decoding="async">
                 <div class="splash-sheet">
                 <p class="zg-tagline">내 방에서 내리는 야구 작전</p>
 
