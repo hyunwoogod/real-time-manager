@@ -992,7 +992,8 @@ function updateBottomNavVisibility() {
 
     // 경기 화면은 화면 전체를 경기에 쓰도록 하단 탭을 숨김 (위쪽 ‹ 버튼으로 로비 복귀)
     const ingame = document.getElementById('ingame-view');
-    const isIngameActive = ingame && ingame.classList.contains('active');
+    const postgame = document.getElementById('postgame-view');
+    const isIngameActive = (ingame && ingame.classList.contains('active')) || (postgame && postgame.classList.contains('active'));
 
     if (isLoggedIn && !isLoginActive && !isTeamSelectActive && !isIngameActive) {
         bottomNav.style.setProperty('display', 'flex', 'important');
@@ -2023,34 +2024,99 @@ function runLocalPitchFallback() {
     renderNaverSportsLiveFeed(currentGameState);
 }
 
+// (테스트) 경기를 끝까지 진행하고 성적표로
 function fastForwardMatch() {
-    for (let i = 0; i < 20; i++) {
-        fetch('/api/step', { method: 'POST' });
-    }
-    setTimeout(() => {
-        fetch('/api/state')
-            .then(r => r.json())
-            .then(state => {
-                renderPostGameSummary(state);
-                switchView('postgame-view');
-            });
-    }, 500);
+    stopAutoPitchTimer();
+    fetch('/api/finish', { method: 'POST' })
+        .then(r => r.json())
+        .then(state => {
+            currentGameState = state;
+            renderPostGameSummary(state);
+            switchView('postgame-view');
+        });
 }
 
+// 경기 후 성적표: 최종 점수 · 한 줄 평(내 판단이었다면?) · 적중/실패 · 감독 점수 · 작전 기록
 function renderPostGameSummary(s) {
-    document.getElementById('post-total-score').innerText = `${s.manager_score.toLocaleString()} pts`;
-    const badge = document.getElementById('post-grade-badge');
-    badge.innerText = s.manager_grade;
-    badge.className = `grade-badge-xl grade-${s.manager_grade.toLowerCase()}`;
+    if (!s) return;
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    const away = normalizeTeamShort(s.away_team) || s.away_team;
+    const home = normalizeTeamShort(s.home_team) || s.home_team;
+    set('pg-away-name', away);
+    set('pg-home-name', home);
+    setHtmlIfChanged(document.getElementById('pg-away-logo'), teamLogoHtml(away));
+    setHtmlIfChanged(document.getElementById('pg-home-logo'), teamLogoHtml(home));
+    set('pg-away-score', s.score_away ?? 0);
+    set('pg-home-score', s.score_home ?? 0);
 
-    const titles = {
-        "S": "🏆 S급 야신의 재림!",
-        "A": "⚾ A급 베테랑 명장",
-        "B": "🎺 B급 열혈 감독",
-        "C": "🍿 C급 직관 마니아",
-        "F": "🐣 F급 초보 해설가"
-    };
-    document.getElementById('post-grade-title').innerText = titles[s.manager_grade] || "방구석 감독 리포트";
+    const log = s.tactic_log || [];
+    const hit = log.filter(t => t.score_delta > 0).length;
+    const miss = log.filter(t => t.score_delta < 0).length;
+    const skip = log.filter(t => t.my_choice === 'SKIP').length;
+    set('pg-hit', hit);
+    set('pg-miss', miss);
+    set('pg-skip', skip);
+    set('pg-rate', hit + miss ? `${Math.round(hit / (hit + miss) * 100)}%` : '-');
+
+    // 내 팀 기준으로 결과와 '내 판단이었다면' 계산
+    const myTeam = normalizeTeamShort(selectedTeamCode);
+    const inGame = myTeam === away || myTeam === home;
+    const myScore = myTeam === home ? s.score_home : s.score_away;
+    const oppScore = myTeam === home ? s.score_away : s.score_home;
+    // 실제 감독이 틀렸고 내 선택이 달랐던 타석(내가 맞힌 경우)에 내준 점수 = 내 판단이었다면 막을 수 있었던 점수
+    const savedFor = team => log.filter(t => t.def_team === team && (t.case_no === 4 || t.case_no === 6)).reduce((n, t) => n + (t.runs || 0), 0);
+
+    const resultEl = document.getElementById('pg-result');
+    let title = '', sub = '', tone = '';
+    if (inGame) {
+        const margin = myScore - oppScore;
+        const saved = savedFor(myTeam);
+        if (resultEl) {
+            resultEl.textContent = `${myTeam} ${margin > 0 ? '승리' : margin < 0 ? '패배' : '무승부'}`;
+            resultEl.className = `pg-result ${margin > 0 ? 'win' : margin < 0 ? 'lose' : ''}`;
+        }
+        if (margin < 0 && saved > -margin) { title = '내 판단이었다면 이 경기 잡았다!'; sub = `감독이 내준 ${saved}점, 내 선택이었다면 막았어요`; tone = 'gold'; }
+        else if (margin < 0 && saved === -margin) { title = '내 판단이었다면 동점까지 갔다!'; sub = `감독이 내준 ${saved}점, 내 선택이었다면 막았어요`; tone = 'gold'; }
+        else if (margin < 0 && saved > 0) { title = '아쉬운 패배'; sub = `내 판단이었다면 ${saved}점은 막았어요`; tone = 'bad'; }
+        else if (margin < 0) { title = '아쉬운 패배'; sub = hit + miss ? `작전 ${hit + miss}번 중 ${hit}번 적중했어요` : '이번 경기는 위기 작전이 없었어요'; tone = 'bad'; }
+        else if (margin > 0) { title = hit > miss ? '승리! 감독 못지않은 눈' : '승리!'; sub = saved > 0 ? `내 판단이었다면 ${saved}점 더 막았어요` : (hit + miss ? `작전 ${hit + miss}번 중 ${hit}번 적중했어요` : '이번 경기는 위기 작전이 없었어요'); tone = 'good'; }
+        else { title = '무승부'; sub = saved > 0 ? `내 판단이었다면 ${saved}점 막고 이겼어요` : `작전 ${hit + miss}번 중 ${hit}번 적중했어요`; tone = saved > 0 ? 'gold' : ''; }
+    } else {
+        if (resultEl) { resultEl.textContent = ''; resultEl.className = 'pg-result'; }
+        const rate = hit + miss ? Math.round(hit / (hit + miss) * 100) : 0;
+        if (!hit && !miss) { title = '이번 경기는 지켜보기만 했어요'; sub = skip ? `자리 비움 ${skip}번` : '위기 작전이 없었어요'; }
+        else if (rate >= 60) { title = '감독보다 날카로웠어요!'; sub = `작전 ${hit + miss}번 중 ${hit}번 적중`; tone = 'good'; }
+        else { title = '다음엔 더 잘할 수 있어요'; sub = `작전 ${hit + miss}번 중 ${hit}번 적중`; tone = 'bad'; }
+    }
+    set('pg-verdict-title', title);
+    set('pg-verdict-sub', sub);
+    const verdict = document.getElementById('pg-verdict');
+    if (verdict) verdict.className = `pg-verdict ${tone}`;
+
+    const delta = (s.manager_score ?? 2000) - (s.start_score ?? s.manager_score ?? 2000);
+    set('pg-delta', `${delta > 0 ? '+' : ''}${delta}P`);
+    const deltaEl = document.getElementById('pg-delta');
+    if (deltaEl) deltaEl.className = delta > 0 ? 'up' : delta < 0 ? 'down' : '';
+    set('post-total-score', `${Number(s.manager_score ?? 2000).toLocaleString()}P`);
+    const badge = document.getElementById('post-grade-badge');
+    if (badge) {
+        badge.textContent = s.manager_grade || 'B';
+        badge.className = `pg-grade grade-${(s.manager_grade || 'b').toLowerCase()}`;
+    }
+    const titles = { S: 'S급 야신의 재림', A: 'A급 베테랑 명장', B: 'B급 열혈 감독', C: 'C급 직관 마니아', F: 'F급 초보 해설가' };
+    set('post-grade-title', titles[s.manager_grade] || '');
+
+    const list = document.getElementById('pg-log-list');
+    if (list) {
+        const label = c => c === 'CHANGE' ? '교체' : c === 'KEEP' ? '유지' : '자리 비움';
+        list.innerHTML = log.length ? log.map(t => `<div class="pg-log-row">
+                <span class="pg-log-inn">${t.inning_str}</span>
+                <span class="pg-log-who">${t.pitcher} vs ${t.batter}</span>
+                <span class="pg-log-choice">나 ${label(t.my_choice)} · 감독 ${label(t.manager_choice)}</span>
+                <span class="pg-log-res ${t.result === 'OUT' ? 'out' : 'on'}">${t.result === 'OUT' ? '아웃' : '출루'}</span>
+                <b class="pg-log-delta ${t.score_delta > 0 ? 'up' : t.score_delta < 0 ? 'down' : ''}">${t.score_delta > 0 ? '+' : t.score_delta < 0 ? '' : '±'}${t.score_delta}</b>
+            </div>`).join('') : '<div class="pg-log-empty">이번 경기는 위기 작전이 없었어요</div>';
+    }
 }
 
 function resetMatchAndLobby() {

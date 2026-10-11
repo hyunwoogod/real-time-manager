@@ -324,6 +324,8 @@ class GameEngine:
         self.used_pitchers = {self.home_team_name: {self.home_pitcher}, self.away_team_name: {self.away_pitcher}}
         self.crisis_seen = set()    # (이닝, 초/말, 투수): 같은 투수에게 한 이닝에 위기 한 번만
         self.runner_names = {1: None, 2: None, 3: None}
+        self.tactic_log = []        # 이번 경기 작전 기록 (경기 후 성적표용)
+        self.start_score = self.manager_score
         
         self.current_crisis = None
         self.crisis_active = False
@@ -771,7 +773,7 @@ class GameEngine:
         curr_session["play_summary"] = summary_text
 
         if getattr(self, 'pending_tactic', None):
-            self._score_tactic("OUT" if pa_end in ("K", "OUT") else "NOT_OUT")
+            self._score_tactic("OUT" if pa_end in ("K", "OUT") else "NOT_OUT", runs, batter)
 
         if self._check_walk_off_win():
             return
@@ -793,9 +795,20 @@ class GameEngine:
         ("KEEP", "KEEP", "NOT_OUT"): (8, -10, "동일 선택 & 출루 허용", "나와 감독 모두 유지했지만 출루를 허용했어요"),
     }
 
-    def _score_tactic(self, actual_result):
+    def _score_tactic(self, actual_result, runs=0, batter=""):
         my = self.pending_tactic["my_choice"]
         mgr = self.pending_tactic["actual_manager_choice"]
+        entry = {
+            "inning_str": self.pending_tactic["inning_str"],
+            "def_team": self.pending_tactic.get("def_team", ""),
+            "pitcher": self.pending_tactic["old_pitcher"],
+            "new_pitcher": self.pending_tactic["new_pitcher"],
+            "batter": batter,
+            "my_choice": my,
+            "manager_choice": mgr,
+            "result": actual_result,
+            "runs": runs,
+        }
         if my == "SKIP":
             self.last_tactic_resolution = {
                 "case_no": 0, "my_choice": "SKIP", "actual_manager_choice": mgr,
@@ -806,9 +819,13 @@ class GameEngine:
                 "title": "감독님 자리 비움", "commentary": "작전을 고르지 않아 점수 변동이 없어요", "skipped": True
             }
             self.commentary_logs.insert(0, "🚻 [자리 비움] 작전을 고르지 않아 점수 변동 없음")
+            entry.update({"case_no": 0, "score_delta": 0})
+            self.tactic_log.append(entry)
             self.pending_tactic = None
             return
         case_no, score_delta, title, commentary = self.TACTIC_CASES[(my, mgr, actual_result)]
+        entry.update({"case_no": case_no, "score_delta": score_delta})
+        self.tactic_log.append(entry)
         self.manager_score += score_delta
         self._update_manager_grade()
         if getattr(self, 'user_id', None):
@@ -847,6 +864,16 @@ class GameEngine:
             self.has_crisis_popped_for_current_batter = True
             self.crisis_seen.add((self.inning, self.is_top, crisis["pitcher_name"]))
             self.commentary_logs.insert(0, f"🚨 [위기] {crisis['desc']}")
+
+    def finish_game(self, max_pitches=1500):
+        """(테스트용) 경기를 끝까지 진행. 위기는 '자리 비움'으로 넘김"""
+        for _ in range(max_pitches):
+            if self.game_over:
+                break
+            if self.crisis_active:
+                self.apply_tactic("SKIP")
+            self.step_pitch()
+        return self.get_state()
 
     def _check_walk_off_win(self):
         """9회말 이상 말 공격 중 홈팀 리드 시 끝내기 경기 종료"""
@@ -1074,7 +1101,8 @@ class GameEngine:
             "old_pitcher": old_pitcher,
             "new_pitcher": new_pitcher,
             "inning_str": inning_str,
-            "situation_title": situation_title
+            "situation_title": situation_title,
+            "def_team": self.get_current_defense_team()
         }
         self.has_crisis_popped_for_current_batter = True
         self.crisis_active = False
@@ -1203,6 +1231,8 @@ class GameEngine:
             "current_crisis": self.current_crisis,
             "pending_tactic": getattr(self, 'pending_tactic', None),
             "tactic_resolution": getattr(self, 'last_tactic_resolution', None),
+            "tactic_log": getattr(self, 'tactic_log', []),
+            "start_score": getattr(self, 'start_score', self.manager_score),
             "game_over": self.game_over,
             "win_prob": self.get_win_probability(),
             "current_batter_pitches": self.batter_sessions[0]["pitches"] if self.batter_sessions else [],

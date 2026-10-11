@@ -12,7 +12,7 @@
     <link rel="preload" as="image" href="/brand/hero.jpg?v=8" fetchpriority="high">
     <link rel="preload" as="image" href="/brand/mascot-head.png?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261012_12">
+    <link rel="stylesheet" href="style.css?v=20261012_14">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -506,42 +506,51 @@
         <!-- ========================================== -->
         <!-- PHASE 3: POST-GAME SETTLEMENT (경기 후 정산) -->
         <!-- ========================================== -->
-        <section id="postgame-view" class="view-screen">
-            <div class="settlement-card">
-                <div class="trophy-header">
-                    <span class="trophy-icon">🏆</span>
-                    <h2>방구석 감독 정산 리포트</h2>
-                    <p class="subtitle">오늘의 경기 감독 매니지먼트 종합 성적표</p>
+        <section id="postgame-view" class="view-screen pg">
+            <!-- 최종 점수 -->
+            <div class="pg-score">
+                <span class="pg-final">경기 종료</span>
+                <div class="pg-teams">
+                    <div class="pg-team"><span class="pg-logo" id="pg-away-logo"></span><span id="pg-away-name">원정</span></div>
+                    <div class="pg-runs"><b id="pg-away-score">0</b><i>:</i><b id="pg-home-score">0</b></div>
+                    <div class="pg-team"><span class="pg-logo" id="pg-home-logo"></span><span id="pg-home-name">홈</span></div>
                 </div>
+                <span class="pg-result" id="pg-result"></span>
+            </div>
 
-                <div class="grade-banner">
-                    <span id="post-grade-badge" class="grade-badge-xl grade-b">B</span>
-                    <div class="grade-text">
-                        <h3 id="post-grade-title">🎺 B급 열혈 감독</h3>
-                        <p id="post-grade-desc">안정적인 전술 선택으로 승리의 발판을 만들었습니다.</p>
-                    </div>
-                </div>
+            <!-- 한 줄 평 -->
+            <div class="pg-verdict" id="pg-verdict">
+                <strong id="pg-verdict-title">-</strong>
+                <p id="pg-verdict-sub"></p>
+            </div>
 
-                <div class="score-summary-grid">
-                    <div class="summary-box">
-                        <span class="lbl">최종 Manager Score</span>
-                        <strong id="post-total-score">2,000 pts</strong>
-                    </div>
-                    <div class="summary-box">
-                        <span class="lbl">작전 지시 적중률</span>
-                        <strong>80.0%</strong>
-                    </div>
-                </div>
+            <!-- 작전 성적 -->
+            <div class="pg-stats">
+                <div class="pg-stat good"><span>적중</span><strong id="pg-hit">0</strong></div>
+                <div class="pg-stat bad"><span>실패</span><strong id="pg-miss">0</strong></div>
+                <div class="pg-stat skip"><span>자리 비움</span><strong id="pg-skip">0</strong></div>
+                <div class="pg-stat"><span>적중률</span><strong id="pg-rate">-</strong></div>
+            </div>
 
-                <!-- Kakao Share Action Button -->
-                <div class="action-btn-group">
-                    <button class="btn-kakao" onclick="openShareModal()">
-                        💬 카카오톡으로 내 명장 등급 공유하기
-                    </button>
-                    <button class="btn-secondary-glow" onclick="resetMatchAndLobby()">
-                        🔄 새 경기 시작 (로비로)
-                    </button>
+            <!-- 감독 점수 -->
+            <div class="pg-points">
+                <span id="post-grade-badge" class="pg-grade grade-b">B</span>
+                <div class="pg-points-text">
+                    <span>이번 경기 <b id="pg-delta">+0</b></span>
+                    <strong id="post-total-score">2,000P</strong>
                 </div>
+                <span class="pg-grade-title" id="post-grade-title">B급 열혈 감독</span>
+            </div>
+
+            <!-- 작전 기록 -->
+            <div class="pg-log">
+                <h3>작전 기록</h3>
+                <div class="pg-log-list" id="pg-log-list"></div>
+            </div>
+
+            <div class="pg-actions">
+                <button class="pg-btn-share" onclick="openShareModal()">카카오톡 공유</button>
+                <button class="pg-btn-lobby" onclick="resetMatchAndLobby()">로비로</button>
             </div>
         </section>
 
@@ -810,7 +819,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261012_14"></script>
+    <script src="app.js?v=20261012_16"></script>
 </body>
 
 </html>

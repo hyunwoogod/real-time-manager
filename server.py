@@ -927,6 +927,12 @@ def api_reset():
     return jsonify({"status": "success", "message": "경기 초기화 완료", "state": engine.get_state()})
 
 
+@app.route('/api/finish', methods=['POST'])
+def api_finish():
+    """(테스트용) 지금 경기를 끝까지 진행하고 결과를 돌려줌"""
+    return jsonify(get_engine().finish_game())
+
+
 @app.route('/api/step', methods=['POST'])
 def api_step():
     state = get_engine().step_pitch()
