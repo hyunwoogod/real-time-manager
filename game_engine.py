@@ -915,12 +915,16 @@ class GameEngine:
         }
 
     def _advance_runners(self, bases):
+        # 주자 이름도 같은 방식으로 함께 옮김 (주자 있음/없음 표시와 항상 짝을 이룸)
+        names = getattr(self, 'runner_names', None) or {1: None, 2: None, 3: None}
+        batter = self.get_current_batter()
         if bases == 1:
             if self.runner_3b:
                 self._score_run()
             self.runner_3b = self.runner_2b
             self.runner_2b = self.runner_1b
             self.runner_1b = True
+            names = {3: names.get(2), 2: names.get(1), 1: batter}
         elif bases == 2:
             if self.runner_3b:
                 self._score_run()
@@ -929,6 +933,8 @@ class GameEngine:
             self.runner_3b = self.runner_1b
             self.runner_2b = True
             self.runner_1b = False
+            names = {3: names.get(1), 2: batter, 1: None}
+        self.runner_names = names
 
     def _score_run(self):
         if self.is_top:
@@ -1019,6 +1025,9 @@ class GameEngine:
             "runner_1b": self.runner_1b,
             "runner_2b": self.runner_2b,
             "runner_3b": self.runner_3b,
+            "runner_1b_name": (getattr(self, 'runner_names', {}) or {}).get(1) if self.runner_1b else None,
+            "runner_2b_name": (getattr(self, 'runner_names', {}) or {}).get(2) if self.runner_2b else None,
+            "runner_3b_name": (getattr(self, 'runner_names', {}) or {}).get(3) if self.runner_3b else None,
             "pitcher": self.get_current_pitcher(),
             "batter": self.get_current_batter(),
             "batter_side": self.get_batter_side(),

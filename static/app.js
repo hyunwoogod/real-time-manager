@@ -948,6 +948,7 @@ function forceLiveMatchStart() {
     const modal = document.getElementById('crisis-modal');
     if (modal) modal.classList.remove('active');
 
+    window._igLastPlayKey = undefined;
     // 요청 한 번으로 입장: 같은 경기가 진행 중이면 이어 보고, 아니면 새로 시작 (서버가 판단)
     fetch('/api/reset', {
         method: 'POST',
@@ -2165,12 +2166,14 @@ function renderIngame(s) {
 
     const btn = document.getElementById('btn-pitch-step');
     if (btn) btn.disabled = !!s.game_over;
+
+    igCheckPlayResult(s);
 }
 
 // 그라운드 (위에서 내려다본 구장)
 const IG_FIELD_POS = {
-    P: [200, 206], C: [200, 292], '1B': [280, 178], '2B': [242, 146], SS: [158, 146],
-    '3B': [120, 178], LF: [94, 100], CF: [200, 64], RF: [306, 100]
+    P: [200, 206], C: [200, 292], '1B': [286, 176], '2B': [240, 146], SS: [160, 146],
+    '3B': [114, 176], LF: [94, 100], CF: [200, 64], RF: [306, 100]
 };
 const IG_BASES = { home: [200, 268], b1: [262, 206], b2: [200, 144], b3: [138, 206] };
 
@@ -2185,14 +2188,20 @@ function renderIngameField(s) {
     const fielders = (s.fielders || []).filter(f => IG_FIELD_POS[f.role]);
     const fHtml = fielders.map(f => {
         const [x, y] = IG_FIELD_POS[f.role];
-        const label = `<text x="${x}" y="${y + 21}" class="ig-fname">${f.name}</text>`;
+        // 1루수·3루수 이름은 위쪽에 (베이스 위 주자와 겹치지 않게)
+        const ly = (f.role === '1B' || f.role === '3B') ? y - 14 : y + 21;
+        const label = `<text x="${x}" y="${ly}" class="ig-fname">${f.name}</text>`;
         return `<g class="ig-f"><circle cx="${x}" cy="${y}" r="8.5" fill="${defColor}"/>${label}</g>`;
     }).join('');
 
-    const runners = [['b1', s.runner_1b], ['b2', s.runner_2b], ['b3', s.runner_3b]].filter(r => r[1]);
-    const rHtml = runners.map(([b]) => {
+    // 주자 이름은 수비수 이름과 겹치지 않는 바깥쪽에: 1루는 오른쪽 아래, 2루는 위, 3루는 왼쪽 아래
+    const RUN_LABEL = { b1: [16, 16, 'start'], b2: [0, -16, 'middle'], b3: [-16, 16, 'end'] };
+    const runners = [['b1', s.runner_1b, s.runner_1b_name], ['b2', s.runner_2b, s.runner_2b_name], ['b3', s.runner_3b, s.runner_3b_name]].filter(r => r[1]);
+    const rHtml = runners.map(([b, , name]) => {
         const [x, y] = IG_BASES[b];
-        return `<g class="ig-run"><circle cx="${x}" cy="${y}" r="8" fill="${offColor}"/><circle cx="${x}" cy="${y}" r="11" class="ig-run-ring"/></g>`;
+        const [dx, dy, anchor] = RUN_LABEL[b];
+        const label = name ? `<text x="${x + dx}" y="${y + dy}" class="ig-fname ig-run-name" style="text-anchor:${anchor}">${name}</text>` : '';
+        return `<g class="ig-run"><circle cx="${x}" cy="${y}" r="8" fill="${offColor}"/><circle cx="${x}" cy="${y}" r="11" class="ig-run-ring"/>${label}</g>`;
     }).join('');
 
     // 타석에 선 타자: 우타자는 홈플레이트 왼쪽(3루 쪽), 좌타자는 오른쪽(1루 쪽)
@@ -2235,6 +2244,42 @@ function renderIngameField(s) {
     </svg>`);
 }
 
+// 타석 결과가 새로 나오면 그라운드 가운데에 큰 글씨로 잠깐 보여줌
+function igPlayBanner(summary) {
+    const t = summary || '';
+    if (t.includes('끝내기')) return { cls: 'hr', big: 'WALK-OFF!' };
+    if (t.includes('홈런')) return { cls: 'hr', big: 'HOME RUN!' };
+    if (t.includes('3루타')) return { cls: 'hit', big: '3BASE HIT!' };
+    if (t.includes('2루타')) return { cls: 'hit', big: '2BASE HIT!' };
+    if (t.includes('안타') || t.includes('1루타')) return { cls: 'hit', big: 'HIT!' };
+    if (t.includes('볼넷')) return { cls: 'walk', big: '4 BALL' };
+    if (t.includes('사구')) return { cls: 'walk', big: 'DEAD BALL' };
+    if (t.includes('삼진')) return { cls: 'out', big: 'STRIKE OUT!' };
+    if (t.includes('아웃') || t.includes('병살')) return { cls: 'out', big: 'OUT!' };
+    return null;
+}
+
+function igCheckPlayResult(s) {
+    const done = (s.batter_sessions || []).find(b => b.play_summary);
+    const key = done ? `${done.session_id}|${done.play_summary}` : '';
+    // 처음 그릴 때(입장 직후)는 지난 결과를 다시 띄우지 않음
+    if (window._igLastPlayKey === undefined) { window._igLastPlayKey = key; return; }
+    if (!done || key === window._igLastPlayKey) return;
+    window._igLastPlayKey = key;
+    const ingame = document.getElementById('ingame-view');
+    const stage = document.querySelector('#ingame-view .ig-stage');
+    const b = igPlayBanner(done.play_summary);
+    if (!b || !stage || !ingame || !ingame.classList.contains('active')) return;
+
+    const sub = done.play_summary.split(':').slice(1).join(':').replace(/!+$/, '').trim();
+    stage.querySelectorAll('.ig-banner').forEach(el => el.remove());
+    const el = document.createElement('div');
+    el.className = `ig-banner ${b.cls}`;
+    el.innerHTML = `<strong>${b.big}</strong><span>${done.batter_name || ''} · ${sub}</span>`;
+    stage.appendChild(el);
+    setTimeout(() => el.remove(), 1900);
+}
+
 // 이번 타석 투구 (없으면 직전 타석 결과)
 function renderIngameLast(s) {
     const box = document.getElementById('ig-last');
@@ -2250,7 +2295,7 @@ function renderIngameLast(s) {
     const kinds = igSeqKinds(pitches);
     const k = kinds[kinds.length - 1];
     const dots = pitches.map((p, i) => `<span class="ig-pdot ${kinds[i].cls}">${p.seq}</span>`).join('');
-    setHtmlIfChanged(box, `<div class="ig-last-line"><span class="ig-chip ${k.cls}">${k.label}</span><span class="ig-last-text">${last.seq}구 · ${last.speed_type || ''}</span></div>
+    setHtmlIfChanged(box, `<div class="ig-last-line"><span class="ig-chip ${k.cls}">${k.label}</span><span class="ig-last-text">${[`${last.seq}구`, last.speed_type].filter(Boolean).join(' · ')}</span></div>
         <div class="ig-pdots">${dots}</div>`);
 }
 
