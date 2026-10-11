@@ -796,6 +796,18 @@ class GameEngine:
     def _score_tactic(self, actual_result):
         my = self.pending_tactic["my_choice"]
         mgr = self.pending_tactic["actual_manager_choice"]
+        if my == "SKIP":
+            self.last_tactic_resolution = {
+                "case_no": 0, "my_choice": "SKIP", "actual_manager_choice": mgr,
+                "actual_result": actual_result, "my_choice_label": "자리 비움",
+                "mgr_choice_label": "교체" if mgr == "CHANGE" else "유지",
+                "actual_result_label": "아웃" if actual_result == "OUT" else "출루",
+                "score_delta": 0, "total_score": self.manager_score, "grade": self.manager_grade,
+                "title": "감독님 자리 비움", "commentary": "작전을 고르지 않아 점수 변동이 없어요", "skipped": True
+            }
+            self.commentary_logs.insert(0, "🚻 [자리 비움] 작전을 고르지 않아 점수 변동 없음")
+            self.pending_tactic = None
+            return
         case_no, score_delta, title, commentary = self.TACTIC_CASES[(my, mgr, actual_result)]
         self.manager_score += score_delta
         self._update_manager_grade()
@@ -1028,7 +1040,8 @@ class GameEngine:
         situation_title = "투수 교체 위기"
         old_pitcher = self.get_current_pitcher()
 
-        my_choice = "CHANGE" if tactic_id == "PITCHER_CHANGE" else "KEEP"
+        # 시간 안에 고르지 않으면 '자리 비움'(SKIP): 감독은 그대로 판단하고, 내 점수는 변동 없음
+        my_choice = {"PITCHER_CHANGE": "CHANGE", "KEEP_PITCHER": "KEEP"}.get(tactic_id, "SKIP")
         actual_manager_choice = "CHANGE" if random.random() < self.manager_change_probability() else "KEEP"
 
         new_pitcher = old_pitcher
@@ -1058,7 +1071,8 @@ class GameEngine:
         self.crisis_active = False
         self.current_crisis = None
 
-        log_msg = f"📋 [작전 제출] 나: {'교체' if my_choice == 'CHANGE' else '유지'} | 실제 감독: {'교체' if actual_manager_choice == 'CHANGE' else '유지'} (다음 타석 결과로 채점)"
+        my_label = {"CHANGE": "교체", "KEEP": "유지"}.get(my_choice, "자리 비움")
+        log_msg = f"📋 [작전 제출] 나: {my_label} | 실제 감독: {'교체' if actual_manager_choice == 'CHANGE' else '유지'} (다음 타석 결과로 채점)"
         self.commentary_logs.insert(0, log_msg)
 
         return {

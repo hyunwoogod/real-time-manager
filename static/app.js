@@ -1752,7 +1752,7 @@ function openCrisisModal(crisis) {
 
         if (crisisTimeLeft <= 0) {
             clearInterval(crisisTimerInterval);
-            submitTactic('KEEP_PITCHER');
+            submitTactic('SKIP');  // 시간 초과: 감독님 자리 비움 (점수 변동 없음)
         }
     }, 1000);
 }
@@ -2278,8 +2278,12 @@ function igCheckPlayResult(s) {
     let tacticLine = '';
     if (t) {
         const d = t.score_delta || 0;
-        tacticLine = `<em class="ig-banner-tactic ${d > 0 ? 'good' : 'bad'}">${d > 0 ? '작전 성공!' : '작전 실패'} ${d > 0 ? '+' : ''}${d}</em>`;
-        igFlashPoints(d);
+        if (t.skipped) {
+            tacticLine = `<em class="ig-banner-tactic skip">감독님 자리 비움 ±0</em>`;
+        } else {
+            tacticLine = `<em class="ig-banner-tactic ${d > 0 ? 'good' : 'bad'}">${d > 0 ? '작전 성공!' : '작전 실패'} ${d > 0 ? '+' : ''}${d}</em>`;
+            igFlashPoints(d);
+        }
     }
     stage.querySelectorAll('.ig-banner, .ig-reveal').forEach(el => el.remove());
     const el = document.createElement('div');
@@ -2304,7 +2308,8 @@ function igFlashPoints(delta) {
 function igShowTacticReveal(res) {
     const stage = document.querySelector('#ingame-view .ig-stage');
     if (!stage || !res) return;
-    const mine = res.my_choice === 'CHANGE' ? '교체' : '유지';
+    const skipped = res.my_choice === 'SKIP';
+    const mine = skipped ? '자리 비움' : (res.my_choice === 'CHANGE' ? '교체' : '유지');
     const mgr = res.actual_manager_choice === 'CHANGE' ? '교체' : '유지';
     const same = mine === mgr;
     const change = res.actual_manager_choice === 'CHANGE' && res.new_pitcher && res.new_pitcher !== res.old_pitcher
@@ -2314,9 +2319,9 @@ function igShowTacticReveal(res) {
     el.className = 'ig-reveal';
     el.innerHTML = `<div class="ig-reveal-row">
             <div><span>나의 선택</span><strong>${mine}</strong></div>
-            <i class="${same ? 'same' : 'diff'}">${same ? '=' : '≠'}</i>
+            <i class="${skipped ? 'skip' : same ? 'same' : 'diff'}">${skipped ? '·' : same ? '=' : '≠'}</i>
             <div><span>실제 감독</span><strong>${mgr}</strong></div>
-        </div>${change}<p>다음 타석 결과로 채점돼요</p>`;
+        </div>${change}<p>${skipped ? '감독님이 화장실 가셨어요 · 점수 변동 없음' : '다음 타석 결과로 채점돼요'}</p>`;
     stage.appendChild(el);
     window._igBannerUntil = Date.now() + 2600;
     setTimeout(() => el.remove(), 2600);
@@ -2335,7 +2340,9 @@ function igRenderTacticPill(s) {
         pill.className = 'ig-tactic-pill';
         stage.appendChild(pill);
     }
-    const txt = `작전 채점 중 · 나 ${pt.my_choice === 'CHANGE' ? '교체' : '유지'} / 감독 ${pt.actual_manager_choice === 'CHANGE' ? '교체' : '유지'}`;
+    const txt = pt.my_choice === 'SKIP'
+        ? `자리 비움 · 감독 ${pt.actual_manager_choice === 'CHANGE' ? '교체' : '유지'} (점수 변동 없음)`
+        : `작전 채점 중 · 나 ${pt.my_choice === 'CHANGE' ? '교체' : '유지'} / 감독 ${pt.actual_manager_choice === 'CHANGE' ? '교체' : '유지'}`;
     if (pill.textContent !== txt) pill.textContent = txt;
 }
 

@@ -6383,7 +6383,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-reveal-row i.diff { color: #fbbf24; }
 .ig-reveal-change { font-size: 0.82rem; font-weight: 700; color: var(--text-sub); white-space: nowrap; }
 .ig-reveal-change b { color: #fde68a; }
-.ig-reveal p { margin: 0; font-size: 0.72rem; color: var(--text-sub); }
+.ig-reveal p { margin: 0; font-size: 0.72rem; color: var(--text-sub); white-space: nowrap; }
 @keyframes igReveal {
     0% { opacity: 0; transform: translate(-50%, -45%) scale(0.9); }
     12% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
@@ -6420,3 +6420,5 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-points.flash-down { animation: igPtsDown 1.2s ease; }
 @keyframes igPtsUp { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.18); background: rgba(16, 185, 129, 0.35); color: #6ee7b7; } }
 @keyframes igPtsDown { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.18); background: rgba(239, 68, 68, 0.35); color: #fca5a5; } }
+.ig-reveal-row i.skip { color: var(--text-sub); }
+.ig-banner-tactic.skip { background: rgba(100, 116, 139, 0.92); color: #ffffff; }
