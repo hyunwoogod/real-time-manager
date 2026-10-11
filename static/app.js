@@ -2279,9 +2279,9 @@ function igCheckPlayResult(s) {
     if (t) {
         const d = t.score_delta || 0;
         if (t.skipped) {
-            tacticLine = `<em class="ig-banner-tactic skip">감독님 자리 비움 ±0</em>`;
+            tacticLine = `<em class="ig-banner-tactic skip"><b>자리 비움</b><i>±0</i></em>`;
         } else {
-            tacticLine = `<em class="ig-banner-tactic ${d > 0 ? 'good' : 'bad'}">${d > 0 ? '작전 성공!' : '작전 실패'} ${d > 0 ? '+' : ''}${d}</em>`;
+            tacticLine = `<em class="ig-banner-tactic ${d > 0 ? 'good' : 'bad'}"><b>${d > 0 ? '작전 성공' : '작전 실패'}</b><i>${d > 0 ? '+' : ''}${d}</i></em>`;
             igFlashPoints(d);
         }
     }
@@ -2321,7 +2321,7 @@ function igShowTacticReveal(res) {
             <div><span>나의 선택</span><strong>${mine}</strong></div>
             <i class="${skipped ? 'skip' : same ? 'same' : 'diff'}">${skipped ? '·' : same ? '=' : '≠'}</i>
             <div><span>실제 감독</span><strong>${mgr}</strong></div>
-        </div>${change}<p>${skipped ? '감독님이 화장실 가셨어요 · 점수 변동 없음' : '다음 타석 결과로 채점돼요'}</p>`;
+        </div>${change}<p>${skipped ? '감독님 화장실 가셨나요?<br>이번 작전은 점수 변동 없음' : '다음 타석 결과로 채점돼요'}</p>`;
     stage.appendChild(el);
     window._igBannerUntil = Date.now() + 2600;
     setTimeout(() => el.remove(), 2600);

@@ -917,19 +917,24 @@ class GameEngine:
 
     def check_crisis_trigger(self):
         """[위기 감지]
-        조건 A: 현재 투수 투구수 < 70구 AND 연속 4타자 출루
-        조건 B: 현재 투수 투구수 >= 70구 AND 득점권(2루 또는 3루) 주자
-        같은 투수에게는 한 이닝(초/말)에 한 번만 띄움
+        선발투수: 70구 이상 + 득점권 주자면 타자마다(조건 B), 70구 미만 + 4타자 이상 연속 출루면 타자마다(조건 A)
+        구원투수: 투구수와 상관없이 점수 차 3점 이내 + 득점권 주자면 타자마다(조건 R)
         """
         if self.outs >= 3 or self.game_over:
             return None
         pitcher = self.get_current_pitcher()
-        if (self.inning, self.is_top, pitcher) in self.crisis_seen:
-            return None
-
         p_count = self.pitch_counts.get(pitcher, 0)
-        is_cond_a = (p_count < 70) and (self.consecutive_on_base >= 4)
-        is_cond_b = (p_count >= 70) and (self.runner_2b or self.runner_3b)
+        risp = self.runner_2b or self.runner_3b
+        on_base_4 = self.consecutive_on_base >= 4
+
+        if self._pitcher_role(pitcher) == "starter":
+            # 70구 이상: 득점권이면 타자마다 / 70구 미만: 4타자 이상 연속 출루가 이어지는 동안 타자마다
+            is_cond_b = (p_count >= 70) and risp
+            is_cond_a = (p_count < 70) and on_base_4
+        else:
+            # 구원투수: 점수 차 3점 이내 접전 + 득점권이면 타자를 상대할 때마다 (같은 타자에게는 한 번)
+            is_cond_b = risp and abs(self.score_home - self.score_away) <= 3
+            is_cond_a = False
         if not (is_cond_a or is_cond_b):
             return None
 
@@ -939,9 +944,13 @@ class GameEngine:
             condition_type = "CONDITION_A"
             condition_label = "조건 A: 70구 미만 4타자 연속 출루 위기"
             reason_str = "4타자 연속 출루"
-        else:
+        elif self._pitcher_role(pitcher) == "starter":
             condition_type = "CONDITION_B"
             condition_label = "조건 B: 70구 이상 득점권 실점 위기"
+            reason_str = "득점권 주자"
+        else:
+            condition_type = "CONDITION_R"
+            condition_label = "구원 투수 접전 득점권 위기"
             reason_str = "득점권 주자"
 
         return {
