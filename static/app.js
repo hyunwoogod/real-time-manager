@@ -1405,15 +1405,11 @@ function getTeamLogoHtml(teamName, extraClass = '') {
 }
 
 const teamPitcherMap = {
-    "한화": "화이트", "삼성": "후라도", "KIA": "김태형", "KT": "대니엘",
-    "LG": "박시원", "SSG": "김건우", "키움": "김성진", "롯데": "로드리게스",
-    "NC": "라일리", "두산": "잭로그"
+    "한화": "이상규", "삼성": "최원태", "KIA": "올러", "KT": "고영표", "LG": "임찬규", "SSG": "이로운", "키움": "전준표", "롯데": "비슬리", "NC": "토다", "두산": "잭로그"
 };
 
 const teamBatterMap = {
-    "한화": "황영묵", "삼성": "김지찬", "KIA": "박찬호", "LG": "홍창기",
-    "SSG": "최지훈", "두산": "정수빈", "NC": "박민우", "KT": "멜 로하스",
-    "키움": "이주형", "롯데": "황성빈"
+    "한화": "심우준", "삼성": "김지찬", "KIA": "박재현", "KT": "최원준", "LG": "박해민", "SSG": "정준재", "키움": "추재현", "롯데": "황성빈", "NC": "김주원", "두산": "정수빈"
 };
 
 function loadScheduleTable(filterDate = getFormattedTodayStr()) {
@@ -2632,7 +2628,7 @@ function drawBaseballField(s) {
         if (s.on_deck_batters && s.on_deck_batters.length > 0) {
             onDeckListEl.innerHTML = s.on_deck_batters.map(b => `<div>${b}</div>`).join('');
         } else {
-            const fallbackOnDeck = s.is_top ? ["2.페라자", "3.노시환", "4.채은성"] : ["2.이재현", "3.구자욱", "4.맥키넌"];
+            const fallbackOnDeck = s.is_top ? ["2.최인호", "3.한지윤", "4.강백호"] : ["2.김성윤", "3.구자욱", "4.최형우"];
             onDeckListEl.innerHTML = fallbackOnDeck.map(b => `<div>${b}</div>`).join('');
         }
     }
@@ -2659,27 +2655,27 @@ function renderFieldersOverlay(layer, s) {
 
     // Defense Fielders from state or default Samsung/Hanwha defense
     const defaultSamsungFielders = [
-        { role: 'P', name: (s && s.pitcher) ? s.pitcher : '원태인', x: 50, y: 53, avatar: '🧢' },
+        { role: 'P', name: (s && s.pitcher) ? s.pitcher : '최원태', x: 50, y: 53, avatar: '🧢' },
         { role: 'C', name: '강민호', x: 50, y: 84, avatar: '⚾' },
-        { role: '1B', name: '맥키넌', x: 74, y: 56, avatar: '🧢' },
+        { role: '1B', name: '디아즈', x: 74, y: 56, avatar: '🧢' },
         { role: '2B', name: '류지혁', x: 63, y: 37, avatar: '🧢' },
         { role: '3B', name: '김영웅', x: 26, y: 56, avatar: '🧢' },
         { role: 'SS', name: '이재현', x: 37, y: 37, avatar: '🧢' },
         { role: 'LF', name: '구자욱', x: 22, y: 24, avatar: '🧢' },
         { role: 'CF', name: '김지찬', x: 50, y: 15, avatar: '🧢' },
-        { role: 'RF', name: '이성규', x: 78, y: 24, avatar: '🧢' }
+        { role: 'RF', name: '김성윤', x: 78, y: 24, avatar: '🧢' }
     ];
 
     const defaultHanwhaFielders = [
-        { role: 'P', name: (s && s.pitcher) ? s.pitcher : '류현진', x: 50, y: 53, avatar: '🧢' },
-        { role: 'C', name: '최재훈', x: 50, y: 84, avatar: '⚾' },
-        { role: '1B', name: '채은성', x: 74, y: 56, avatar: '🧢' },
-        { role: '2B', name: '안치홍', x: 63, y: 37, avatar: '🧢' },
-        { role: '3B', name: '노시환', x: 26, y: 56, avatar: '🧢' },
-        { role: 'SS', name: '황영묵', x: 37, y: 37, avatar: '🧢' },
-        { role: 'LF', name: '최인호', x: 22, y: 24, avatar: '🧢' },
-        { role: 'CF', name: '장진혁', x: 50, y: 15, avatar: '🧢' },
-        { role: 'RF', name: '페라자', x: 78, y: 24, avatar: '🧢' }
+        { role: 'P', name: (s && s.pitcher) ? s.pitcher : '이상규', x: 50, y: 53, avatar: '🧢' },
+        { role: 'C', name: '허인서', x: 50, y: 84, avatar: '⚾' },
+        { role: '1B', name: '강백호', x: 74, y: 56, avatar: '🧢' },
+        { role: '2B', name: '황영묵', x: 63, y: 37, avatar: '🧢' },
+        { role: '3B', name: '박정현', x: 26, y: 56, avatar: '🧢' },
+        { role: 'SS', name: '심우준', x: 37, y: 37, avatar: '🧢' },
+        { role: 'LF', name: '한지윤', x: 22, y: 24, avatar: '🧢' },
+        { role: 'CF', name: '권광민', x: 50, y: 15, avatar: '🧢' },
+        { role: 'RF', name: '최인호', x: 78, y: 24, avatar: '🧢' }
     ];
 
     const isHomeDefense = (s && s.is_top !== false); // In top inning, home team is defending
@@ -2697,7 +2693,7 @@ function renderFieldersOverlay(layer, s) {
 
     // Offense Runners on base (Enforce bases empty at initial game start)
     const isInitStart = s && (s.inning === 1 || !s.inning) && (s.is_top !== false) && (!s.totalPitcherCount || s.totalPitcherCount === 0);
-    const defaultRunners = (s && s.is_top === false) ? { r1: '이재현', r2: '구자욱', r3: '맥키넌' } : { r1: '채은성', r2: '안치홍', r3: '노시환' };
+    const defaultRunners = (s && s.is_top === false) ? { r1: '김성윤', r2: '구자욱', r3: '최형우' } : { r1: '최인호', r2: '한지윤', r3: '강백호' };
 
     if (!isInitStart && s && s.runner_1b) {
         const r1Name = s.runner_1b_name || defaultRunners.r1;

@@ -1,6 +1,7 @@
 import random
 import time
 import database
+from rosters import ROSTERS
 
 TEAMS = {
     "삼성": {
@@ -175,6 +176,32 @@ TEAMS = {
     }
 }
 
+# 수비 위치별 그라운드 좌표 (화면 표시용)
+POS_COORDS = {
+    "P": (50, 53), "C": (50, 84), "1B": (74, 56), "2B": (63, 37), "3B": (26, 56),
+    "SS": (37, 37), "LF": (22, 24), "CF": (50, 15), "RF": (78, 24),
+}
+
+
+def _apply_rosters():
+    """rosters.py의 최신 로스터로 TEAMS의 선발투수·타순·수비 배치를 덮어씀 (색·로고는 유지)"""
+    for code, r in ROSTERS.items():
+        team = TEAMS.setdefault(code, {"color": "#333333", "logo": "⚾"})
+        starter = r["rotation"][0]["name"]
+        team["pitcher"] = starter
+        team["batters"] = [b["name"] for b in r["lineup"]]
+        fielders = [{"role": "P", "name": starter, "x": 50, "y": 53, "avatar": "🧢"}]
+        for b in r["lineup"]:
+            if b["pos"] in POS_COORDS and b["pos"] != "P":
+                x, y = POS_COORDS[b["pos"]]
+                fielders.append({"role": b["pos"], "name": b["name"], "x": x, "y": y,
+                                 "avatar": "⚾" if b["pos"] == "C" else "🧢"})
+        team["fielders"] = fielders
+        team["roster"] = r
+
+
+_apply_rosters()
+
 BATTER_STATS = {
     # 삼성 라이온즈
     "김지찬": {"order": "1번타자", "avg": "0.316"},
@@ -306,8 +333,15 @@ class GameEngine:
     def get_batter_in_game_stats(self, batter_name):
         if batter_name not in self.in_game_batter_stats:
             b_info = BATTER_STATS.get(batter_name, {"order": "타자", "avg": "0.285"})
+            order = b_info.get("order", "타자")
+            # 타순은 최신 라인업 기준
+            for t in (self.get_current_offense_team(), self.home_team_name, self.away_team_name):
+                batters = TEAMS.get(t, {}).get("batters", [])
+                if batter_name in batters:
+                    order = f"{batters.index(batter_name) + 1}번타자"
+                    break
             self.in_game_batter_stats[batter_name] = {
-                "order": b_info.get("order", "타자"),
+                "order": order,
                 "avg": b_info.get("avg", "0.285"),
                 "tasuk": 0,
                 "tasu": 0,
