@@ -945,53 +945,30 @@ function tryEnterIngame() {
 function forceLiveMatchStart() {
     clearInterval(matchCountdownInterval);
     isMatchLive = true;
+    const modal = document.getElementById('crisis-modal');
+    if (modal) modal.classList.remove('active');
 
-    fetch('/api/state')
-        .then(r => r.json())
-        .then(serverState => {
-            const isOngoing = serverState &&
-                (serverState.home_team === currentHomeTeam && serverState.away_team === currentAwayTeam) &&
-                !serverState.game_over &&
-                ((serverState.totalPitcherCount && serverState.totalPitcherCount > 0) || serverState.inning > 1 || serverState.score_home > 0 || serverState.score_away > 0 || serverState.balls > 0 || serverState.strikes > 0);
-
-            const teamCode = normalizeTeamShort(selectedTeamCode);
-            const teamFull = teamFullMap[teamCode] || '응원 구단 미설정';
-
-            if (isOngoing) {
-                currentGameState = serverState;
-                saveGameStateToStorage(serverState);
-                showToast(`🚨 [${teamFull} 경기 직행] ${userNickname}님, 진행 중인 ${currentHomeTeam} vs ${currentAwayTeam} 경기 관전에 재입장합니다!`);
-                switchView('ingame-view');
-            } else {
-                showToast(`🚨 [${teamFull} 경기 직행] ${userNickname}님, ${currentHomeTeam} vs ${currentAwayTeam} [${currentStadium}] 덕아웃 감독석으로 진입합니다!`);
-                fetch('/api/reset', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        home_team: currentHomeTeam,
-                        away_team: currentAwayTeam,
-                        home_pitcher: currentHomePitcher,
-                        away_pitcher: currentAwayPitcher
-                    })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data && data.state) {
-                        currentGameState = data.state;
-                        saveGameStateToStorage(data.state);
-                        updateScoreboardUI(data.state);
-                        drawBaseballField(data.state);
-                    }
-                    const modal = document.getElementById('crisis-modal');
-                    if (modal) modal.classList.remove('active');
-                    switchView('ingame-view');
-                })
-                .catch(() => {
-                    switchView('ingame-view');
-                });
-            }
+    // 요청 한 번으로 입장: 같은 경기가 진행 중이면 이어 보고, 아니면 새로 시작 (서버가 판단)
+    fetch('/api/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            home_team: currentHomeTeam,
+            away_team: currentAwayTeam,
+            home_pitcher: currentHomePitcher,
+            away_pitcher: currentAwayPitcher,
+            resume: true
         })
-        .catch(() => switchView('ingame-view'));
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data && data.state) {
+            currentGameState = data.state;
+            saveGameStateToStorage(data.state);
+        }
+        switchView('ingame-view', data && data.state);
+    })
+    .catch(() => switchView('ingame-view'));
 }
 
 // 하단 네비게이션 바 노출/숨김 제어 함수: 로그인 완료 후 메인 로비 화면이나 게임 화면 진입 시에만 노출
@@ -1041,7 +1018,7 @@ function hideOverlay(id) {
     try { updateBottomNavVisibility(); } catch(e) {}
 }
 
-function switchView(viewId) {
+function switchView(viewId, preloadedState) {
     document.querySelectorAll('.view-screen').forEach(screen => {
         screen.classList.remove('active');
     });
@@ -1051,8 +1028,8 @@ function switchView(viewId) {
     }
 
     if (viewId === 'ingame-view') {
-        fetch('/api/state')
-            .then(r => r.json())
+        // 방금 받은 상태가 있으면 바로 그림 (서버에 한 번 더 묻지 않음)
+        (preloadedState ? Promise.resolve(preloadedState) : fetch('/api/state').then(r => r.json()))
             .then(state => {
                 currentGameState = state;
                 saveGameStateToStorage(state);
@@ -1074,7 +1051,7 @@ function switchView(viewId) {
                 }
             });
         try { updateBottomNavVisibility(); } catch(e) {}
-        startSSEStream();
+        // 실시간 연결(SSE)은 서버를 붙잡아 다른 요청을 막으므로 쓰지 않음. 15초마다 진행 요청으로 갱신
         if (!autoPitchInterval) {
             startAutoPitchTimer();
         }
@@ -1522,55 +1499,11 @@ function enterMatchupFromSchedule(homeTeam, awayTeam, homePitcher, awayPitcher) 
     if (homeTeam === awayTeam) {
         awayTeam = homeTeam === '삼성' ? '한화' : '삼성';
     }
-    const targetHomeP = homePitcher || teamPitcherMap[homeTeam] || '후라도';
-    const targetAwayP = awayPitcher || teamPitcherMap[awayTeam] || '화이트';
-
-    fetch('/api/state')
-        .then(r => r.json())
-        .then(serverState => {
-            const isOngoing = serverState &&
-                (serverState.home_team === homeTeam && serverState.away_team === awayTeam) &&
-                !serverState.game_over &&
-                ((serverState.totalPitcherCount && serverState.totalPitcherCount > 0) || serverState.inning > 1 || serverState.score_home > 0 || serverState.score_away > 0 || serverState.balls > 0 || serverState.strikes > 0);
-
-            currentHomeTeam = homeTeam;
-            currentAwayTeam = awayTeam;
-            currentHomePitcher = targetHomeP;
-            currentAwayPitcher = targetAwayP;
-
-            if (isOngoing) {
-                currentGameState = serverState;
-                saveGameStateToStorage(serverState);
-                showToast(`⚾ ${awayTeam} vs ${homeTeam} 진행 중인 실시간 경기에 재입장했습니다!`);
-                switchView('ingame-view');
-            } else {
-                fetch('/api/reset', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        home_team: homeTeam,
-                        away_team: awayTeam,
-                        home_pitcher: targetHomeP,
-                        away_pitcher: targetAwayP
-                    })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    showToast(`⚾ ${awayTeam} vs ${homeTeam} [선발: ${targetAwayP} vs ${targetHomeP}] 매치업 진입!`);
-                    if (data && data.state) {
-                        currentGameState = data.state;
-                        saveGameStateToStorage(data.state);
-                        updateScoreboardUI(data.state);
-                        drawBaseballField(data.state);
-                    }
-                    switchView('ingame-view');
-                })
-                .catch(() => {
-                    switchView('ingame-view');
-                });
-            }
-        })
-        .catch(() => switchView('ingame-view'));
+    currentHomeTeam = homeTeam;
+    currentAwayTeam = awayTeam;
+    currentHomePitcher = homePitcher || teamPitcherMap[homeTeam] || '페덱';
+    currentAwayPitcher = awayPitcher || teamPitcherMap[awayTeam] || '박준영';
+    forceLiveMatchStart();
 }
 
 function selectMatchFromSchedule(dateStr, home, away, stadium, timeStr, homePitcher, awayPitcher) {

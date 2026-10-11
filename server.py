@@ -286,8 +286,12 @@ def authentication_guard():
         resp.headers["Expires"] = "0"
         return resp
 
-    # 4. SQLite DB users 테이블 실시간 대조 검증
-    db_user = database.verify_session_user(user_id, username)
+    # 4. DB users 테이블 대조 검증
+    #    경기 중 자주 부르는 주소(투구·상태)는 30초간 확인 결과를 재사용해 DB 왕복을 줄임
+    if path in GAME_API_PATHS:
+        db_user = cached_verify_user(user_id, username)
+    else:
+        db_user = database.verify_session_user(user_id, username)
     if not db_user:
         # 데이터베이스에 존재하지 않는 무효 사용자: 세션 완전 파기 및 쿠키 만료
         session.clear()
@@ -317,6 +321,46 @@ def authentication_guard():
     # 세션 정보 동기화
     sync_session_from_user(db_user)
     return None
+
+
+GAME_API_PATHS = {'/api/step', '/api/state', '/api/tactic'}
+_verify_cache = {}
+VERIFY_CACHE_SECONDS = 30
+
+
+def cached_verify_user(user_id, username):
+    key = (user_id, username)
+    hit = _verify_cache.get(key)
+    now = time.time()
+    if hit and now - hit[0] < VERIFY_CACHE_SECONDS:
+        return hit[1]
+    user = database.verify_session_user(user_id, username)
+    if user:
+        if len(_verify_cache) > 2000:
+            _verify_cache.clear()
+        _verify_cache[key] = (now, user)
+    else:
+        _verify_cache.pop(key, None)
+    return user
+
+
+@app.after_request
+def gzip_json_response(response):
+    """경기 상태(JSON)는 크기가 커서(수십 KB) 압축해 보냄 → 휴대폰에서 받는 시간 단축"""
+    try:
+        if (response.status_code == 200 and response.mimetype == 'application/json'
+                and 'gzip' in request.headers.get('Accept-Encoding', '').lower()
+                and not response.direct_passthrough and 'Content-Encoding' not in response.headers):
+            data = response.get_data()
+            if len(data) > 1024:
+                import gzip
+                response.set_data(gzip.compress(data, compresslevel=5))
+                response.headers['Content-Encoding'] = 'gzip'
+                response.headers['Content-Length'] = str(len(response.get_data()))
+                response.headers.add('Vary', 'Accept-Encoding')
+    except Exception:
+        pass
+    return response
 
 
 @app.after_request
@@ -749,26 +793,13 @@ def api_session():
 
 @app.route('/api/stream')
 def api_stream():
-    """SSE (Server-Sent Events) 실시간 라이브 중계 스트림"""
-    engine = get_engine()
-
-    def event_stream():
-        try:
-            while True:
-                state_data = json.dumps(engine.get_state(), ensure_ascii=False)
-                yield f"data: {state_data}\n\n"
-                time.sleep(15.0)
-        except GeneratorExit:
-            pass
-
+    """(예전 화면 호환용) 현재 상태를 한 번만 보내고 연결을 닫음.
+    끝없이 열어 두면 서버 작업자를 붙잡아 다른 요청이 모두 밀리는 문제가 있었음"""
+    state_data = json.dumps(get_engine().get_state(), ensure_ascii=False)
     return Response(
-        event_stream(),
+        f"retry: 600000\ndata: {state_data}\n\n",
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Access-Control-Allow-Origin': '*'
-        }
+        headers={'Cache-Control': 'no-cache'}
     )
 
 
@@ -881,6 +912,13 @@ def api_reset():
     if home == away:
         away = '한화' if home != '한화' else '삼성'
     engine = get_engine()
+    if data.get('resume'):
+        st = engine.get_state()
+        ongoing = (st.get('home_team') == home and st.get('away_team') == away and not st.get('game_over') and
+                   (st.get('totalPitcherCount') or st.get('inning', 1) > 1 or st.get('score_home') or st.get('score_away')
+                    or st.get('balls') or st.get('strikes')))
+        if ongoing:
+            return jsonify({"status": "success", "resumed": True, "state": st})
     engine.home_team_name = home
     engine.away_team_name = away
     engine.home_pitcher = home_p
