@@ -5758,3 +5758,45 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     letter-spacing: -0.02em;
 }
 .sc-date.active .sc-none { color: rgba(255, 255, 255, 0.85); }
+
+/* 홈 '오늘의 다른 경기': 한 줄 요약 — 로비는 스크롤 없이 한 화면에 */
+#home-games-list.hm-list { gap: 6px; }
+.hm-row.is-compact {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 14px;
+}
+.hm-row.is-compact .hm-row-main { flex: 1; min-width: 0; gap: 6px; }
+.hm-row.is-compact .hm-row-team { gap: 5px; }
+.hm-row.is-compact .hm-row-logo { width: 24px; height: 24px; font-size: 0.82rem; }
+.hm-row.is-compact .hm-row-name { font-size: 0.84rem; }
+.hm-row.is-compact .hm-row-score { gap: 4px; }
+.hm-row.is-compact .hm-row-score b { font-size: 0.95rem; }
+.hm-row.is-compact .hm-row-meta {
+    flex-shrink: 0;
+    width: 116px;
+    gap: 5px;
+    padding: 0 0 0 8px;
+    border-top: 0;
+    border-left: 1px dashed rgba(255, 255, 255, 0.1);
+}
+.hm-row.is-compact .hm-row-chip { padding: 3px 7px; font-size: 0.68rem; }
+.hm-row.is-compact .hm-row-chip svg { width: 12px; height: 12px; }
+.hm-row.is-compact .hm-row-where { font-size: 0.7rem; }
+
+/* 작은 휴대폰(아이폰 SE 등): 홈 카드를 살짝 줄여 스크롤 없이 한 화면에 */
+@media (max-height: 760px) {
+    .home-top { padding: 8px 12px; margin-bottom: 8px; }
+    .home-avatar { width: 38px; height: 38px; }
+    .hm-section { margin: 2px 4px 8px; }
+    .hm-section-sub { margin-top: 12px; }
+    .hm-card { padding: 14px 14px 12px; }
+    .hm-head { margin-bottom: 8px; }
+    .hm-logo { width: 48px; height: 48px; font-size: 1.5rem; }
+    .hm-name { font-size: 1rem; }
+    .hm-teams { margin-bottom: 10px; }
+    .hm-pitcher { margin: -2px 0 10px; }
+    .hm-enter { padding: 11px; font-size: 1rem; }
+}

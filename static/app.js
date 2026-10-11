@@ -819,7 +819,8 @@ function gameRowHtml(m, opts = {}) {
     const mine = a === myTeam || h === myTeam;
     const enterable = opts.enterable && st.canEnter;
     const onclick = enterable ? ` onclick="enterMatchupFromSchedule('${m.home_team}', '${m.away_team}', '${m.home_pitcher || ''}', '${m.away_pitcher || ''}')" role="button"` : '';
-    return `<div class="hm-row st-${st.cls.split(' ')[0]} ${st.wx ? 'wx-' + st.wx : ''} ${mine ? 'is-mine' : ''} ${enterable ? 'is-tappable' : ''}"${onclick}>
+    const compact = !!opts.compact;  // 홈: 한 줄 요약 (스크롤 없이 한 화면에)
+    return `<div class="hm-row st-${st.cls.split(' ')[0]} ${st.wx ? 'wx-' + st.wx : ''} ${mine ? 'is-mine' : ''} ${enterable ? 'is-tappable' : ''} ${compact ? 'is-compact' : ''}"${onclick}>
         ${st.wx ? '<span class="wx-row-fx" aria-hidden="true"></span>' : ''}
         <div class="hm-row-main">
             <span class="hm-row-team"><span class="hm-row-logo">${teamLogos[a] || '⚾'}</span><span class="hm-row-name">${a}</span></span>
@@ -828,7 +829,7 @@ function gameRowHtml(m, opts = {}) {
         </div>
         <div class="hm-row-meta">
             <span class="hm-row-chip">${st.wx ? WX_ICON[st.wx] : ''}${st.cls === 'live' ? '<i class="live-dot"></i>' : ''}${when}</span>
-            <span class="hm-row-where">${where}${extra}</span>
+            <span class="hm-row-where">${where}${compact ? '' : extra}</span>
             ${enterable ? '<span class="hm-row-go">입장 ›</span>' : ''}
         </div>
     </div>`;
@@ -843,7 +844,7 @@ function renderOtherGames(list) {
         box.innerHTML = '<div class="hm-row-empty">오늘은 다른 경기가 없어요</div>';
         return;
     }
-    box.innerHTML = list.map(m => gameRowHtml(m)).join('');
+    box.innerHTML = list.map(m => gameRowHtml(m, { compact: true })).join('');
 }
 
 function renderHome(scheduleInfo, todayGames) {
