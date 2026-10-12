@@ -1439,12 +1439,22 @@ const teamBatterMap = {
 };
 
 function loadScheduleTable(filterDate = schedTodayStr()) {
-    if (!filterDate || filterDate === 'today') filterDate = schedTodayStr();
+    const goToday = !filterDate || filterDate === 'today';
+    if (goToday) filterDate = schedTodayStr();
     selectedScheduleDate = filterDate;
     fetch('/api/schedules')
         .then(res => res.json())
         .then(data => {
             cachedSchedules = data.schedules || [];
+            // '오늘' 버튼: 서버가 알려 준 오늘(테스트 시즌은 진행 중인 일차) → 그날 경기가 없으면 가장 가까운 다음 경기일
+            if (goToday) {
+                if (data.test_date) window._testDate = data.test_date;
+                selectedScheduleDate = scheduleGameDayFrom(schedTodayStr());
+                renderHorizontalDatePicker();
+                renderMatchupsForDate(selectedScheduleDate);
+                setTimeout(() => centerActiveDate(false), 400);
+                return;
+            }
             // 테스트 시즌: '오늘'을 테스트 일차 날짜로
             if (data.test_date && window._testDate !== data.test_date) {
                 const wasToday = selectedScheduleDate === schedTodayStr();
@@ -1455,6 +1465,13 @@ function loadScheduleTable(filterDate = schedTodayStr()) {
             renderMatchupsForDate(selectedScheduleDate);
         })
         .catch(err => console.error("Error loading schedules:", err));
+}
+
+// 이 날짜에 경기가 없으면 가장 가까운 다음 경기일 (다음 경기가 없으면 마지막 경기일)
+function scheduleGameDayFrom(dateStr) {
+    const days = [...new Set((cachedSchedules || []).filter(g => g.is_rest_day !== 1).map(g => g.game_date))].sort();
+    if (!days.length || days.includes(dateStr)) return dateStr;
+    return days.find(d => d >= dateStr) || days[days.length - 1];
 }
 
 const SC_DOWS = ['일', '월', '화', '수', '목', '금', '토'];
