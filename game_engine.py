@@ -241,6 +241,12 @@ def apply_outcome(bases, outs, outcome, batter):
         runs += 1 + sum(1 for k in (1, 2, 3) if b[k])
         b = {1: None, 2: None, 3: None}
         desc = f"비거리 {outcome.get('dist', 120)}m {runs}점 홈런!"
+    elif kind == "ERROR":
+        # 실책 출루: 타자 1루, 주자 한 베이스씩 (3루 주자 득점)
+        if b[3]:
+            runs += 1
+        b = {1: batter, 2: b[1], 3: b[2]}
+        desc = f"{outcome.get('pos', '유격수')} 실책 출루"
     elif kind == "GROUND":
         pos = outcome.get("pos", "유격수")
         if b[1] and outs < 2 and roll < 0.45:
@@ -287,7 +293,7 @@ def apply_outcome(bases, outs, outcome, batter):
     return b, add, runs, desc
 
 
-ON_BASE_KINDS = ("WALK", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN")
+ON_BASE_KINDS = ("WALK", "ERROR", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN")
 
 
 def today_kst():
@@ -484,6 +490,9 @@ class GameEngine:
         self.crisis_seen = set()    # (이닝, 초/말, 투수): 같은 투수에게 한 이닝에 위기 한 번만
         self.runner_names = {1: None, 2: None, 3: None}
         self.tactic_log = []        # 이번 경기 작전 기록 (경기 후 성적표용)
+        self.user_team = getattr(self, 'user_team', None)   # 내 응원 구단 (우리 팀 공격 때 대타 팝업)
+        self.used_bench = {self.home_team_name: set(), self.away_team_name: set()}
+        self.ph_slots = {self.home_team_name: set(), self.away_team_name: set()}   # 대타가 들어간 타순 자리
         # 경기마다 감독(AI)이 짜는 라인업 (상대 선발의 던지는 손을 보고 조금씩 바꿈)
         self.lineups = {
             self.home_team_name: daily_lineup(self.home_team_name, self.away_team_name),
@@ -603,7 +612,7 @@ class GameEngine:
             return getattr(self, 'away_pitcher', None) or TEAMS.get(self.away_team_name, {}).get('pitcher', '박준영')
 
     def _make_pitch_obj(self, seq, code, res_text, pitch_desc, sb_count_str, commentary_text):
-        if code in ["STRIKE", "FOUL", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN", "OUT"]:
+        if code in ["STRIKE", "FOUL", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN", "OUT", "ERROR"]:
             pz_x = round(random.uniform(-0.65, 0.65), 2)
             pz_y = round(random.uniform(-0.65, 0.65), 2)
             is_strike = True
@@ -713,6 +722,8 @@ class GameEngine:
             if r < hr + triple + double:
                 return "DOUBLE"
             return "SINGLE"
+        if random.random() < 0.02:
+            return "ERROR"
         r = random.random()
         return "GROUND" if r < 0.46 else ("FLY" if r < 0.84 else "LINE")
 
@@ -807,6 +818,10 @@ class GameEngine:
                 pa_end = kind
                 code = kind
                 res_text = {"SINGLE": "타격 (안타)", "DOUBLE": "타격 (2루타)", "TRIPLE": "타격 (3루타)", "HOMERUN": "타격 (홈런)"}[kind]
+            elif kind == "ERROR":
+                pa_end = "ERROR"
+                code = "ERROR"
+                res_text = "실책 출루"
             else:
                 pa_end = "OUT"
                 code = "OUT"
@@ -826,9 +841,9 @@ class GameEngine:
                 else:
                     self.score_home += runs
                 self.outing_runs[pitcher] = self.outing_runs.get(pitcher, 0) + runs
-            if pa_end in ("WALK", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN"):
+            if pa_end in ("WALK", "ERROR", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN"):
                 self.consecutive_on_base += 1
-                self.consecutive_hits += 0 if pa_end == "WALK" else 1
+                self.consecutive_hits += 0 if pa_end in ("WALK", "ERROR") else 1
             else:
                 self.consecutive_on_base = 0
                 self.consecutive_hits = 0
@@ -890,10 +905,23 @@ class GameEngine:
         ("KEEP", "KEEP", "NOT_OUT"): (8, -10, "동일 선택 & 출루 허용", "나와 감독 모두 유지했지만 출루를 허용했어요"),
     }
 
+    # 대타 작전 채점: 대타(또는 그대로 친 타자)가 아웃이면 (-), 출루(실책 포함)면 (+) / 감독과 같으면 ±10, 다르면 ±15
+    PH_CASES = {
+        ("CHANGE", "CHANGE", "OUT"): (11, -10, "대타 실패", "나와 감독 모두 대타, 대타가 아웃됐어요"),
+        ("CHANGE", "CHANGE", "NOT_OUT"): (12, 10, "대타 성공!", "나와 감독 모두 대타, 대타가 출루했어요"),
+        ("KEEP", "CHANGE", "OUT"): (13, 15, "내 판단 적중!", "감독의 대타가 아웃, 그대로 가자던 내 판단이 옳았어요"),
+        ("KEEP", "CHANGE", "NOT_OUT"): (14, -15, "감독 대타 적중", "감독이 낸 대타가 출루했어요"),
+        ("CHANGE", "KEEP", "OUT"): (15, 15, "내 판단 적중!", "감독은 그대로, 타자가 아웃돼 내 대타 판단이 옳았어요"),
+        ("CHANGE", "KEEP", "NOT_OUT"): (16, -15, "감독 판단 적중", "감독이 믿은 타자가 출루했어요"),
+        ("KEEP", "KEEP", "OUT"): (17, -10, "믿음 실패", "나와 감독 모두 그대로, 타자가 아웃됐어요"),
+        ("KEEP", "KEEP", "NOT_OUT"): (18, 10, "믿음 성공!", "나와 감독 모두 그대로, 타자가 출루했어요"),
+    }
+
     def _score_tactic(self, actual_result, runs=0, batter=""):
         my = self.pending_tactic["my_choice"]
         mgr = self.pending_tactic["actual_manager_choice"]
         entry = {
+            "kind": self.pending_tactic.get("kind", "PITCHER"),
             "inning_str": self.pending_tactic["inning_str"],
             "def_team": self.pending_tactic.get("def_team", ""),
             "pitcher": self.pending_tactic["old_pitcher"],
@@ -906,6 +934,7 @@ class GameEngine:
         }
         if my == "SKIP":
             self.last_tactic_resolution = {
+                "kind": self.pending_tactic.get("kind", "PITCHER"),
                 "case_no": 0, "my_choice": "SKIP", "actual_manager_choice": mgr,
                 "actual_result": actual_result, "my_choice_label": "자리 비움",
                 "mgr_choice_label": "교체" if mgr == "CHANGE" else "유지",
@@ -918,7 +947,10 @@ class GameEngine:
             self.tactic_log.append(entry)
             self.pending_tactic = None
             return
-        case_no, score_delta, title, commentary = self.TACTIC_CASES[(my, mgr, actual_result)]
+        if self.pending_tactic.get("kind") == "PH":
+            case_no, score_delta, title, commentary = self.PH_CASES[(my, mgr, actual_result)]
+        else:
+            case_no, score_delta, title, commentary = self.TACTIC_CASES[(my, mgr, actual_result)]
         entry.update({"case_no": case_no, "score_delta": score_delta})
         self.tactic_log.append(entry)
         self.manager_score += score_delta
@@ -932,6 +964,7 @@ class GameEngine:
                 print(f"⚠️ [작전 기록 저장 실패] {e}")
         self.commentary_logs.insert(0, f"📊 [위기 채점 {case_no}번] {commentary} ({score_delta:+d})")
         self.last_tactic_resolution = {
+            "kind": self.pending_tactic.get("kind", "PITCHER"),
             "case_no": case_no,
             "my_choice": my,
             "actual_manager_choice": mgr,
@@ -947,10 +980,112 @@ class GameEngine:
         }
         self.pending_tactic = None
 
+    # ---------------- 대타 (우리 팀 공격) ----------------
+    def _pinch_hit_pick(self):
+        """대타 후보: 아직 안 나온 후보야수 중 가장 잘 칠 선수 (투수와 반대 손 타자 우대)"""
+        team = self.get_current_offense_team()
+        r = TEAMS.get(team, {}).get("roster") or {}
+        in_lineup = set(self.lineup_names(team))
+        used = self.used_bench.setdefault(team, set())
+        throws = self._pitcher_throws(self.get_current_pitcher())
+        best, best_score = None, -1
+        for b in r.get("bench", []):
+            if b["name"] in in_lineup or b["name"] in used:
+                continue
+            score = self._batter_rating(b["name"])["avg"]
+            if (throws.startswith("좌") and b.get("bats") != "좌타") or (not throws.startswith("좌") and b.get("bats") in ("좌타", "양타")):
+                score += 0.015
+            if score > best_score:
+                best, best_score = b, score
+        return best, best_score
+
+    def check_pinch_hit_trigger(self):
+        """우리 팀 공격, 새 타자가 나올 때:
+        - 실제 감독(AI)이 대타를 쓰면 무조건 팝업 (감독 선택을 먼저 공개)
+        - 5회 이후 + 득점권 + 7·8·9번 타석이면 팝업 (감독 선택은 고른 뒤 공개)"""
+        team = self.get_current_offense_team()
+        if not self.user_team or team != self.user_team or self.outs >= 3 or self.game_over:
+            return None
+        if self.currentBatterPitchCount != 0:
+            return None
+        names = self.lineup_names(team)
+        idx = (self.batter_index_away if self.is_top else self.batter_index_home) % len(names)
+        batter = names[idx]
+        # 이미 대타가 들어간 자리에는 다시 대타를 내지 않음
+        if idx in self.ph_slots.setdefault(team, set()):
+            return None
+        pick, pick_score = self._pinch_hit_pick()
+        if not pick:
+            return None
+        risp = self.runner_2b or self.runner_3b
+        diff = abs(self.score_home - self.score_away)
+        situation = self.inning >= 5 and risp and idx >= 6
+        b_avg = self._batter_rating(batter)["avg"]
+        gain = pick_score - b_avg
+        # 실제 감독(AI)의 대타 판단
+        p = 0.0
+        if situation:
+            p = 0.3 + gain * 4 + (0.15 if self.inning >= 7 else 0) + (0.1 if diff <= 2 else 0)
+        elif self.inning >= 7 and diff <= 2 and (self.runner_1b or risp) and idx >= 5:
+            p = 0.12 + max(0, gain) * 2
+        p = max(0.0, min(0.85, p)) if gain > 0 else 0.0
+        mgr_ph = random.random() < p
+        if not (situation or mgr_ph):
+            return None
+        inning_str = f"{self.inning}회{'초' if self.is_top else '말'}"
+        reason = []
+        if risp:
+            reason.append("득점권 주자")
+        reason.append(f"{idx + 1}번 타석")
+        return {
+            "id": "PINCH_HIT",
+            "condition_type": "PINCH_HIT",
+            "title": "대타를 낼까요?",
+            "desc": f"{inning_str} · " + " · ".join(reason),
+            "batter_name": batter,
+            "batter_order": idx + 1,
+            "ph_name": pick["name"],
+            "ph_bats": pick.get("bats", ""),
+            "ph_pos": pick.get("pos", ""),
+            "ph_avg": f"{self._batter_rating(pick['name'])['avg']:.3f}",
+            "manager_choice": "CHANGE" if mgr_ph else "KEEP",
+            "revealed": mgr_ph,   # 감독이 대타를 쓰면 미리 공개
+            "pitcher_name": self.get_current_pitcher(),
+            "pitch_count": self.pitch_counts.get(self.get_current_pitcher(), 0),
+        }
+
+    def _apply_pinch_hit(self, crisis):
+        """실제 감독이 대타를 쓰면 타순 그 자리에 대타를 넣음 (수비 위치는 그대로 이어받음)"""
+        team = self.get_current_offense_team()
+        lu = self.lineups.get(team)
+        if not lu:
+            return
+        idx = (self.batter_index_away if self.is_top else self.batter_index_home) % len(lu)
+        r = TEAMS.get(team, {}).get("roster") or {}
+        info = next((b for b in r.get("bench", []) if b["name"] == crisis["ph_name"]), {})
+        old = lu[idx]["name"]
+        lu[idx] = {"name": crisis["ph_name"], "pos": lu[idx]["pos"], "bats": info.get("bats", "우타")}
+        self.used_bench.setdefault(team, set()).add(crisis["ph_name"])
+        self.ph_slots.setdefault(team, set()).add(idx)
+        if self.batter_sessions:
+            sess = self.batter_sessions[0]
+            st = self.get_batter_in_game_stats(crisis["ph_name"])
+            st["order"] = f"{idx + 1}번타자"
+            sess.update({"batter_name": crisis["ph_name"], "batter_order": st["order"], "batter_avg": st["avg"],
+                         "batter_stats": dict(st)})
+        self.commentary_logs.insert(0, f"🔁 [대타] {team}: {old} → {crisis['ph_name']}")
+
     def _check_crisis(self):
         if self.game_over or self.pending_tactic or self.crisis_active:
             return
         if getattr(self, 'has_crisis_popped_for_current_batter', False):
+            return
+        ph = self.check_pinch_hit_trigger()
+        if ph:
+            self.crisis_active = True
+            self.current_crisis = ph
+            self.has_crisis_popped_for_current_batter = True
+            self.commentary_logs.insert(0, f"🧢 [대타 작전] {ph['desc']}")
             return
         crisis = self.check_crisis_trigger()
         if crisis:
@@ -1166,6 +1301,47 @@ class GameEngine:
                 self._change_pitcher(new, "체력 소진" if not shelled else "대량 실점")
 
     def apply_tactic(self, tactic_id):
+        """[작전] 내 선택을 받고, 실제 감독(AI)의 선택을 정해 이번 타석 결과로 채점 대기"""
+        if self.current_crisis and self.current_crisis.get("id") == "PINCH_HIT":
+            return self._apply_pinch_hit_tactic(tactic_id)
+        return self._apply_pitcher_tactic(tactic_id)
+
+    def _apply_pinch_hit_tactic(self, tactic_id):
+        crisis = self.current_crisis
+        inning_str = f"{self.inning}회{'초' if self.is_top else '말'}"
+        my_choice = {"PINCH_HIT": "CHANGE", "KEEP_BATTER": "KEEP"}.get(tactic_id, "SKIP")
+        mgr = crisis["manager_choice"]
+        old_batter = crisis["batter_name"]
+        new_batter = old_batter
+        if mgr == "CHANGE":
+            self._apply_pinch_hit(crisis)
+            new_batter = crisis["ph_name"]
+        if not self.batter_sessions:
+            self.init_first_session()
+        self.pending_tactic = {
+            "kind": "PH",
+            "my_choice": my_choice,
+            "actual_manager_choice": mgr,
+            "old_pitcher": old_batter,      # 기록·화면에서 '바뀌기 전'
+            "new_pitcher": new_batter,      # '바뀐 뒤'
+            "inning_str": inning_str,
+            "situation_title": "대타 작전",
+            "def_team": self.get_current_defense_team(),
+        }
+        self.has_crisis_popped_for_current_batter = True
+        self.crisis_active = False
+        self.current_crisis = None
+        my_label = {"CHANGE": "대타", "KEEP": "그대로"}.get(my_choice, "자리 비움")
+        log_msg = f"📋 [대타 작전] 나: {my_label} | 실제 감독: {'대타 ' + new_batter if mgr == 'CHANGE' else '그대로'}"
+        self.commentary_logs.insert(0, log_msg)
+        return {
+            "status": "success", "pending": True, "kind": "PH", "tactic_id": tactic_id,
+            "my_choice": my_choice, "actual_manager_choice": mgr,
+            "old_pitcher": old_batter, "new_pitcher": new_batter,
+            "commentary": log_msg, "state": self.get_state()
+        }
+
+    def _apply_pitcher_tactic(self, tactic_id):
         """[위기 작전] 내 선택을 받고, 실제 감독(AI)의 선택을 정해 다음 타석 결과로 채점 대기"""
         inning_str = f"{self.inning}회{'초' if self.is_top else '말'}"
         situation_title = "투수 교체 위기"

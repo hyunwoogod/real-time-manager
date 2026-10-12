@@ -1740,10 +1740,39 @@ function openCrisisModal(crisis) {
     const pName = crisis.pitcher_name || (currentGameState ? currentGameState.pitcher : '투수');
     const pCount = crisis.pitch_count !== undefined ? crisis.pitch_count : (currentGameState ? currentGameState.totalPitcherCount : 0);
     const inning = (currentGameState && currentGameState.inning_str) || '';
-    const reason = crisis.condition_type === 'CONDITION_A' ? '4타자 연속 출루' : '득점권 주자 · 실점 위기';
+    const isPH = crisis.id === 'PINCH_HIT';
+    const reason = isPH ? '' : crisis.condition_type === 'CONDITION_A' ? '4타자 연속 출루' : '득점권 주자 · 실점 위기';
 
     const descEl = document.getElementById('crisis-desc');
-    if (descEl) descEl.textContent = [inning, reason].filter(Boolean).join(' · ');
+    if (descEl) descEl.textContent = isPH ? crisis.desc : [inning, reason].filter(Boolean).join(' · ');
+    // 작전 종류별 문구·버튼 (투수 교체 / 대타)
+    const badge = document.getElementById('crisis-badge');
+    if (badge) { badge.textContent = isPH ? '공격 작전' : '위기 상황'; badge.className = `igm-badge ${isPH ? 'attack' : ''}`; }
+    const titleEl = document.getElementById('crisis-title');
+    if (titleEl) titleEl.textContent = isPH ? '대타를 낼까요?' : '투수를 바꿀까요?';
+    const card = modal.querySelector('.igm-card');
+    if (card) card.classList.toggle('igm-attack', isPH);
+    const reveal = document.getElementById('crisis-reveal');
+    if (reveal) {
+        reveal.hidden = !(isPH && crisis.revealed);
+        reveal.innerHTML = isPH && crisis.revealed ? `실제 감독은 <b>대타 ${crisis.ph_name}</b> 기용!<br>당신도 바꾸실래요?` : '';
+    }
+    const phRow = document.getElementById('crisis-ph-row');
+    if (phRow) phRow.hidden = !isPH;
+    if (isPH) {
+        const set2 = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+        set2('crisis-ph-name', crisis.ph_name || '-');
+        set2('crisis-ph-hand', crisis.ph_bats || '');
+        set2('crisis-ph-info', `타율 ${igAvg(crisis.ph_avg)}`);
+    }
+    const choices = document.getElementById('crisis-choices');
+    if (choices) {
+        choices.innerHTML = isPH
+            ? `<button class="igm-choice change" onclick="submitTactic('PINCH_HIT')"><strong>대타 ${crisis.ph_name}</strong><span>대타 기용</span></button>
+               <button class="igm-choice keep" onclick="submitTactic('KEEP_BATTER')"><strong>그대로 간다</strong><span>${crisis.batter_name} 타석</span></button>`
+            : `<button class="igm-choice change" onclick="submitTactic('PITCHER_CHANGE')"><strong>투수 교체</strong><span>불펜 투입</span></button>
+               <button class="igm-choice keep" onclick="submitTactic('KEEP_PITCHER')"><strong>그대로 간다</strong><span>지금 투수 유지</span></button>`;
+    }
     const nameEl = document.getElementById('crisis-pitcher-name');
     if (nameEl) nameEl.textContent = pName;
     const countEl = document.getElementById('crisis-pitch-count');
@@ -2127,14 +2156,18 @@ function renderPostGameSummary(s) {
 
     const list = document.getElementById('pg-log-list');
     if (list) {
-        const label = c => c === 'CHANGE' ? '교체' : c === 'KEEP' ? '유지' : '자리 비움';
-        list.innerHTML = log.length ? log.map(t => `<div class="pg-log-row">
+        const label = (c, ph) => c === 'CHANGE' ? (ph ? '대타' : '교체') : c === 'KEEP' ? (ph ? '그대로' : '유지') : '자리 비움';
+        list.innerHTML = log.length ? log.map(t => {
+            const ph = t.kind === 'PH';
+            const who = ph ? `대타 · ${t.pitcher}${t.new_pitcher && t.new_pitcher !== t.pitcher ? ' → ' + t.new_pitcher : ''}` : `${t.pitcher} vs ${t.batter}`;
+            return `<div class="pg-log-row">
                 <span class="pg-log-inn">${t.inning_str}</span>
-                <span class="pg-log-who">${t.pitcher} vs ${t.batter}</span>
-                <span class="pg-log-choice">나 ${label(t.my_choice)} · 감독 ${label(t.manager_choice)}</span>
+                <span class="pg-log-who">${who}</span>
+                <span class="pg-log-choice">나 ${label(t.my_choice, ph)} · 감독 ${label(t.manager_choice, ph)}</span>
                 <span class="pg-log-res ${t.result === 'OUT' ? 'out' : 'on'}">${t.result === 'OUT' ? '아웃' : '출루'}</span>
                 <b class="pg-log-delta ${t.score_delta > 0 ? 'up' : t.score_delta < 0 ? 'down' : ''}">${t.score_delta > 0 ? '+' : t.score_delta < 0 ? '' : '±'}${t.score_delta}</b>
-            </div>`).join('') : '<div class="pg-log-empty">이번 경기는 위기 작전이 없었어요</div>';
+            </div>`;
+        }).join('') : '<div class="pg-log-empty">이번 경기는 작전이 없었어요</div>';
     }
 }
 
@@ -2205,6 +2238,7 @@ function igPitchKind(p) {
     if (code === 'STRIKE') return { cls: 's', label: '스트라이크' };
     if (code === 'FOUL') return { cls: 'f', label: '파울' };
     if (code === 'OUT') return { cls: 'out', label: res.replace('타격 ', '') || '아웃' };
+    if (code === 'ERROR') return { cls: 'hit', label: '실책 출루' };
     if (['SINGLE', 'DOUBLE', 'TRIPLE', 'HOMERUN'].includes(code)) {
         return { cls: 'hit', label: (res.match(/\(([^)]+)\)/) || [])[1] || '안타' };
     }
@@ -2349,6 +2383,7 @@ function igPlayBanner(summary) {
     if (t.includes('2루타')) return { cls: 'hit', big: '2BASE HIT!' };
     if (t.includes('안타') || t.includes('1루타')) return { cls: 'hit', big: 'HIT!' };
     if (t.includes('볼넷')) return { cls: 'walk', big: '4 BALL' };
+    if (t.includes('실책')) return { cls: 'hit', big: 'ERROR!' };
     if (t.includes('사구')) return { cls: 'walk', big: 'DEAD BALL' };
     if (t.includes('병살')) return { cls: 'out', big: 'DOUBLE PLAY!' };
     if (t.includes('희생플라이')) return { cls: 'sac', big: 'SAC FLY' };
@@ -2443,8 +2478,10 @@ function igShowTacticReveal(res) {
     const stage = document.querySelector('#ingame-view .ig-stage');
     if (!stage || !res) return;
     const skipped = res.my_choice === 'SKIP';
-    const mine = skipped ? '자리 비움' : (res.my_choice === 'CHANGE' ? '교체' : '유지');
-    const mgr = res.actual_manager_choice === 'CHANGE' ? '교체' : '유지';
+    const isPH = res.kind === 'PH';
+    const L = c => isPH ? (c === 'CHANGE' ? '대타' : '그대로') : (c === 'CHANGE' ? '교체' : '유지');
+    const mine = skipped ? '자리 비움' : L(res.my_choice);
+    const mgr = L(res.actual_manager_choice);
     const same = mine === mgr;
     const change = res.actual_manager_choice === 'CHANGE' && res.new_pitcher && res.new_pitcher !== res.old_pitcher
         ? `<div class="ig-reveal-change">${res.old_pitcher} → <b>${res.new_pitcher}</b></div>` : '';
@@ -2474,9 +2511,10 @@ function igRenderTacticPill(s) {
         pill.className = 'ig-tactic-pill';
         stage.appendChild(pill);
     }
+    const L = c => pt.kind === 'PH' ? (c === 'CHANGE' ? '대타' : '그대로') : (c === 'CHANGE' ? '교체' : '유지');
     const txt = pt.my_choice === 'SKIP'
-        ? `자리 비움 · 감독 ${pt.actual_manager_choice === 'CHANGE' ? '교체' : '유지'} (점수 변동 없음)`
-        : `작전 채점 중 · 나 ${pt.my_choice === 'CHANGE' ? '교체' : '유지'} / 감독 ${pt.actual_manager_choice === 'CHANGE' ? '교체' : '유지'}`;
+        ? `자리 비움 · 감독 ${L(pt.actual_manager_choice)} (점수 변동 없음)`
+        : `작전 채점 중 · 나 ${L(pt.my_choice)} / 감독 ${L(pt.actual_manager_choice)}`;
     if (pill.textContent !== txt) pill.textContent = txt;
 }
 

@@ -6637,3 +6637,24 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-lu-line small { margin-left: auto; font-size: 0.64rem; font-weight: 800; color: var(--text-sub); white-space: nowrap; }
 .ig-lu-line.now { border-color: #facc15; background: rgba(250, 204, 21, 0.1); }
 .ig-lu-line.now b { color: #fde68a; }
+
+/* 공격 작전(대타) 팝업 */
+.igm-card.igm-attack { border-color: rgba(56, 189, 248, 0.5); }
+.igm-badge.attack { background: rgba(56, 189, 248, 0.18); color: #7dd3fc; }
+.igm-reveal {
+    margin-top: -4px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: rgba(250, 204, 21, 0.12);
+    border: 1px solid rgba(250, 204, 21, 0.35);
+    color: var(--text-main);
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.45;
+}
+.igm-reveal[hidden], .igm-ph[hidden] { display: none; }
+.igm-reveal b { color: #fde68a; }
+.igm-ph { border-color: rgba(56, 189, 248, 0.4); }
+.igm-ph strong { color: #7dd3fc; }
+.igm-ph em { color: #cbd5e1; font-size: 0.8rem; }
+.igm-choice strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }

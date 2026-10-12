@@ -912,6 +912,7 @@ def api_reset():
     if home == away:
         away = '한화' if home != '한화' else '삼성'
     engine = get_engine()
+    engine.user_team = session.get('favorite_team')   # 우리 팀 공격 때 대타 팝업
     if data.get('resume'):
         st = engine.get_state()
         ongoing = (st.get('home_team') == home and st.get('away_team') == away and not st.get('game_over') and
