@@ -290,35 +290,6 @@ def apply_outcome(bases, outs, outcome, batter):
 ON_BASE_KINDS = ("WALK", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN")
 
 
-def replay_lineup(order, pa_log, innings):
-    """기록된 타자별 타석 결과를 주어진 타순으로 다시 넣어 득점을 계산.
-    order: 1~9번 이름 / pa_log: 그 팀의 타석 기록(순서대로) / innings: 그 팀이 공격한 이닝 번호들
-    실제 기록보다 타석이 더 필요한 타자는 아웃 처리. 반환: (총 득점, 이닝별 득점 dict)"""
-    queues = {}
-    for pa in pa_log:
-        queues.setdefault(pa["batter"], []).append(pa["outcome"])
-    idx = 0
-    total = 0
-    per_inning = {}
-    for inn in innings:
-        outs = 0
-        bases = {1: None, 2: None, 3: None}
-        runs_inn = 0
-        guard = 0
-        while outs < 3 and guard < 60:
-            guard += 1
-            batter = order[idx % len(order)]
-            idx += 1
-            q = queues.get(batter)
-            outcome = q.pop(0) if q else {"kind": "LINE", "roll": 1.0}
-            bases, add, runs, _ = apply_outcome(bases, outs, outcome, batter)
-            outs += add
-            runs_inn += runs
-        per_inning[inn] = runs_inn
-        total += runs_inn
-    return total, per_inning
-
-
 def today_kst():
     import datetime as _dt
     return (_dt.datetime.utcnow() + _dt.timedelta(hours=9)).strftime("%Y-%m-%d")
@@ -518,9 +489,7 @@ class GameEngine:
             self.home_team_name: daily_lineup(self.home_team_name, self.away_team_name),
             self.away_team_name: daily_lineup(self.away_team_name, self.home_team_name),
         }
-        self.pa_log = []            # 타석 기록 (라인업 다시 계산용)
-        self.prediction = None      # 내가 예상한 라인업 {"team", "order"}
-        self.lineup_report = None   # 경기 후 라인업 예상 결과
+
         self.start_score = self.manager_score
         
         self.current_crisis = None
@@ -776,14 +745,6 @@ class GameEngine:
         return add, runs, desc
 
     def step_pitch(self):
-        """1구 단위 경기 진행 (경기가 끝나면 라인업 예상 결과를 정산)"""
-        state = self._step_pitch()
-        if self.game_over and self.prediction and not self.lineup_report:
-            self._finalize_lineup_report()
-            state = self.get_state()
-        return state
-
-    def _step_pitch(self):
         """1구 단위 경기 진행 및 KBO 규정 경기 종료/연장전 반영"""
         if self.game_over:
             return self.get_state()
@@ -873,8 +834,6 @@ class GameEngine:
                 self.consecutive_hits = 0
             self.strikes = 0
             self.balls = 0
-            self.pa_log.append({"team": self.get_current_offense_team(), "inning": self.inning,
-                                "is_top": self.is_top, "batter": batter, "outcome": outcome})
             self._finish_plate_appearance(batter, pa_end, runs, summary_text, curr_session)
             if self.game_over:
                 return self.get_state()
@@ -1000,59 +959,6 @@ class GameEngine:
             self.has_crisis_popped_for_current_batter = True
             self.crisis_seen.add((self.inning, self.is_top, crisis["pitcher_name"]))
             self.commentary_logs.insert(0, f"🚨 [위기] {crisis['desc']}")
-
-    # ---------------- 라인업 예상 ----------------
-    def lineup_pool(self, team):
-        """예상할 때 고를 수 있는 타자 (선발+후보). 실제 타순이 드러나지 않게 포지션 순으로 정렬"""
-        r = TEAMS.get(team, {}).get("roster") or {}
-        pool = [dict(b) for b in r.get("lineup", []) + r.get("bench", [])]
-        pool.sort(key=lambda b: (POS_ORDER.index(b["pos"]) if b["pos"] in POS_ORDER else 99, b["name"]))
-        return pool
-
-    def can_predict(self):
-        return sum(self.pitch_counts.values()) == 0 and not self.game_over
-
-    def set_prediction(self, team, order):
-        if team not in (self.home_team_name, self.away_team_name):
-            return False, "이 경기에 없는 팀이에요"
-        if not self.can_predict():
-            return False, "경기가 시작돼서 예상할 수 없어요"
-        # 감독이 낸 선발 9명으로만 타순을 다시 짤 수 있음
-        if sorted(order) != sorted(self.lineup_names(team)):
-            return False, "감독 라인업의 9명으로 1~9번을 채워 주세요"
-        self.prediction = {"team": team, "order": list(order)}
-        return True, ""
-
-    def _finalize_lineup_report(self):
-        """경기가 끝나면 한 번: 내 라인업으로 다시 계산해 실제와 비교, 감독 점수 반영"""
-        if not self.game_over or not self.prediction or self.lineup_report:
-            return
-        team = self.prediction["team"]
-        mine = self.prediction["order"]
-        actual = self.lineup_names(team)
-        log = [p for p in self.pa_log if p["team"] == team]
-        innings = sorted({p["inning"] for p in log})
-        actual_runs = self.score_home if team == self.home_team_name else self.score_away
-        base_runs, base_inn = replay_lineup(actual, log, innings)
-        my_runs, my_inn = replay_lineup(mine, log, innings)
-        diff = my_runs - base_runs
-        matches = sum(1 for a, b in zip(mine, actual) if a == b)
-        points = diff * 10 if diff > 0 else diff * 5
-        opp = self.score_away if team == self.home_team_name else self.score_home
-        self.manager_score += points
-        self._update_manager_grade()
-        if getattr(self, 'user_id', None):
-            try:
-                database.update_user_score(self.manager_score, self.manager_grade, self.user_id)
-            except Exception as e:
-                print(f"⚠️ [라인업 점수 저장 실패] {e}")
-        self.lineup_report = {
-            "team": team, "my_order": mine, "actual_order": actual,
-            "actual_runs": actual_runs, "base_runs": base_runs, "my_runs": my_runs, "diff": diff,
-            "my_team_final": actual_runs + diff, "opp_runs": opp,
-            "innings": innings, "base_by_inning": base_inn, "my_by_inning": my_inn,
-            "matches": matches, "points": points,
-        }
 
     def finish_game(self, max_pitches=1500):
         """(테스트용) 경기를 끝까지 진행. 위기는 '자리 비움'으로 넘김"""
@@ -1420,10 +1326,7 @@ class GameEngine:
             "pending_tactic": getattr(self, 'pending_tactic', None),
             "tactic_resolution": getattr(self, 'last_tactic_resolution', None),
             "tactic_log": getattr(self, 'tactic_log', []),
-            "lineup_prediction": getattr(self, 'prediction', None),
             "lineups": getattr(self, 'lineups', {}),
-            "lineup_report": getattr(self, 'lineup_report', None),
-            "can_predict": self.can_predict(),
             "start_score": getattr(self, 'start_score', self.manager_score),
             "game_over": self.game_over,
             "win_prob": self.get_win_probability(),

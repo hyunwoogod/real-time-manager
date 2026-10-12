@@ -12,7 +12,7 @@
     <link rel="preload" as="image" href="/brand/hero.jpg?v=8" fetchpriority="high">
     <link rel="preload" as="image" href="/brand/mascot-head.png?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261012_25">
+    <link rel="stylesheet" href="style.css?v=20261012_27">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -546,22 +546,6 @@
                 <span class="pg-grade-title" id="post-grade-title">B급 열혈 감독</span>
             </div>
 
-            <!-- 라인업 예상 결과 -->
-            <div class="pg-lineup" id="pg-lineup" hidden>
-                <div class="pg-lu-top">
-                    <span>라인업 예상</span>
-                    <b id="pg-lu-points">+0P</b>
-                </div>
-                <strong id="pg-lu-title">-</strong>
-                <p class="pg-lu-if" id="pg-lu-if"></p>
-                <div class="pg-lu-row">
-                    <div><span>실제 득점</span><b id="pg-lu-base">0점</b></div>
-                    <div><span>내 타순이었다면</span><b id="pg-lu-mine">0점</b></div>
-                    <div><span>바꾼 자리</span><b id="pg-lu-match">0곳</b></div>
-                </div>
-                <div class="pg-lu-innings" id="pg-lu-innings"></div>
-            </div>
-
             <!-- 작전 기록 -->
             <div class="pg-log">
                 <h3>작전 기록</h3>
@@ -732,25 +716,6 @@
         <!-- ========================================== -->
         <!-- IN-GAME MODAL 1: CRISIS DECISION POPUP -->
         <!-- ========================================== -->
-        <!-- 로비: 라인업 예상 (선수 이름을 직접 입력) -->
-        <div id="lineup-modal" class="modal-overlay">
-            <div class="igm-card lu-card">
-                <div class="lu-head">
-                    <div>
-                        <strong id="lu-title">라인업 예상</strong>
-                        <span id="lu-sub">끌어다 놓으면 두 선수 자리가 바뀌어요</span>
-                    </div>
-                    <button class="ig-sheet-close" onclick="closeLineupModal()" aria-label="닫기">×</button>
-                </div>
-                <div class="lu-cols-head"><span></span><b>내 타순</b><b>감독 라인업</b></div>
-                <div class="lu-rows" id="lu-rows"></div>
-                <div class="lu-actions">
-                    <button class="lu-cancel" onclick="luFillActual()">원래대로</button>
-                    <button class="lu-save" id="lu-save" onclick="saveLineupModal()">경기장 입장하기</button>
-                </div>
-            </div>
-        </div>
-
         <div id="crisis-modal" class="modal-overlay">
             <div class="igm-card igm-crisis">
                 <div class="igm-head">
@@ -858,7 +823,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261012_28"></script>
+    <script src="app.js?v=20261012_29"></script>
 </body>
 
 </html>
