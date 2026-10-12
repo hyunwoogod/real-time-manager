@@ -12,7 +12,7 @@
     <link rel="preload" as="image" href="/brand/hero.jpg?v=8" fetchpriority="high">
     <link rel="preload" as="image" href="/brand/mascot-head.png?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261012_31">
+    <link rel="stylesheet" href="style.css?v=20261012_33">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -276,7 +276,7 @@
                     </div>
                     <div class="home-score">
                         <span id="lobby-my-score" class="home-points">2,000P</span>
-                        <span id="lobby-my-grade" class="grade-badge grade-b">B급</span>
+                        <span id="lobby-my-grade" class="grade-badge grade-d">D급</span>
                     </div>
                     <button type="button" class="home-gear" id="btn-header-settings" onclick="openSettingsModal()" aria-label="설정"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.7 2.9-2 1.8c.1.6.1 1.2 0 1.8l2 1.8-1.7 2.9-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.4l-.5-2.6c-.6-.2-1.2-.5-1.7-.9l-2.5.9-1.7-2.9 2-1.8a5.6 5.6 0 0 1 0-1.8l-2-1.8 1.7-2.9 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z" transform="translate(0 1)"/></svg></button>
                 </header>
@@ -351,32 +351,37 @@
                 </div>
             </div>
 
-            <!-- TAB 4: PANE SEARCH (검색 탭) -->
-            <div id="pane-search" class="lobby-tab-pane">
-                <div class="ranking-hub-card">
-                    <div class="card-header">
-                        <div>
-                            <h3>🏆 소셜 랭킹 리더보드 & 친구 검색</h3>
-                            <span class="sub-text">실시간 Manager Score 순위 및 친구 검색</span>
-                        </div>
+            <!-- TAB 4: PANE SEARCH (랭킹 · 친구) -->
+            <div id="pane-search" class="lobby-tab-pane rk">
+                <div class="rk-head">
+                    <div class="rk-head-text">
+                        <h3>랭킹</h3>
+                        <span>친구들과 감독 점수 겨루기</span>
                     </div>
-
-                    <!-- Friend Search Box (Always visible inside search tab) -->
-                    <div id="friend-search-box" class="friend-search-box active" style="display:block;">
-                        <div class="search-input-group">
-                            <input type="text" id="friend-search-input" placeholder="친구 닉네임 입력 (예: 이해설, 박야구)"
-                                onkeyup="if(event.key==='Enter') executeFriendSearch()">
-                            <button class="btn-search-submit" onclick="executeFriendSearch()">검색</button>
-                        </div>
-                        <div id="friend-search-results" class="search-results-list">
-                            <!-- Search items rendered via JS -->
-                        </div>
-                    </div>
-
-                    <div id="friend-ranking-list" class="ranking-list">
-                        <!-- Dynamic Ranking List Cards Rendered via JS -->
-                    </div>
+                    <button class="rk-add" onclick="openFriendSheet()">친구 추가</button>
                 </div>
+
+                <!-- 내 등급 -->
+                <div class="rk-me">
+                    <div class="rk-me-top">
+                        <span class="pg-grade grade-d" id="rk-grade">D</span>
+                        <div class="rk-me-text">
+                            <span id="rk-grade-name">초짜 감독</span>
+                            <strong id="rk-score">2,000P</strong>
+                        </div>
+                        <div class="rk-me-rank"><span>친구 중</span><b id="rk-myrank">-</b></div>
+                    </div>
+                    <!-- 등급 사다리: 아래(D)에서 위(S)로 올라감 -->
+                    <div class="rk-ladder" id="rk-ladder"></div>
+                </div>
+
+                <!-- 받은 친구 요청 -->
+                <h3 class="hm-section rk-sec">받은 친구 요청 <b class="rk-count" id="rk-req-count" hidden>0</b></h3>
+                <div class="rk-reqs" id="rk-reqs"><div class="rk-empty">받은 친구 요청이 없어요</div></div>
+
+                <!-- 친구 랭킹 -->
+                <h3 class="hm-section rk-sec">친구 랭킹</h3>
+                <div class="rk-list" id="friend-ranking-list"></div>
             </div>
 
             <!-- TAB 5: PANE MY RECORDS (내 기록 탭) — 하단 바의 switchLobbyTab('my_records')와 이름을 맞춤 -->
@@ -384,7 +389,7 @@
                     <!-- 전체 요약 -->
                     <div class="mr-summary">
                         <div class="mr-score">
-                            <span class="pg-grade grade-b" id="mr-grade">B</span>
+                            <span class="pg-grade grade-d" id="mr-grade">D</span>
                             <div class="mr-score-text">
                                 <span>감독 점수</span>
                                 <strong id="mr-score">2,000P</strong>
@@ -529,12 +534,12 @@
 
             <!-- 감독 점수 -->
             <div class="pg-points">
-                <span id="post-grade-badge" class="pg-grade grade-b">B</span>
+                <span id="post-grade-badge" class="pg-grade grade-d">D</span>
                 <div class="pg-points-text">
                     <span>이번 경기 <b id="pg-delta">+0</b></span>
                     <strong id="post-total-score">2,000P</strong>
                 </div>
-                <span class="pg-grade-title" id="post-grade-title">B급 열혈 감독</span>
+                <span class="pg-grade-title" id="post-grade-title">D급 초짜 감독</span>
             </div>
 
             <!-- 작전 기록 -->
@@ -707,6 +712,25 @@
         <!-- IN-GAME MODAL 1: CRISIS DECISION POPUP -->
         <!-- ========================================== -->
         <!-- 내 기록: 경기 자세히 -->
+        <div id="friend-sheet" class="modal-overlay" onclick="if (event.target === this) closeFriendSheet()">
+            <div class="igm-card rk-sheet">
+                <div class="mr-d-head">
+                    <div><strong>친구 추가</strong><span>닉네임으로 감독을 찾아 요청을 보내요</span></div>
+                    <button class="ig-sheet-close" onclick="closeFriendSheet()" aria-label="닫기">×</button>
+                </div>
+                <div class="rk-search">
+                    <input type="text" id="friend-search-input" placeholder="닉네임 검색" maxlength="20"
+                        onkeyup="if(event.key==='Enter') executeFriendSearch()">
+                    <button onclick="executeFriendSearch()">검색</button>
+                </div>
+                <div class="rk-results" id="friend-search-results"></div>
+                <div class="rk-sent-wrap" id="rk-sent-wrap" hidden>
+                    <h4>보낸 요청</h4>
+                    <div class="rk-results" id="rk-sent"></div>
+                </div>
+            </div>
+        </div>
+
         <div id="mr-detail" class="modal-overlay" onclick="if (event.target === this) closeMyGameDetail()">
             <div class="igm-card mr-detail">
                 <div class="mr-d-head">
@@ -765,7 +789,7 @@
                 <p>친구들과 실시간 감독 점수와 명장 등급을 겨뤄보세요!</p>
                 <div class="share-preview-box">
                     <span class="preview-title">⚾ 방구석 감독 성적 리포트</span>
-                    <p class="preview-body">오늘 나의 감독 점수: 2,000 pts (B급 명장)! 당신의 선택은?</p>
+                    <p class="preview-body">오늘 나의 감독 점수: 2,000P (D급 초짜 감독)! 당신의 선택은?</p>
                 </div>
                 <div class="share-modal-btns">
                     <button class="btn-primary-glow" onclick="copyShareLink()">📋 공유 링크 복사</button>
@@ -780,7 +804,7 @@
         <div id="tactic-result-modal" class="modal-overlay">
             <div class="igm-card igm-result">
                 <div class="igm-res-top">
-                    <span id="res-grade-badge" class="result-badge grade-b">B</span>
+                    <span id="res-grade-badge" class="result-badge grade-d">D</span>
                     <div class="igm-res-score">
                         <span>감독 점수</span>
                         <strong id="res-score-delta" class="delta-zero">0</strong>
@@ -825,6 +849,7 @@
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 01-8 0z"/><path d="M8 6H5v1.5A3 3 0 008 10.5M16 6h3v1.5a3 3 0 01-3 3"/><path d="M12 13v4M8.5 20h7M10 17h4v3h-4z"/></svg>
                 </span>
                 <span class="nav-label">랭킹</span>
+                <span class="nav-dot" id="nav-rk-dot" hidden></span>
             </button>
             <button class="bottom-nav-item" onclick="switchLobbyTab('minigame', this)" aria-label="미니게임">
                 <span class="nav-icon">
@@ -838,7 +863,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261012_38"></script>
+    <script src="app.js?v=20261012_40"></script>
 </body>
 
 </html>

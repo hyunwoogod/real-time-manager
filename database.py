@@ -229,7 +229,7 @@ def init_db():
             favorite_team TEXT NOT NULL DEFAULT '한화',
             avatar TEXT NOT NULL DEFAULT '👑',
             score INTEGER NOT NULL DEFAULT 2000,
-            grade TEXT NOT NULL DEFAULT 'B',
+            grade TEXT NOT NULL DEFAULT 'D',
             marketing_agreed INTEGER NOT NULL DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -277,6 +277,17 @@ def init_db():
             friend_id INTEGER NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_id, friend_id)
+        )
+    '''))
+
+    # 친구 요청 (상대가 수락하면 user_friends에 서로 추가하고 요청은 지움)
+    cursor.execute(_ddl('''
+        CREATE TABLE IF NOT EXISTS friend_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_id INTEGER NOT NULL,
+            to_id INTEGER NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(from_id, to_id)
         )
     '''))
 
@@ -378,13 +389,20 @@ def init_db():
         )
     ''')
 
+    # 감독 등급 기준: 2000점 D(초짜 감독)에서 500점마다 한 단계 (game_engine.grade_for와 같은 기준)
+    cursor.execute("""
+        UPDATE users SET grade = CASE
+            WHEN score >= 4000 THEN 'S' WHEN score >= 3500 THEN 'A'
+            WHEN score >= 3000 THEN 'B' WHEN score >= 2500 THEN 'C' ELSE 'D' END
+    """)
+
     # 회원가입에서 이메일을 받지 않으므로, 예전에 자동으로 채워 넣은 가짜 이메일(아이디@zipgamdok.com) 제거
     cursor.execute("UPDATE users SET email = '' WHERE email = username || '@zipgamdok.com'")
 
     if USE_POSTGRES:
         # Supabase는 public 스키마 테이블을 공개 키(publishable/anon key)로 REST API에 노출하므로
         # RLS를 켜서 외부 접근을 차단 (서버는 테이블 소유자 계정으로 접속하므로 영향 없음)
-        for table in ('users', 'user_friends', 'user_rankings', 'tactics_history', 'kbo_schedules', 'login_logs', 'password_resets', 'team_standings_base', 'app_settings'):
+        for table in ('users', 'user_friends', 'user_rankings', 'tactics_history', 'kbo_schedules', 'login_logs', 'password_resets', 'team_standings_base', 'app_settings', 'friend_requests'):
             cursor.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
 
     conn.commit()
@@ -563,7 +581,7 @@ def register_user(username, password, email=None, marketing_agreed=False, nickna
     try:
         user_id = _insert_returning_id(cursor, '''
             INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed, auth_provider)
-            VALUES (?, ?, ?, ?, ?, ?, '👑', 2000, 'B', ?, 'email')
+            VALUES (?, ?, ?, ?, ?, ?, '👑', 2000, 'D', ?, 'email')
         ''', (username, hash_password(password), username, raw_nick, fav_team, fav_team, 1 if marketing_agreed else 0))
         conn.commit()
 
@@ -619,7 +637,7 @@ def create_social_user(provider, provider_user_id, email, nickname, team):
     try:
         user_id = _insert_returning_id(cursor, '''
             INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed, auth_provider, provider_user_id)
-            VALUES (?, '', ?, ?, ?, ?, '👑', 2000, 'B', 0, ?, ?)
+            VALUES (?, '', ?, ?, ?, ?, '👑', 2000, 'D', 0, ?, ?)
         ''', (username, normalize_email(email), raw_nick, fav_team, fav_team, provider, str(provider_user_id)))
         conn.commit()
         cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
@@ -849,8 +867,8 @@ def reset_play_data():
     감독 점수 2000점·B급, 작전 기록 삭제, 테스트 시즌 진행(일차·내 경기 결과·자동 진행 결과) 삭제"""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET score = 2000, grade = 'B'")
-    cursor.execute("UPDATE user_rankings SET score = 2000, grade = 'B'")
+    cursor.execute("UPDATE users SET score = 2000, grade = 'D'")
+    cursor.execute("UPDATE user_rankings SET score = 2000, grade = 'D'")
     cursor.execute("DELETE FROM tactics_history")
     # 'test_'로 시작하는 키 (LIKE의 % 기호 없이: SQLite·PostgreSQL 공통)
     cursor.execute("DELETE FROM app_settings WHERE key >= 'test_' AND key < 'test`'")
@@ -876,47 +894,117 @@ def update_user_score(new_score, new_grade, user_id=1):
     conn.commit()
     conn.close()
 
+def _friend_status_map(cursor, user_id):
+    """다른 유저별 관계: friend(친구) / sent(내가 요청함) / received(나에게 요청 옴)"""
+    status = {}
+    cursor.execute("SELECT to_id FROM friend_requests WHERE from_id = ?", (user_id,))
+    for r in cursor.fetchall():
+        status[r['to_id']] = 'sent'
+    cursor.execute("SELECT from_id FROM friend_requests WHERE to_id = ?", (user_id,))
+    for r in cursor.fetchall():
+        status[r['from_id']] = 'received'
+    cursor.execute("SELECT friend_id FROM user_friends WHERE user_id = ?", (user_id,))
+    for r in cursor.fetchall():
+        status[r['friend_id']] = 'friend'
+    return status
+
+
 def search_users_by_nickname(query, current_user_id=1):
     conn = get_db()
     cursor = conn.cursor()
-    search_term = f"%{query}%"
-    
-    # 해당 유저의 기존 친구 ID 목록 가져오기
-    cursor.execute("SELECT friend_id FROM user_friends WHERE user_id = ?", (current_user_id,))
-    friend_ids = {row['friend_id'] for row in cursor.fetchall()}
-
+    status = _friend_status_map(cursor, current_user_id)
     cursor.execute('''
-        SELECT id, nickname, team, avatar, score, grade
+        SELECT id, nickname, COALESCE(favorite_team, team) AS team, score, grade
         FROM users
         WHERE LOWER(nickname) LIKE LOWER(?) AND id != ?
         ORDER BY score DESC
         LIMIT 20
-    ''', (search_term, current_user_id))
-    
-    rows = cursor.fetchall()
+    ''', (f"%{query}%", current_user_id))
     results = []
-    for r in rows:
+    for r in cursor.fetchall():
         item = dict(r)
-        item['is_friend'] = item['id'] in friend_ids
+        item['relation'] = status.get(item['id'], 'none')
+        item['is_friend'] = item['relation'] == 'friend'
         results.append(item)
-
     conn.close()
     return results
 
-def add_friend(user_id, friend_id):
-    if user_id == friend_id:
-        return {"status": "error", "message": "자기 자신은 친구로 추가할 수 없습니다."}
-    
+
+def _make_friends(cursor, a, b):
+    for x, y in ((a, b), (b, a)):
+        cursor.execute("SELECT 1 FROM user_friends WHERE user_id = ? AND friend_id = ?", (x, y))
+        if not cursor.fetchone():
+            cursor.execute("INSERT INTO user_friends (user_id, friend_id) VALUES (?, ?)", (x, y))
+    cursor.execute("DELETE FROM friend_requests WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)", (a, b, b, a))
+
+
+def send_friend_request(user_id, target_id):
+    if not target_id or user_id == target_id:
+        return {"status": "error", "message": "자기 자신에게는 친구 요청을 보낼 수 없어요."}
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO user_friends (user_id, friend_id) VALUES (?, ?)", (user_id, friend_id))
+        cursor.execute("SELECT id FROM users WHERE id = ?", (target_id,))
+        if not cursor.fetchone():
+            return {"status": "error", "message": "없는 감독이에요."}
+        rel = _friend_status_map(cursor, user_id).get(target_id)
+        if rel == 'friend':
+            return {"status": "error", "message": "이미 친구예요."}
+        if rel == 'sent':
+            return {"status": "error", "message": "이미 친구 요청을 보냈어요."}
+        if rel == 'received':
+            # 상대도 나에게 요청했으면 바로 친구
+            _make_friends(cursor, user_id, target_id)
+            conn.commit()
+            return {"status": "success", "message": "친구가 되었어요.", "relation": "friend"}
+        cursor.execute("INSERT INTO friend_requests (from_id, to_id) VALUES (?, ?)", (user_id, target_id))
         conn.commit()
+        return {"status": "success", "message": "친구 요청을 보냈어요.", "relation": "sent"}
+    finally:
         conn.close()
-        return {"status": "success", "message": "친구로 등록되었습니다."}
-    except IntegrityError:
+
+
+def respond_friend_request(user_id, from_id, accept):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id FROM friend_requests WHERE from_id = ? AND to_id = ?", (from_id, user_id))
+        if not cursor.fetchone():
+            return {"status": "error", "message": "이미 처리된 요청이에요."}
+        if accept:
+            _make_friends(cursor, user_id, from_id)
+        else:
+            cursor.execute("DELETE FROM friend_requests WHERE from_id = ? AND to_id = ?", (from_id, user_id))
+        conn.commit()
+        return {"status": "success", "message": "친구가 되었어요." if accept else "요청을 거절했어요."}
+    finally:
         conn.close()
-        return {"status": "error", "message": "이미 등록된 친구입니다."}
+
+
+def cancel_friend_request(user_id, to_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM friend_requests WHERE from_id = ? AND to_id = ?", (user_id, to_id))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "요청을 취소했어요."}
+
+
+def get_friend_requests(user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    out = {}
+    for key, me_col, other_col in (('received', 'to_id', 'from_id'), ('sent', 'from_id', 'to_id')):
+        cursor.execute(f'''
+            SELECT u.id, u.nickname, COALESCE(u.favorite_team, u.team) AS team, u.score, u.grade
+            FROM friend_requests r JOIN users u ON u.id = r.{other_col}
+            WHERE r.{me_col} = ?
+            ORDER BY r.id DESC
+        ''', (user_id,))
+        out[key] = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return out
+
 
 def get_user_friends_ranking(user_id=1):
     conn = get_db()

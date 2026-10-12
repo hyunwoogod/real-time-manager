@@ -510,6 +510,18 @@ CRISIS_TYPES = [
     }
 ]
 
+
+# 감독 등급: 2000점에서 D(초짜 감독)로 시작, 500점마다 한 단계씩
+GRADE_STEPS = [(4000, "S"), (3500, "A"), (3000, "B"), (2500, "C")]
+GRADE_NAMES = {"S": "전설의 감독", "A": "명장", "B": "베테랑 감독", "C": "주전 감독", "D": "초짜 감독"}
+
+
+def grade_for(score):
+    for cut, g in GRADE_STEPS:
+        if (score or 0) >= cut:
+            return g
+    return "D"
+
 class GameEngine:
     def __init__(self, home_team="삼성", away_team="한화", home_pitcher=None, away_pitcher=None, user_id=None):
         self.user_id = user_id  # 이 경기를 보는 사용자 (점수 저장 대상)
@@ -1477,17 +1489,7 @@ class GameEngine:
             self.batter_index_home += 1
 
     def _update_manager_grade(self):
-        s = self.manager_score
-        if s >= 2150:
-            self.manager_grade = "S"
-        elif s >= 2050:
-            self.manager_grade = "A"
-        elif s >= 1950:
-            self.manager_grade = "B"
-        elif s >= 1850:
-            self.manager_grade = "C"
-        else:
-            self.manager_grade = "F"
+        self.manager_grade = grade_for(self.manager_score)
 
     def get_current_defense_fielders(self):
         def_team_name = self.get_current_defense_team()

@@ -651,8 +651,8 @@ function enterMainLobbyDirect(loginType = 'Existing', customNick = '김명장 �
     
     const gradeBadge = document.getElementById('lobby-my-grade');
     if (gradeBadge) {
-        gradeBadge.innerText = 'B급 명장';
-        gradeBadge.className = 'grade-badge grade-b';
+        gradeBadge.innerText = 'D급';
+        gradeBadge.className = 'grade-badge grade-d';
     }
 
     const nameEl = document.getElementById('lobby-user-name');
@@ -1142,6 +1142,8 @@ function switchLobbyTab(tabName, btnEl) {
     } else if (tabName === 'my_records') {
         loadMyGames();    } else if (tabName === 'minigame') {
         loadMinigames();
+    } else if (tabName === 'search') {
+        loadFriends();
     }
 
     try { updateBottomNavVisibility(); } catch(e) {}
@@ -1246,7 +1248,7 @@ function renderMyRecords(sum) {
     const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     set('mr-score', `${Number(sum.score ?? 2000).toLocaleString()}P`);
     const grade = document.getElementById('mr-grade');
-    if (grade) { grade.textContent = sum.grade || 'B'; grade.className = `pg-grade grade-${(sum.grade || 'b').toLowerCase()}`; }
+    if (grade) { grade.textContent = sum.grade || 'D'; grade.className = `pg-grade grade-${(sum.grade || 'd').toLowerCase()}`; }
     const d = sum.delta || 0;
     const delta = document.getElementById('mr-delta');
     if (delta) { delta.textContent = `${d > 0 ? '+' : d < 0 ? '' : '±'}${d}P`; delta.className = `mr-delta ${d > 0 ? 'up' : d < 0 ? 'down' : ''}`; }
@@ -1392,6 +1394,7 @@ function loadLobbyData() {
 
             syncTodayTabLabel(currentSystemDate);
             renderFriendRankings(data.rankings);
+            loadFriends();
             loadScheduleTable('today');
         })
         .catch(err => console.error("Lobby error:", err));
@@ -1581,97 +1584,169 @@ function selectMatchFromSchedule(dateStr, home, away, stadium, timeStr, homePitc
     showToast(`🎯 [${away} vs ${home}] ${dateStr} ${stadium} 대진이 로비 메인 매치업으로 선택되었습니다.`);
 }
 
-function renderFriendRankings(rankings) {
-    const listContainer = document.getElementById('friend-ranking-list');
-    listContainer.innerHTML = '';
+// ================= 랭킹 · 친구 =================
+// 등급: 2000점 D(초짜 감독)에서 500점마다 한 단계 (서버 game_engine.grade_for와 같은 기준)
+let GRADE_STEPS = [[4000, 'S'], [3500, 'A'], [3000, 'B'], [2500, 'C']];
+let GRADE_NAMES = { S: '전설의 감독', A: '명장', B: '베테랑 감독', C: '주전 감독', D: '초짜 감독' };
+let _rkData = null;
 
-    rankings.forEach((user, index) => {
-        const rankNum = index + 1;
-        const isMe = user.is_me ? 'my-rank' : '';
-        const nameDisplay = user.is_me ? `${userNickname} (나)` : user.name;
-        const crown = rankNum === 1 ? '👑 ' : '';
-        const userTeamCode = normalizeTeamShort(user.is_me ? selectedTeamCode : (user.favorite_team || user.team));
-        const userTeamFull = teamFullMap[userTeamCode] || userTeamCode;
-        
-        const cardHtml = `
-            <div class="rank-item ${isMe}">
-                <div class="rank-left">
-                    <span class="rank-num r-${rankNum}">${rankNum}</span>
-                    <span class="rank-avatar">${user.avatar || '👑'}</span>
-                    <div class="rank-info">
-                        <span class="rank-name">${crown}${nameDisplay}</span>
-                        <span class="rank-team">응원구단: ${userTeamFull}</span>
-                    </div>
-                </div>
-                <div class="rank-right">
-                    <span class="grade-badge grade-${user.grade.toLowerCase()}">${user.grade}급</span>
-                    <span class="rank-score">${user.score.toLocaleString()} pts</span>
-                </div>
-            </div>
-        `;
-        listContainer.insertAdjacentHTML('beforeend', cardHtml);
-    });
+function rkEsc(t) {
+    return String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function gradeOf(score) {
+    for (const [cut, g] of GRADE_STEPS) if ((score || 0) >= cut) return g;
+    return 'D';
 }
 
-// 친구 검색 토글 및 실행
-function toggleFriendSearchBox() {
-    const box = document.getElementById('friend-search-box');
-    box.classList.toggle('active');
+function loadFriends() {
+    return fetch('/api/friends')
+        .then(r => r.json())
+        .then(d => {
+            if (d.status !== 'success') return;
+            if (d.grade_names) GRADE_NAMES = d.grade_names;
+            if (d.grade_steps) GRADE_STEPS = d.grade_steps;
+            _rkData = d;
+            renderFriendRankings(d.rankings);
+            renderFriendRequests(d.received || []);
+            renderSentRequests(d.sent || []);
+        })
+        .catch(() => {});
+}
+
+function rkUserRow(u, right) {
+    const team = normalizeTeamShort(u.favorite_team || u.team);
+    const g = u.grade || gradeOf(u.score);
+    return `<span class="rk-logo">${teamLogoHtml(team)}</span>
+        <div class="rk-who">
+            <b>${rkEsc(u.nickname || u.name)}</b>
+            <span><i class="rk-g grade-${g.toLowerCase()}">${g}</i>${GRADE_NAMES[g] || ''} · ${Number(u.score || 0).toLocaleString()}P</span>
+        </div>${right}`;
+}
+
+function renderFriendRankings(rankings) {
+    const list = document.getElementById('friend-ranking-list');
+    if (!list || !rankings) return;
+    const meIdx = rankings.findIndex(u => u.is_me);
+    const me = rankings[meIdx] || {};
+    renderMyGrade(me.score ?? 2000, meIdx + 1, rankings.length);
+    const rows = rankings.map((u, i) => {
+        const nick = u.is_me ? (u.nickname || userNickname) : u.name;
+        return `<div class="rk-row ${u.is_me ? 'me' : ''}">
+            <span class="rk-num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</span>
+            ${rkUserRow({ ...u, nickname: nick }, u.is_me ? '<span class="rk-tag">나</span>' : '')}
+        </div>`;
+    }).join('');
+    const hint = rankings.length <= 1
+        ? '<div class="rk-empty">아직 친구가 없어요. 친구를 추가하고 점수를 겨뤄 보세요.</div>' : '';
+    setHtmlIfChanged(list, rows + hint);
+}
+
+function renderMyGrade(score, rank, total) {
+    const g = gradeOf(score);
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    const badge = document.getElementById('rk-grade');
+    if (badge) { badge.textContent = g; badge.className = `pg-grade grade-${g.toLowerCase()}`; }
+    set('rk-grade-name', GRADE_NAMES[g] || '');
+    set('rk-score', `${Number(score).toLocaleString()}P`);
+    set('rk-myrank', total > 1 ? `${rank}위 / ${total}명` : '-');
+    // 등급 사다리: 맨 위 S, 맨 아래 D. 내 위치까지 아래에서 위로 초록 선이 차오름
+    const ladder = document.getElementById('rk-ladder');
+    if (!ladder) return;
+    const cuts = { D: 2000 }; GRADE_STEPS.forEach(([c, k]) => cuts[k] = c);
+    const up = ['D', 'C', 'B', 'A', 'S'];
+    const gi = up.indexOf(g);
+    const nextG = up[gi + 1];
+    const frac = nextG ? Math.max(0, Math.min(1, (score - cuts[g]) / (cuts[nextG] - cuts[g]))) : 0;
+    const fillPct = ((gi + frac) / (up.length - 1)) * 100;
+    const rows = [...up].reverse().map(k => {
+        const i = up.indexOf(k);
+        const state = i < gi ? 'past' : i === gi ? 'now' : 'future';
+        let right = `<span class="rk-l-cut">${cuts[k].toLocaleString()}P</span>`;
+        if (k === nextG) right = `<span class="rk-l-left">${(cuts[k] - score).toLocaleString()}P 남음</span>`;
+        if (state === 'now') right = '<span class="rk-l-me">현재</span>';
+        return `<div class="rk-l-row ${state}">
+            <i class="rk-l-node"></i>
+            <b class="rk-l-g">${k}</b>
+            <span class="rk-l-name">${GRADE_NAMES[k] || ''}</span>
+            ${right}
+        </div>`;
+    }).join('');
+    setHtmlIfChanged(ladder, `<div class="rk-l-rail"><i style="height:${fillPct}%"></i></div>${rows}`);
+}
+
+function renderFriendRequests(received) {
+    const box = document.getElementById('rk-reqs');
+    const cnt = document.getElementById('rk-req-count');
+    const dot = document.getElementById('nav-rk-dot');
+    if (cnt) { cnt.textContent = received.length; cnt.hidden = !received.length; }
+    if (dot) dot.hidden = !received.length;
+    if (!box) return;
+    setHtmlIfChanged(box, received.length ? received.map(u => `<div class="rk-row">
+        ${rkUserRow(u, `<div class="rk-btns">
+            <button class="rk-btn ok" onclick="respondFriend(${u.id}, true)">수락</button>
+            <button class="rk-btn" onclick="respondFriend(${u.id}, false)">거절</button>
+        </div>`)}
+    </div>`).join('') : '<div class="rk-empty">받은 친구 요청이 없어요</div>');
+}
+
+function renderSentRequests(sent) {
+    const wrap = document.getElementById('rk-sent-wrap');
+    const box = document.getElementById('rk-sent');
+    if (!wrap || !box) return;
+    wrap.hidden = !sent.length;
+    box.innerHTML = sent.map(u => `<div class="rk-row">
+        ${rkUserRow(u, `<button class="rk-btn" onclick="cancelFriendRequest(${u.id})">요청 취소</button>`)}
+    </div>`).join('');
+}
+
+function openFriendSheet() {
+    const m = document.getElementById('friend-sheet');
+    if (!m) return;
+    m.classList.add('active');
+    const res = document.getElementById('friend-search-results');
+    if (res && !res.innerHTML.trim()) res.innerHTML = '<div class="rk-empty">닉네임을 입력하고 검색하세요</div>';
+    setTimeout(() => { const i = document.getElementById('friend-search-input'); if (i) i.focus(); }, 50);
+}
+function closeFriendSheet() {
+    const m = document.getElementById('friend-sheet');
+    if (m) m.classList.remove('active');
 }
 
 function executeFriendSearch() {
     const input = document.getElementById('friend-search-input');
-    const query = input.value.trim();
-    if (!query) return;
-
-    fetch(`/api/search_friends?query=${encodeURIComponent(query)}&user_id=${currentUserId}`)
+    const query = input ? input.value.trim() : '';
+    if (!query) { showToast('닉네임을 입력해 주세요.'); return; }
+    fetch(`/api/search_friends?query=${encodeURIComponent(query)}`)
         .then(r => r.json())
-        .then(data => {
-            renderSearchResults(data.results);
-        });
+        .then(data => renderSearchResults(data.results || []));
 }
 
 function renderSearchResults(results) {
-    const container = document.getElementById('friend-search-results');
-    if (results.length === 0) {
-        container.innerHTML = `<div style="font-size:0.75rem; color:#94a3b8; text-align:center; padding:8px;">검색된 유저가 없습니다.</div>`;
-        return;
-    }
-
-    container.innerHTML = results.map(u => `
-        <div class="search-item">
-            <div class="search-item-info">
-                <span>${u.avatar || '🧢'}</span>
-                <div>
-                    <div class="search-item-name">${u.nickname} (${u.score.toLocaleString()}pt)</div>
-                    <div class="search-item-team">응원 팀: ${u.team} | ${u.grade}급</div>
-                </div>
-            </div>
-            ${u.is_friend ? 
-                `<button class="btn-add-friend added" disabled>✓ 친구</button>` :
-                `<button class="btn-add-friend" onclick="addFriend(${u.id})">+ 친구 추가</button>`
-            }
-        </div>
-    `).join('');
+    const box = document.getElementById('friend-search-results');
+    if (!box) return;
+    if (!results.length) { box.innerHTML = '<div class="rk-empty">검색된 감독이 없어요</div>'; return; }
+    const btn = u => ({
+        friend: '<span class="rk-state">친구</span>',
+        sent: '<span class="rk-state">요청 보냄</span>',
+        received: `<button class="rk-btn ok" onclick="respondFriend(${u.id}, true)">수락</button>`,
+    }[u.relation] || `<button class="rk-btn ok" onclick="addFriend(${u.id})">요청</button>`);
+    box.innerHTML = results.map(u => `<div class="rk-row">${rkUserRow(u, btn(u))}</div>`).join('');
 }
 
-function addFriend(friendId) {
-    fetch('/api/add_friend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUserId, friend_id: friendId })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'success') {
-            showToast(`🤝 ${res.message}`);
-            executeFriendSearch();
-            loadLobbyData();
-        } else {
-            showToast(`⚠️ ${res.message}`);
-        }
-    });
+function friendPost(url, body) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(r => r.json())
+        .then(res => {
+            showToast(res.message || (res.status === 'success' ? '완료했어요.' : '다시 시도해 주세요.'));
+            const q = document.getElementById('friend-search-input');
+            if (q && q.value.trim() && document.getElementById('friend-sheet').classList.contains('active')) executeFriendSearch();
+            return loadFriends();
+        })
+        .catch(() => showToast('연결이 불안정해요. 다시 시도해 주세요.'));
 }
+function addFriend(id) { return friendPost('/api/friends/request', { user_id: id }); }
+function respondFriend(id, accept) { return friendPost('/api/friends/respond', { user_id: id, accept }); }
+function cancelFriendRequest(id) { return friendPost('/api/friends/cancel', { user_id: id }); }
 
 function startSSEStream() {
     if (sseSource) return;
@@ -1883,8 +1958,8 @@ function openTacticResultModal(res) {
 
     const badge = document.getElementById('res-grade-badge');
     if (badge) {
-        badge.textContent = res.grade || 'B';
-        badge.className = `result-badge grade-${(res.grade || 'b').toLowerCase()}`;
+        badge.textContent = res.grade || 'D';
+        badge.className = `result-badge grade-${(res.grade || 'd').toLowerCase()}`;
     }
     const delta = res.score_delta || 0;
     const deltaEl = document.getElementById('res-score-delta');
@@ -2191,10 +2266,10 @@ function renderPostGameSummary(s) {
     set('post-total-score', `${Number(s.manager_score ?? 2000).toLocaleString()}P`);
     const badge = document.getElementById('post-grade-badge');
     if (badge) {
-        badge.textContent = s.manager_grade || 'B';
-        badge.className = `pg-grade grade-${(s.manager_grade || 'b').toLowerCase()}`;
+        badge.textContent = s.manager_grade || 'D';
+        badge.className = `pg-grade grade-${(s.manager_grade || 'd').toLowerCase()}`;
     }
-    const titles = { S: 'S급 야신의 재림', A: 'A급 베테랑 명장', B: 'B급 열혈 감독', C: 'C급 직관 마니아', F: 'F급 초보 해설가' };
+    const titles = { S: 'S급 전설의 감독', A: 'A급 명장', B: 'B급 베테랑 감독', C: 'C급 주전 감독', D: 'D급 초짜 감독' };
     set('post-grade-title', titles[s.manager_grade] || '');
 
     const list = document.getElementById('pg-log-list');

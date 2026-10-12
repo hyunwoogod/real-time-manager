@@ -881,30 +881,71 @@ def api_schedules():
 
 @app.route('/api/search_friends')
 def api_search_friends():
-    query = request.args.get('query', '')
-    current_user_id = request.args.get('user_id', type=int) or session.get('user_id', 1)
-    results = database.search_users_by_nickname(query, current_user_id)
-    return jsonify({"results": results})
+    uid = session.get('user_id')
+    if not uid:
+        return jsonify({"results": []})
+    query = (request.args.get('query', '') or '').strip()[:20]
+    if not query:
+        return jsonify({"results": []})
+    return jsonify({"results": database.search_users_by_nickname(query, uid)})
+
+
+def _friend_target():
+    data = request.get_json(silent=True) or {}
+    try:
+        return int(data.get('user_id') or data.get('friend_id') or 0), data
+    except (TypeError, ValueError):
+        return 0, data
+
+
+@app.route('/api/friends')
+def api_friends():
+    """친구 랭킹 + 받은/보낸 친구 요청"""
+    uid = session.get('user_id')
+    if not uid:
+        return jsonify({"status": "error", "message": "로그인이 필요해요."}), 401
+    req = database.get_friend_requests(uid)
+    return jsonify({"status": "success", "rankings": database.get_user_friends_ranking(uid),
+                    "received": req["received"], "sent": req["sent"],
+                    "grade_names": game_engine.GRADE_NAMES,
+                    "grade_steps": [[c, g] for c, g in game_engine.GRADE_STEPS]})
+
+
+@app.route('/api/friends/request', methods=['POST'])
+@app.route('/api/add_friend', methods=['POST'])
+def api_friend_request():
+    """친구 요청 보내기 (상대가 수락하면 서로 친구가 됨)"""
+    uid = session.get('user_id')
+    if not uid:
+        return jsonify({"status": "error", "message": "로그인이 필요해요."}), 401
+    target, _ = _friend_target()
+    return jsonify(database.send_friend_request(uid, target))
+
+
+@app.route('/api/friends/respond', methods=['POST'])
+def api_friend_respond():
+    """받은 요청 수락/거절"""
+    uid = session.get('user_id')
+    if not uid:
+        return jsonify({"status": "error", "message": "로그인이 필요해요."}), 401
+    target, data = _friend_target()
+    return jsonify(database.respond_friend_request(uid, target, bool(data.get('accept'))))
+
+
+@app.route('/api/friends/cancel', methods=['POST'])
+def api_friend_cancel():
+    """보낸 요청 취소"""
+    uid = session.get('user_id')
+    if not uid:
+        return jsonify({"status": "error", "message": "로그인이 필요해요."}), 401
+    target, _ = _friend_target()
+    return jsonify(database.cancel_friend_request(uid, target))
 
 
 @app.route('/api/register', methods=['POST'])
 @app.route('/api/login', methods=['POST'])
 def api_password_auth_disabled():
     return jsonify({"status": "error", "message": SOCIAL_ONLY_MSG, "redirect": url_for('login')}), 410
-
-
-@app.route('/api/add_friend', methods=['POST'])
-def api_add_friend():
-    data = request.get_json(silent=True) or {}
-    user_id = data.get('user_id') or session.get('user_id', 1)
-    friend_id = data.get('friend_id', 0)
-    try:
-        user_id = int(user_id)
-        friend_id = int(friend_id)
-    except (ValueError, TypeError):
-        pass
-    res = database.add_friend(user_id, friend_id)
-    return jsonify(res)
 
 
 @app.route('/api/tactic', methods=['POST'])
@@ -1113,7 +1154,7 @@ def api_my_games():
     return jsonify({
         "games": games,
         "summary": {
-            "score": user.get('score', 2000), "grade": user.get('grade', 'B'),
+            "score": user.get('score', 2000), "grade": user.get('grade', 'D'),
             "games": len(games), "hit": hit, "miss": miss,
             "skip": sum(g.get('skip', 0) for g in games),
             "rate": round(hit / (hit + miss) * 100) if hit + miss else None,
@@ -1131,13 +1172,7 @@ MINIGAME_MAX_REWARD = 20
 _minigame_lock = threading.Lock()
 
 
-def grade_for(score):
-    """감독 점수 → 등급 (게임 엔진과 같은 기준)"""
-    if score >= 2150: return "S"
-    if score >= 2050: return "A"
-    if score >= 1950: return "B"
-    if score >= 1850: return "C"
-    return "F"
+grade_for = game_engine.grade_for
 
 
 def minigame_day_key():
@@ -1178,7 +1213,7 @@ def minigame_payload(uid, st):
         rec = st["slots"].get(str(i)) or {}
         slots.append({"slot": i, "status": rec.get("status", "ready"), "reward": rec.get("reward", 0)})
     return {"status": "success", "day": st["day"], "test_day": test_day() if TEST_SEASON else None,
-            "score": user.get('score', 2000), "grade": user.get('grade', 'B'),
+            "score": user.get('score', 2000), "grade": user.get('grade', 'D'),
             "cost": MINIGAME_COST, "max_reward": MINIGAME_MAX_REWARD, "slots": slots}
 
 
