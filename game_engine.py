@@ -318,8 +318,42 @@ HOME_STADIUM = {"KIA": "광주", "삼성": "대구", "LG": "잠실", "두산": "
                 "SSG": "문학", "롯데": "사직", "한화": "대전", "NC": "창원", "키움": "고척"}
 
 
-def test_season_day(day, game_date):
+TEST_START = "2026-03-28"   # 테스트 1일차 날짜 (월요일은 경기 없음)
+TEST_DAYS = 144
+_TEST_DATES = []
+
+
+def test_date(day):
+    """테스트 N일차의 날짜 (월요일 제외하고 이어짐)"""
+    import datetime as _dt
+    if not _TEST_DATES:
+        d = _dt.date.fromisoformat(TEST_START)
+        while len(_TEST_DATES) < TEST_DAYS + 60:
+            if d.weekday() != 0:
+                _TEST_DATES.append(d.isoformat())
+            d += _dt.timedelta(days=1)
+    return _TEST_DATES[min(max(day, 1), len(_TEST_DATES)) - 1]
+
+
+def simulate_test_game(day, idx):
+    """다른 팀 경기 결과: 같은 가상 엔진으로 끝까지 자동 진행 (일차·경기마다 결과가 항상 같음)"""
+    g = test_season_day(day)[idx]
+    saved = random.getstate()
+    random.seed(f"TESTSIM|{day}|{idx}")
+    try:
+        e = GameEngine(g["home_team"], g["away_team"], g["home_pitcher"], g["away_pitcher"])
+        e.user_team = "-"          # 아무 팀도 아님 → 팝업 없이 진행
+        e.lineup_date = f"TEST-{day}"
+        e.reset()
+        e.finish_game()
+        return [e.score_away, e.score_home]
+    finally:
+        random.setstate(saved)
+
+
+def test_season_day(day, game_date=None):
     """테스트 N일차(1부터)의 5경기: 같은 팀과 3일 연속(3연전) 뒤 다음 상대로, 선발은 5일 로테이션"""
+    game_date = game_date or test_date(day)
     n = len(TEST_TEAMS)
     series = (day - 1) // 3
     r = series % (n - 1)

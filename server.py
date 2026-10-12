@@ -128,6 +128,13 @@ def sync_session_from_user(user):
 # DB 초기화
 database.init_db()
 
+# 게임 기록 1회 초기화 (2026-10-12 요청: 모두 테스트 1일차·감독 점수 2000점부터). 한 번 실행되면 다시 안 함
+PLAY_RESET_VERSION = "2026-10-12"
+if database.get_setting("play_reset_version", "") != PLAY_RESET_VERSION:
+    database.reset_play_data()
+    database.set_setting("play_reset_version", PLAY_RESET_VERSION)
+    print(f"⚾ [초기화] 게임 기록을 초기화했어요 ({PLAY_RESET_VERSION})")
+
 # 사용자별 게임 엔진 (예전엔 서버 전체가 경기 하나를 같이 써서,
 # 다른 사람이 경기에 들어가면 모두의 화면이 그 팀으로 바뀌는 문제가 있었음)
 import threading
@@ -425,7 +432,9 @@ def index():
         match_away_full=match_away_full,
         match_home_full=match_home_full,
         today_schedule=today_schedule_info,
-        initial_standings=database.compute_standings()['standings'],
+        initial_standings=(test_standings(favorite_team, test_day())['standings'] if TEST_SEASON
+                           else database.compute_standings()['standings']),
+        test_season=TEST_SEASON,
         today_games=today_games,
         team_logos=TEAM_LOGOS
     ))
@@ -849,13 +858,20 @@ def api_lobby():
 
 @app.route('/api/standings')
 def api_standings():
-    """팀 순위: 관리자 기준값 + 이후 경기 결과로 자동 계산"""
+    """팀 순위: 관리자 기준값 + 이후 경기 결과로 자동 계산 (테스트 시즌이면 테스트 1일차부터 쌓인 결과)"""
+    if TEST_SEASON:
+        return jsonify(test_standings(session.get('favorite_team'), test_day()))
     return jsonify(database.compute_standings())
 
 
 @app.route('/api/schedules')
 def api_schedules():
     date_filter = request.args.get('date')
+    if TEST_SEASON:
+        games, _ = test_season_games(session.get('favorite_team'), test_day())
+        if date_filter:
+            games = [g for g in games if g['game_date'] == date_filter]
+        return jsonify({"schedules": games, "test_day": test_day(), "test_date": game_engine.test_date(test_day())})
     if date_filter:
         data = database.get_schedules_by_date(date_filter)
     else:
@@ -916,6 +932,7 @@ def api_reset():
     engine = get_engine()
     engine.user_team = session.get('favorite_team')   # 우리 팀 공격 때 대타 팝업
     engine.lineup_date = f"TEST-{test_day()}" if TEST_SEASON else None
+    engine.test_day = test_day() if TEST_SEASON else None
     if data.get('resume'):
         st = engine.get_state()
         ongoing = (st.get('home_team') == home and st.get('away_team') == away and not st.get('game_over') and
@@ -928,6 +945,7 @@ def api_reset():
     engine.home_pitcher = home_p
     engine.away_pitcher = away_p
     engine.reset()
+    engine._test_result_saved = False
     mark_test_day_started()
     return jsonify({"status": "success", "message": "경기 초기화 완료", "state": engine.get_state()})
 
@@ -984,12 +1002,87 @@ def today_schedule_and_games(today_str, team):
         return (database.get_today_schedule_info(today_str, team),
                 [g for g in database.get_schedules_by_date(today_str) if g.get('is_rest_day') != 1])
     day = test_day()
-    games = game_engine.test_season_day(day, today_str)
+    today_str = game_engine.test_date(day)
+    all_games, _ = test_season_games(team, day, upto_day=day)
+    games = [g for g in all_games if g['test_day'] == day]
     mine = next((g for g in games if team in (g['home_team'], g['away_team'])), None)
     info = {"game_date": today_str, "is_today": True, "is_rest_day": False,
             "start_time": mine['start_time'] if mine else None, "match": mine,
             "all_matches": games, "test_day": day}
     return info, games
+
+
+# 다른 팀 경기 결과(모든 사용자 공통) / 내 팀 경기 결과(사용자별)
+_test_sims_cache = {}
+
+
+def test_sims(upto_day):
+    """1~upto_day일차 다른 팀 경기 결과. 없으면 자동 진행해서 DB에 저장"""
+    global _test_sims_cache
+    if not _test_sims_cache:
+        try:
+            _test_sims_cache = json.loads(database.get_setting("test_sims", "{}") or "{}")
+        except ValueError:
+            _test_sims_cache = {}
+    missing = [d for d in range(1, upto_day + 1) if str(d) not in _test_sims_cache]
+    if missing:
+        for d in missing:
+            _test_sims_cache[str(d)] = [game_engine.simulate_test_game(d, i) for i in range(5)]
+        database.set_setting("test_sims", json.dumps(_test_sims_cache))
+    return _test_sims_cache
+
+
+def my_test_results():
+    uid = session.get('user_id')
+    if not uid:
+        return {}
+    try:
+        return json.loads(database.get_setting(f"test_my:{uid}", "{}") or "{}")
+    except ValueError:
+        return {}
+
+
+def record_test_result(engine):
+    """테스트 시즌 내 팀 경기가 끝나면 결과 저장 (팀 순위·일정에 반영)"""
+    if not TEST_SEASON or not engine.game_over or getattr(engine, '_test_result_saved', False):
+        return
+    uid = session.get('user_id')
+    day = getattr(engine, 'test_day', None)
+    team = session.get('favorite_team')
+    if not (uid and day and team in (engine.home_team_name, engine.away_team_name)):
+        return
+    mine = next((g for g in game_engine.test_season_day(day) if team in (g['home_team'], g['away_team'])), None)
+    if not mine or {mine['home_team'], mine['away_team']} != {engine.home_team_name, engine.away_team_name}:
+        return
+    res = my_test_results()
+    res[str(day)] = [engine.score_away, engine.score_home]
+    database.set_setting(f"test_my:{uid}", json.dumps(res))
+    engine._test_result_saved = True
+
+
+def test_season_games(team, cur_day, upto_day=None):
+    """1~upto_day일차 경기 목록 (끝난 날은 점수·'경기종료'). 내 팀 경기는 내 실제 결과, 없으면(중간 이탈) 자동 진행 결과"""
+    upto_day = upto_day or game_engine.TEST_DAYS
+    mine = my_test_results()
+    done_upto = cur_day if str(cur_day) in mine else cur_day - 1
+    sims = test_sims(done_upto) if done_upto >= 1 else {}
+    out = []
+    for d in range(1, upto_day + 1):
+        for i, g in enumerate(game_engine.test_season_day(d)):
+            if d <= done_upto:
+                is_mine = team in (g['home_team'], g['away_team'])
+                a, h = (mine.get(str(d)) if is_mine and str(d) in mine else sims[str(d)][i])
+                g.update({"status_text": "경기종료", "away_score": a, "home_score": h})
+            out.append(g)
+    return out, done_upto
+
+
+def test_standings(team, cur_day):
+    games, done_upto = test_season_games(team, cur_day, upto_day=max(cur_day, 1))
+    finished = [g for g in games if g["status_text"] == "경기종료"]
+    return {"standings": database.standings_from_results(game_engine.TEST_TEAMS, finished),
+            "as_of": game_engine.test_date(1), "updated_through": game_engine.test_date(done_upto) if done_upto else None,
+            "test_day": cur_day, "test_done_upto": done_upto}
 
 
 @app.route('/api/test/next_day', methods=['POST'])
@@ -1001,12 +1094,17 @@ def api_test_next_day():
 @app.route('/api/finish', methods=['POST'])
 def api_finish():
     """(테스트용) 지금 경기를 끝까지 진행하고 결과를 돌려줌"""
-    return jsonify(get_engine().finish_game())
+    engine = get_engine()
+    state = engine.finish_game()
+    record_test_result(engine)
+    return jsonify(state)
 
 
 @app.route('/api/step', methods=['POST'])
 def api_step():
-    state = get_engine().step_pitch()
+    engine = get_engine()
+    state = engine.step_pitch()
+    record_test_result(engine)
     return jsonify(state)
 
 

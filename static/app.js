@@ -886,6 +886,7 @@ function renderHome(scheduleInfo, todayGames) {
         scheduleInfo.match || null;
 
     window._testDay = scheduleInfo.test_day || null;
+    if (scheduleInfo.test_day && scheduleInfo.game_date) window._testDate = scheduleInfo.game_date;
     const label = document.getElementById('hm-section-label');
     if (label) label.innerText = scheduleInfo.test_day ? `테스트 ${scheduleInfo.test_day}일차 경기`
         : scheduleInfo.is_today === false && scheduleInfo.game_date
@@ -1154,7 +1155,8 @@ function refreshStandingsInBackground() {
         .then(r => r.json())
         .then(data => {
             const latest = data.standings || [];
-            if (JSON.stringify(latest) !== JSON.stringify(kboTeamStandingsData)) {
+            if (data.test_day) window._stTest = { day: data.test_day, done: data.test_done_upto || 0 };
+            if (data.test_day || JSON.stringify(latest) !== JSON.stringify(kboTeamStandingsData)) {
                 kboTeamStandingsData = latest;
                 renderKboStandingsTable();
             }
@@ -1180,6 +1182,16 @@ function renderKboStandingsTable() {
     if (titleEl) titleEl.innerText = standingsYear;
     const nextBtn = document.getElementById('st-year-next');
     if (nextBtn) nextBtn.disabled = standingsYear >= STANDINGS_DATA_YEAR;
+    // 테스트 시즌: 연도 이동 없이 'N일차까지' 표시
+    if (window.TEST_SEASON) {
+        const prev = document.getElementById('st-year-prev');
+        if (prev) prev.style.visibility = 'hidden';
+        if (nextBtn) nextBtn.style.visibility = 'hidden';
+        if (titleEl) titleEl.innerText = '테스트';
+        const sub = document.getElementById('standings-year-sub');
+        const t = window._stTest;
+        if (sub) sub.textContent = t && t.done ? `테스트 시즌 · ${t.done}일차까지` : '테스트 시즌 · 아직 끝난 경기가 없어요';
+    }
 
     if (standingsYear !== STANDINGS_DATA_YEAR) {
         list.innerHTML = `<div class="st-empty">${standingsYear} 시즌 순위 기록은 준비 중이에요.</div>`;
@@ -1377,6 +1389,10 @@ function loadLobbyData() {
 }
 
 // Schedule Tab Globals & Date Picker Logic
+// 일정 탭의 '오늘': 테스트 시즌이면 지금 테스트 일차의 날짜
+function schedTodayStr() {
+    return window._testDate || getFormattedTodayStr();
+}
 let selectedScheduleDate = getFormattedTodayStr();
 
 const teamLogoImgMap = {
@@ -1410,13 +1426,19 @@ const teamBatterMap = {
     "한화": "심우준", "삼성": "김지찬", "KIA": "박재현", "KT": "최원준", "LG": "박해민", "SSG": "정준재", "키움": "추재현", "롯데": "황성빈", "NC": "김주원", "두산": "정수빈"
 };
 
-function loadScheduleTable(filterDate = getFormattedTodayStr()) {
-    if (!filterDate || filterDate === 'today') filterDate = getFormattedTodayStr();
+function loadScheduleTable(filterDate = schedTodayStr()) {
+    if (!filterDate || filterDate === 'today') filterDate = schedTodayStr();
     selectedScheduleDate = filterDate;
     fetch('/api/schedules')
         .then(res => res.json())
         .then(data => {
             cachedSchedules = data.schedules || [];
+            // 테스트 시즌: '오늘'을 테스트 일차 날짜로
+            if (data.test_date && window._testDate !== data.test_date) {
+                const wasToday = selectedScheduleDate === schedTodayStr();
+                window._testDate = data.test_date;
+                if (wasToday || !cachedSchedules.some(g => g.game_date === selectedScheduleDate)) selectedScheduleDate = data.test_date;
+            }
             renderHorizontalDatePicker();
             renderMatchupsForDate(selectedScheduleDate);
         })
@@ -1433,7 +1455,7 @@ function scDateParts(dateStr) {
 function renderHorizontalDatePicker() {
     const box = document.getElementById('sched-date-scroll');
     if (!box) return;
-    const todayStr = getFormattedTodayStr();
+    const todayStr = schedTodayStr();
     const gameCount = {};
     (cachedSchedules || []).forEach(s => {
         if (s.is_rest_day !== 1) gameCount[s.game_date] = (gameCount[s.game_date] || 0) + 1;
@@ -1488,7 +1510,7 @@ function scrollDateBar(direction) {
 
 // 이전/다음 달: 그 달의 1일로 이동
 function shiftSchedMonth(delta) {
-    const cur = scDateParts(selectedScheduleDate || getFormattedTodayStr());
+    const cur = scDateParts(selectedScheduleDate || schedTodayStr());
     const target = new Date(cur.y, cur.m - 1 + delta, 1);
     selectScheduleDate(`${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-01`);
 }
@@ -1512,8 +1534,11 @@ function renderMatchupsForDate(dateStr) {
         const bm = normalizeTeamShort(b.home_team) === myTeam || normalizeTeamShort(b.away_team) === myTeam;
         return (bm - am) || String(a.start_time).localeCompare(String(b.start_time));
     });
-    const isToday = dateStr === getFormattedTodayStr();
-    list.innerHTML = games.map(m => gameRowHtml(m, { enterable: isToday })).join('');
+    const isToday = dateStr === schedTodayStr();
+    // 테스트 시즌에는 내 팀 경기만 입장 (다른 경기에 들어가면 내 하루가 소모되지 않도록)
+    const canEnter = m => isToday && (!window.TEST_SEASON
+        || [normalizeTeamShort(m.home_team), normalizeTeamShort(m.away_team)].includes(normalizeTeamShort(selectedTeamCode)));
+    list.innerHTML = games.map(m => gameRowHtml(m, { enterable: canEnter(m) })).join('');
 }
 
 function enterMatchupFromSchedule(homeTeam, awayTeam, homePitcher, awayPitcher) {

@@ -33,6 +33,7 @@
             window.CURRENT_SESSION_TEAM = {{ favorite_team | tojson if favorite_team else 'null' }};
             window.CURRENT_SESSION_TEAM_FULL = {{ favorite_team_full | tojson if favorite_team_full else 'null' }};
             window.INITIAL_TODAY_SCHEDULE = {{ today_schedule | tojson if today_schedule else 'null' }};
+            window.TEST_SEASON = {{ 'true' if test_season else 'false' }};
             window.INITIAL_TODAY_GAMES = {{ today_games | tojson if today_games else '[]' }};
             window.INITIAL_STANDINGS = {{ initial_standings | tojson if initial_standings else '[]' }};
             if (!window.CURRENT_SESSION_USER) {
@@ -290,8 +291,8 @@
             <!-- TAB 2: PANE SCHEDULE (일정 탭 - 가로 캘린더 & 매치업 UI) -->
             <div id="pane-schedule" class="lobby-tab-pane">
                 <div class="schedule-sub-nav">
-                    <button class="sub-nav-item active" onclick="switchLobbyTab('schedule')">경기 일정</button>
-                    <button class="sub-nav-item" onclick="switchLobbyTab('records')">팀 순위</button>
+                    <button class="sub-nav-item active" onclick="switchLobbyTab('schedule')">경기 일정{{ ' (테스트)' if test_season }}</button>
+                    <button class="sub-nav-item" onclick="switchLobbyTab('records')">팀 순위{{ ' (테스트)' if test_season }}</button>
                 </div>
 
                 <!-- 월 이동 + 오늘 -->
@@ -313,8 +314,8 @@
             <!-- TAB 3: PANE RECORDS (순위/기록 탭 - KBO 공식 정규시즌 팀 순위표) -->
             <div id="pane-records" class="lobby-tab-pane">
                 <div class="schedule-sub-nav" style="margin-bottom: 16px;">
-                    <button class="sub-nav-item" onclick="switchLobbyTab('schedule')">경기 일정</button>
-                    <button class="sub-nav-item active" onclick="switchLobbyTab('records')">팀 순위</button>
+                    <button class="sub-nav-item" onclick="switchLobbyTab('schedule')">경기 일정{{ ' (테스트)' if test_season }}</button>
+                    <button class="sub-nav-item active" onclick="switchLobbyTab('records')">팀 순위{{ ' (테스트)' if test_season }}</button>
                 </div>
 
                 <div class="kbo-standings-container">
@@ -323,7 +324,7 @@
                         <button class="st-year-btn" id="st-year-prev" onclick="shiftStandingsYear(-1)" aria-label="이전 시즌">‹</button>
                         <div class="st-year-center">
                             <span id="standings-year-title" class="st-year">2026</span>
-                            <span class="st-year-sub">KBO 정규시즌 팀 순위</span>
+                            <span class="st-year-sub" id="standings-year-sub">{{ '테스트 시즌 팀 순위' if test_season else 'KBO 정규시즌 팀 순위' }}</span>
                         </div>
                         <button class="st-year-btn" id="st-year-next" onclick="shiftStandingsYear(1)" aria-label="다음 시즌">›</button>
                     </div>
@@ -826,7 +827,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261012_34"></script>
+    <script src="app.js?v=20261012_36"></script>
 </body>
 
 </html>

@@ -844,6 +844,20 @@ def update_user_profile(user_id, nickname, team):
     conn.commit()
     conn.close()
 
+def reset_play_data():
+    """게임 기록 초기화 (계정·닉네임·응원 구단·로그인 기록은 그대로):
+    감독 점수 2000점·B급, 작전 기록 삭제, 테스트 시즌 진행(일차·내 경기 결과·자동 진행 결과) 삭제"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET score = 2000, grade = 'B'")
+    cursor.execute("UPDATE user_rankings SET score = 2000, grade = 'B'")
+    cursor.execute("DELETE FROM tactics_history")
+    # 'test_'로 시작하는 키 (LIKE의 % 기호 없이: SQLite·PostgreSQL 공통)
+    cursor.execute("DELETE FROM app_settings WHERE key >= 'test_' AND key < 'test`'")
+    conn.commit()
+    conn.close()
+
+
 def update_user_score(new_score, new_grade, user_id=1):
     conn = get_db()
     cursor = conn.cursor()
@@ -1249,6 +1263,49 @@ def save_standings_base(rows, as_of):
 def _parse_streak(streak):
     m = re.fullmatch(r'(\d+)(승|패|무)', (streak or '').strip())
     return (m.group(2), int(m.group(1))) if m else (None, 0)
+
+
+def standings_from_results(teams, games):
+    """경기 결과 목록(home_team, away_team, home_score, away_score)만으로 순위표 계산 (테스트 시즌용)"""
+    table = {t: {'team': t, 'wins': 0, 'losses': 0, 'draws': 0, 'streak_kind': '', 'streak_len': 0} for t in teams}
+
+    def apply(team, result):
+        t = table.get(team)
+        if not t:
+            return
+        t[{'승': 'wins', '패': 'losses', '무': 'draws'}[result]] += 1
+        if t['streak_kind'] == result:
+            t['streak_len'] += 1
+        else:
+            t['streak_kind'], t['streak_len'] = result, 1
+
+    for g in games:
+        hs, as_ = int(g['home_score']), int(g['away_score'])
+        home, away = g['home_team'], g['away_team']
+        if hs == as_:
+            apply(home, '무'); apply(away, '무')
+        elif hs > as_:
+            apply(home, '승'); apply(away, '패')
+        else:
+            apply(home, '패'); apply(away, '승')
+    rows = list(table.values())
+    for t in rows:
+        decided = t['wins'] + t['losses']
+        t['pct'] = t['wins'] / decided if decided else 0.0
+    rows.sort(key=lambda t: (-t['pct'], -t['wins'], t['losses']))
+    leader = rows[0] if rows else None
+    ps_types = {1: 'ks', 2: 'po', 3: 'jpo', 4: 'wc', 5: 'wc'}
+    out = []
+    for idx, t in enumerate(rows, start=1):
+        gb = ((leader['wins'] - t['wins']) + (t['losses'] - leader['losses'])) / 2 if leader else 0
+        out.append({
+            'rank': idx, 'team': t['team'], 'wins': t['wins'], 'losses': t['losses'], 'draws': t['draws'],
+            'games': t['wins'] + t['losses'] + t['draws'], 'winRate': f"{t['pct']:.3f}",
+            'gb': '0.0' if idx == 1 else f"{gb:.1f}",
+            'streak': f"{t['streak_len']}{t['streak_kind']}" if t['streak_kind'] else '-',
+            'psType': ps_types.get(idx, ''),
+        })
+    return out
 
 
 def compute_standings():
