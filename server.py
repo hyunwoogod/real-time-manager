@@ -977,6 +977,22 @@ def api_lineup_pool():
                     "others": others, "saved": saved, "started": started})
 
 
+@app.route('/api/lineup_status')
+def api_lineup_status():
+    """홈 카드용: 오늘 내 팀 라인업을 확정했는지, 경기가 이미 시작됐는지"""
+    home, away = _match_teams()
+    team = session.get('favorite_team')
+    if team not in (home, away):
+        return jsonify({"status": "success", "mine": False, "saved": False, "started": False})
+    saved = f"{home}|{away}" in (session.get('lineup_predictions') or {})
+    eng = get_engine()
+    started = False
+    if eng.home_team_name == home and eng.away_team_name == away:
+        saved = saved or bool(eng.prediction)
+        started = not eng.can_predict() and not eng.game_over
+    return jsonify({"status": "success", "mine": True, "saved": saved, "started": started})
+
+
 @app.route('/api/lineup', methods=['POST'])
 def api_lineup():
     """경기 시작 전(로비) 감독 라인업 9명으로 내 타순을 다시 짜서 저장 (내 응원 구단만)"""

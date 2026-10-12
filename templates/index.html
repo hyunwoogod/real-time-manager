@@ -12,7 +12,7 @@
     <link rel="preload" as="image" href="/brand/hero.jpg?v=8" fetchpriority="high">
     <link rel="preload" as="image" href="/brand/mascot-head.png?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261012_20">
+    <link rel="stylesheet" href="style.css?v=20261012_25">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -485,7 +485,7 @@
 
             <!-- 하단 버튼 -->
             <div class="ig-actions">
-                <button class="ig-btn-log" onclick="openIngameLog()">중계 기록</button>
+                <button class="ig-btn-log" onclick="openIngameLog()">라인업 · 기록</button>
                 <button class="ig-btn-pitch" id="btn-pitch-step" onclick="handleNextPitch()">다음 투구</button>
             </div>
 
@@ -493,11 +493,15 @@
             <div class="ig-sheet-bg" id="ig-log-bg" onclick="closeIngameLog()"></div>
             <div class="ig-sheet" id="ig-log-sheet" aria-hidden="true">
                 <div class="ig-sheet-head">
-                    <strong>중계 기록</strong>
+                    <div class="ig-seg">
+                        <button class="ig-seg-btn active" data-view="lineup" onclick="igSheetView('lineup')">라인업</button>
+                        <button class="ig-seg-btn" data-view="log" onclick="igSheetView('log')">중계 기록</button>
+                    </div>
                     <button class="ig-sheet-close" onclick="closeIngameLog()" aria-label="닫기">×</button>
                 </div>
-                <div class="ig-sheet-tabs" id="ig-log-tabs"></div>
-                <div class="ig-sheet-body" id="ig-log-list"></div>
+                <div class="ig-sheet-body ig-lineup-view" id="ig-lineup-view"></div>
+                <div class="ig-sheet-tabs" id="ig-log-tabs" hidden></div>
+                <div class="ig-sheet-body" id="ig-log-list" hidden></div>
                 <button class="ig-sheet-end" onclick="closeIngameLog(); fastForwardMatch()">경기 결과 보기 (테스트)</button>
             </div>
         </section>
@@ -734,16 +738,15 @@
                 <div class="lu-head">
                     <div>
                         <strong id="lu-title">라인업 예상</strong>
-                        <span id="lu-sub">오늘 감독 라인업 9명으로 내 타순을 짜고 입장해요</span>
+                        <span id="lu-sub">끌어다 놓으면 두 선수 자리가 바뀌어요</span>
                     </div>
                     <button class="ig-sheet-close" onclick="closeLineupModal()" aria-label="닫기">×</button>
                 </div>
                 <div class="lu-cols-head"><span></span><b>내 타순</b><b>감독 라인업</b></div>
                 <div class="lu-rows" id="lu-rows"></div>
-                <datalist id="lu-names"></datalist>
                 <div class="lu-actions">
-                    <button class="lu-cancel" onclick="luFillActual()">그대로 채우기</button>
-                    <button class="lu-save" id="lu-save" onclick="saveLineupModal()" disabled>이 타순으로 입장</button>
+                    <button class="lu-cancel" onclick="luFillActual()">원래대로</button>
+                    <button class="lu-save" id="lu-save" onclick="saveLineupModal()">경기장 입장하기</button>
                 </div>
             </div>
         </div>
@@ -855,7 +858,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261012_21"></script>
+    <script src="app.js?v=20261012_28"></script>
 </body>
 
 </html>

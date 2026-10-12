@@ -161,6 +161,7 @@ function restoreGameStateFromStorage() {
 
 document.addEventListener('DOMContentLoaded', () => {
     try { restoreGameStateFromStorage(); } catch(e) {}
+    fetch('/api/state').then(r => r.json()).then(st => { if (st && st.home_team) currentGameState = st; }).catch(() => {});
     try { loadUserState(); } catch(e) { console.warn('loadUserState error:', e); }
     try { initCanvas(); } catch(e) { console.warn('initCanvas error:', e); }
     try { switchView('pregame-view'); } catch(e) { console.warn('switchView error:', e); }
@@ -809,6 +810,10 @@ function renderHomeMatch(match, opts = {}) {
     }
     const st = gameState(match);
     const dateText = opts.isToday === false ? formatMatchDateLabel(match.game_date).replace('/', '.') : '오늘';
+    // 내 응원 구단 경기이고 입장 가능하면: '오늘 라인업 짜기' → 확인 후 '실시간 경기 입장' 활성화
+    const mineIn = [normalizeTeamShort(match.home_team), normalizeTeamShort(match.away_team)].includes(myTeam);
+    const needLineup = mineIn && st.canEnter;
+    window._homeMatch = match;
     setHtmlIfChanged(box, `<div class="hm-card st-${st.cls.split(' ')[0]} ${st.wx ? 'wx-' + st.wx : ''}">
         <span class="hm-field" aria-hidden="true"></span>
         <div class="hm-head">
@@ -822,8 +827,38 @@ function renderHomeMatch(match, opts = {}) {
         </div>
         ${pitcherLine(match, st)}
         ${weatherLayer(st)}
-        <button id="btn-enter-ingame" class="hm-enter" onclick="forceLiveMatchStart()" ${st.canEnter ? '' : 'disabled'}>${st.label}</button>
+        <button id="btn-enter-ingame" class="hm-enter ${needLineup ? 'hm-lineup-go' : ''}" onclick="${needLineup ? 'homeEnterClick()' : 'forceLiveMatchStart()'}" ${st.canEnter ? '' : 'disabled'}>${needLineup ? '오늘의 라인업 짜기' : st.label}</button>
     </div>`);
+    if (needLineup) luRefreshStatus();
+}
+
+// 홈 카드 버튼 상태: 라인업을 확정했거나 이미 시작된 경기면 입장 활성화
+let luStatus = {};
+function luKey() {
+    const m = window._homeMatch || {};
+    return `${normalizeTeamShort(m.home_team)}|${normalizeTeamShort(m.away_team)}`;
+}
+// 내 팀 경기 버튼: 시작 전이면 '오늘의 라인업 짜기', 이미 진행 중이면 '실시간 경기 입장'
+function luApplyStatus() {
+    const st = luStatus[luKey()];
+    const enter = document.getElementById('btn-enter-ingame');
+    if (!st || !enter || enter.getAttribute('onclick') !== 'homeEnterClick()') return;
+    enter.textContent = st.started ? '실시간 경기 입장' : '오늘의 라인업 짜기';
+    enter.classList.toggle('hm-lineup-go', !st.started);
+}
+function homeEnterClick() {
+    const st = luStatus[luKey()];
+    if (st && st.started) enterLiveMatch();
+    else openLineupModal();
+}
+function luRefreshStatus() {
+    const m = window._homeMatch || {};
+    const key = luKey();
+    luApplyStatus();
+    fetch(`/api/lineup_status?home=${encodeURIComponent(normalizeTeamShort(m.home_team))}&away=${encodeURIComponent(normalizeTeamShort(m.away_team))}`)
+        .then(r => r.json())
+        .then(res => { if (res.mine) { luStatus[key] = res; luApplyStatus(); } })
+        .catch(() => {});
 }
 
 // 경기 한 줄 (홈 '오늘의 다른 경기'와 리그 '경기 일정'에서 공통 사용)
@@ -943,11 +978,14 @@ function tryEnterIngame() {
 }
 
 // 실시간 경기 입장: 내 응원 구단 경기면 먼저 감독 라인업을 보고 내 타순을 짠 뒤 입장
-function forceLiveMatchStart(skipLineup) {
+function forceLiveMatchStart() {
+    // 홈 카드의 내 팀 경기는 라인업 창을 거쳐 입장 (일정 화면 등에서 들어와도 같게)
+    const m = window._homeMatch;
+    const isHomeMatch = m && normalizeTeamShort(m.home_team) === normalizeTeamShort(currentHomeTeam)
+        && normalizeTeamShort(m.away_team) === normalizeTeamShort(currentAwayTeam);
     const myTeam = normalizeTeamShort(selectedTeamCode);
-    const teams = [normalizeTeamShort(currentHomeTeam), normalizeTeamShort(currentAwayTeam)];
-    if (!skipLineup && teams.includes(myTeam)) {
-        openLineupModal();
+    if (isHomeMatch && [normalizeTeamShort(m.home_team), normalizeTeamShort(m.away_team)].includes(myTeam)) {
+        homeEnterClick();
         return;
     }
     enterLiveMatch();
@@ -979,56 +1017,24 @@ function enterLiveMatch() {
             saveGameStateToStorage(data.state);
         }
         switchView('ingame-view', data && data.state);
+        if (data && !data.resumed) {
+            setTimeout(() => igShowPlayBall(), 300);
+            igFirstPitchCountdown(5);
+        }
     })
     .catch(() => switchView('ingame-view'));
 }
 
 // ---------------- 라인업 예상 (로비에서 이름을 직접 입력) ----------------
-let luData = null;   // {team, pool, others}
+let luData = null;   // {team, actual, saved}
+let luOrder = [];    // 내가 짠 타순 (감독 라인업 9명을 순서만 바꿈)
+let luPick = -1;     // 탭으로 바꿀 때 먼저 고른 자리
+let luFlash = [];    // 방금 자리를 바꾼 두 칸 (잠깐 반짝)
 const LU_POS = { C: '포수', '1B': '1루', '2B': '2루', '3B': '3루', SS: '유격', LF: '좌익', CF: '중견', RF: '우익', DH: '지명' };
 
-// 한글을 자모로 풀어 비교 (오타 거리 계산용)
-function luJamo(str) {
-    const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ', JUNG = 'ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ', JONG = ' ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ';
-    let out = '';
-    for (const ch of String(str || '')) {
-        const c = ch.charCodeAt(0) - 0xAC00;
-        if (c >= 0 && c < 11172) {
-            out += CHO[Math.floor(c / 588)] + JUNG[Math.floor((c % 588) / 28)] + (c % 28 ? JONG[c % 28] : '');
-        } else out += ch.toLowerCase();
-    }
-    return out;
-}
-function luDist(a, b) {
-    const m = a.length, n = b.length, d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
-    for (let j = 1; j <= n; j++) d[0][j] = j;
-    for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) {
-        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-    }
-    return d[m][n];
-}
-
-// 입력한 이름 확인: 감독 라인업 9명 중 한 명이어야 함 (오타 추천 / 오늘 선발 아님 / 다른 팀 / 중복)
-function luCheck(name, idx, values) {
-    name = (name || '').trim();
-    if (!name) return { state: 'empty' };
-    const starters = luData.actual.map(b => b.name);
-    if (starters.includes(name)) {
-        const dup = values.findIndex((v, i) => i !== idx && v.trim() === name);
-        if (dup >= 0) return { state: 'bad', msg: `${dup + 1}번에 있어요` };
-        return { state: 'ok' };
-    }
-    if ((luData.bench || []).includes(name)) return { state: 'bad', msg: '오늘 선발이 아니에요' };
-    if (luData.others[name]) return { state: 'bad', msg: `${luData.others[name]} 선수예요` };
-    const j = luJamo(name);
-    let best = null, bestD = 99;
-    starters.forEach(n => { const d = luDist(j, luJamo(n)); if (d < bestD) { bestD = d; best = n; } });
-    if (best && bestD <= Math.max(2, Math.floor(j.length / 3))) return { state: 'typo', msg: `혹시 ${best}?`, fix: best };
-    return { state: 'bad', msg: '라인업에 없는 선수예요' };
-}
-
 function luMatchTeams() {
-    return { home: normalizeTeamShort(currentHomeTeam), away: normalizeTeamShort(currentAwayTeam) };
+    const m = window._homeMatch || {};
+    return { home: normalizeTeamShort(m.home_team), away: normalizeTeamShort(m.away_team) };
 }
 
 function openLineupModal() {
@@ -1037,39 +1043,92 @@ function openLineupModal() {
     fetch(`/api/lineup_pool?home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}`)
         .then(r => r.json())
         .then(res => {
-            // 내 팀 경기가 아니거나 이미 진행 중인 경기면 바로 입장 (이어 보기)
-            if (res.status !== 'success' || res.started) { enterLiveMatch(); return; }
+            if (res.status !== 'success') { showToast(res.message || '라인업을 불러오지 못했어요'); return; }
+            if (res.started) { enterLiveMatch(); return; }   // 이미 진행 중이면 이어서 보기
             luData = res;
+            const byName = Object.fromEntries(res.actual.map(p => [p.name, p]));
+            luOrder = (res.saved && res.saved.every(n => byName[n])) ? res.saved.map(n => byName[n]) : res.actual.slice();
+            luPick = -1;
             const title = document.getElementById('lu-title');
             if (title) title.textContent = `${res.team} 타순 다시 짜기`;
-            const dl = document.getElementById('lu-names');
-            if (dl) dl.innerHTML = res.actual.map(p => `<option value="${p.name}">`).join('');
-            const rows = document.getElementById('lu-rows');
-            if (rows) {
-                const saved = res.saved || [];
-                rows.innerHTML = Array.from({ length: 9 }, (_, i) => {
-                    const a = res.actual[i] || {};
-                    return `<div class="lu-row" data-i="${i}">
-                        <em>${i + 1}</em>
-                        <div class="lu-in">
-                            <input type="text" list="lu-names" autocomplete="off" placeholder="이름 입력" value="${saved[i] || ''}" oninput="luValidate()" onblur="luValidate()">
-                            <span class="lu-msg"></span>
-                        </div>
-                        <div class="lu-real"><b>${a.name || '-'}</b><small>${LU_POS[a.pos] || a.pos || ''}</small></div>
-                    </div>`;
-                }).join('');
-            }
-            luValidate();
+            renderLuRows();
             document.getElementById('lineup-modal').classList.add('active');
         })
         .catch(() => enterLiveMatch());
 }
 
-// 감독 타순 그대로 채우기
+function renderLuRows() {
+    const rows = document.getElementById('lu-rows');
+    if (!rows || !luData) return;
+    const chip = p => `<b>${p.name}</b><small>${LU_POS[p.pos] || p.pos || ''}</small>`;
+    rows.innerHTML = luOrder.map((p, i) => {
+        const a = luData.actual[i];
+        return `<div class="lu-row">
+            <em>${i + 1}</em>
+            <div class="lu-chip mine ${luPick === i ? 'picked' : ''} ${luFlash.includes(i) ? 'swapped' : ''}" data-i="${i}" onpointerdown="luDragStart(event, ${i})">${chip(p)}<i class="lu-grip" aria-hidden="true"></i></div>
+            <div class="lu-chip real">${chip(a)}</div>
+        </div>`;
+    }).join('');
+    luFlash = [];
+}
+
+function luSwap(a, b) {
+    if (a === b || a < 0 || b < 0) return;
+    [luOrder[a], luOrder[b]] = [luOrder[b], luOrder[a]];
+}
+
+// 선수 칸을 통째로 들어서 끌고, 다른 선수 위에 놓으면 자리 교환 (마우스·터치 공통)
+// 살짝 누르고 떼면 '탭 두 번으로 교환'
+function luDragStart(e, i) {
+    e.preventDefault();
+    const src = e.currentTarget;
+    const startX = e.clientX, startY = e.clientY;
+    let dragging = false, target = -1;
+    const findTarget = (x, y) => {
+        const el = document.elementFromPoint(x, y);
+        const c = el && el.closest('.lu-chip.mine');
+        return c && c !== src ? Number(c.dataset.i) : -1;
+    };
+    const move = ev => {
+        const dx = ev.clientX - startX, dy = ev.clientY - startY;
+        if (!dragging && Math.hypot(dx, dy) > 4) {
+            dragging = true;
+            src.classList.add('lifting');
+        }
+        if (!dragging) return;
+        src.style.transform = `translate(${dx}px, ${dy}px) scale(1.04)`;
+        target = findTarget(ev.clientX, ev.clientY);
+        document.querySelectorAll('.lu-chip.mine').forEach(c => c.classList.toggle('over', Number(c.dataset.i) === target));
+    };
+    const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        if (dragging) {
+            src.classList.remove('lifting');
+            src.style.transform = '';
+            if (target >= 0) { luSwap(i, target); luFlash = [i, target]; }
+            luPick = -1;
+        } else if (luPick < 0) {
+            luPick = i;                 // 첫 탭: 고르기
+        } else {
+            if (luPick !== i) luFlash = [luPick, i];
+            luSwap(luPick, i);          // 두 번째 탭: 교환
+            luPick = -1;
+        }
+        renderLuRows();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+}
+
+// 감독 타순으로 되돌리기
 function luFillActual() {
     if (!luData) return;
-    document.querySelectorAll('#lu-rows input').forEach((input, i) => { input.value = luData.actual[i].name; });
-    luValidate();
+    luOrder = luData.actual.slice();
+    luPick = -1;
+    renderLuRows();
 }
 
 function closeLineupModal() {
@@ -1077,36 +1136,9 @@ function closeLineupModal() {
     if (m) m.classList.remove('active');
 }
 
-function luValidate() {
-    if (!luData) return;
-    const inputs = [...document.querySelectorAll('#lu-rows input')];
-    const values = inputs.map(i => i.value);
-    let allOk = true;
-    inputs.forEach((input, i) => {
-        const row = input.closest('.lu-row');
-        const msg = row.querySelector('.lu-msg');
-        const r = luCheck(input.value, i, values);
-        const same = r.state === 'ok' && luData.actual[i] && luData.actual[i].name === input.value.trim();
-        row.className = `lu-row ${r.state} ${same ? 'same' : ''}`;
-        if (r.state === 'typo') {
-            msg.innerHTML = `<button type="button" onclick="luFix(${i}, '${r.fix}')">${r.msg}</button>`;
-        } else {
-            msg.textContent = r.msg || '';
-        }
-        if (r.state !== 'ok') allOk = false;
-    });
-    const save = document.getElementById('lu-save');
-    if (save) save.disabled = !allOk;
-}
-
-function luFix(i, name) {
-    const input = document.querySelectorAll('#lu-rows input')[i];
-    if (input) { input.value = name; luValidate(); }
-}
-
 function saveLineupModal() {
     const { home, away } = luMatchTeams();
-    const order = [...document.querySelectorAll('#lu-rows input')].map(i => i.value.trim());
+    const order = luOrder.map(p => p.name);
     fetch('/api/lineup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1116,6 +1148,7 @@ function saveLineupModal() {
     .then(res => {
         if (res.status === 'success') {
             closeLineupModal();
+            luStatus[luKey()] = Object.assign({}, luStatus[luKey()], { mine: true, saved: true });
             enterLiveMatch();
         } else {
             showToast(res.message || '라인업을 저장하지 못했어요');
@@ -2017,7 +2050,15 @@ function handleNextPitch() {
     triggerStep();
 }
 
+// 경기가 시작됐는지 (한 구라도 던졌는지)
+function gameHasStarted(s) {
+    return !!(s && ((s.batter_sessions || []).some(b => (b.pitches || []).length) || s.inning > 1 || s.game_over));
+}
+
 function triggerStep() {
+    // 로비에 있을 때는 이미 시작된 경기만 뒤에서 계속 진행 (입장 전 경기는 타순을 짜고 시작)
+    const ingameNow = document.getElementById('ingame-view');
+    if (!(ingameNow && ingameNow.classList.contains('active')) && !gameHasStarted(currentGameState)) return;
     if (currentGameState && currentGameState.game_over) {
         stopAutoPitchTimer();
         renderPostGameSummary(currentGameState);
@@ -2568,6 +2609,44 @@ function igCheckPlayResult(s) {
     setTimeout(() => el.remove(), ms);
 }
 
+// PLAY BALL! 뒤 5초 카운트다운 후 1구 (그 뒤로는 15초마다)
+function igFirstPitchCountdown(sec) {
+    clearInterval(window._igFirstPitchTimer);
+    let left = sec;
+    const show = () => {
+        const box = document.getElementById('ig-last');
+        if (box) box.innerHTML = `<div class="ig-last-line"><span class="ig-chip etc">경기 시작</span><span class="ig-last-text">${left}초 뒤 첫 투구</span></div>`;
+    };
+    show();
+    window._igFirstPitchTimer = setInterval(() => {
+        left--;
+        const ingame = document.getElementById('ingame-view');
+        // 그 사이 직접 투구했거나 화면을 나가면 카운트다운 중단
+        if (gameHasStarted(currentGameState) || !(ingame && ingame.classList.contains('active'))) {
+            clearInterval(window._igFirstPitchTimer);
+            return;
+        }
+        if (left <= 0) {
+            clearInterval(window._igFirstPitchTimer);
+            triggerStep();
+            return;
+        }
+        show();
+    }, 1000);
+}
+
+function igShowPlayBall() {
+    const stage = document.querySelector('#ingame-view .ig-stage');
+    if (!stage) return;
+    stage.querySelectorAll('.ig-banner').forEach(el => el.remove());
+    const el = document.createElement('div');
+    el.className = 'ig-banner hr';
+    el.innerHTML = '<strong>PLAY BALL!</strong><span>경기 시작</span>';
+    stage.appendChild(el);
+    window._igBannerUntil = Date.now() + 1900;
+    setTimeout(() => el.remove(), 1900);
+}
+
 // 감독 점수 칸을 잠깐 반짝 (+/-)
 function igFlashPoints(delta) {
     const el = document.getElementById('live-score-val');
@@ -2641,11 +2720,53 @@ function renderIngameLast(s) {
 // 중계 기록 시트
 let igLogTab = 'all';
 
+let igSheetMode = 'lineup';
+
+function igSheetView(mode) {
+    igSheetMode = mode;
+    document.querySelectorAll('.ig-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.view === mode));
+    const lineup = document.getElementById('ig-lineup-view');
+    const tabs = document.getElementById('ig-log-tabs');
+    const list = document.getElementById('ig-log-list');
+    if (lineup) lineup.hidden = mode !== 'lineup';
+    if (tabs) tabs.hidden = mode !== 'log';
+    if (list) list.hidden = mode !== 'log';
+    if (mode === 'lineup') renderIngameLineups(currentGameState);
+    else renderIngameLog(currentGameState);
+}
+
+// 두 팀 실제 타순 (지금 타석의 타자 강조, 내가 다시 짠 타순이 있으면 '내 N번' 표시)
+function renderIngameLineups(s) {
+    const box = document.getElementById('ig-lineup-view');
+    if (!box || !s || !s.lineups) return;
+    const away = normalizeTeamShort(s.away_team) || s.away_team;
+    const home = normalizeTeamShort(s.home_team) || s.home_team;
+    const pred = s.lineup_prediction;
+    const offense = s.is_top !== false ? away : home;
+    const col = team => {
+        const lu = s.lineups[team] || s.lineups[team === away ? s.away_team : s.home_team] || [];
+        const myOrder = pred && pred.team === team ? pred.order : null;
+        return `<div class="ig-lu-col">
+            <div class="ig-lu-team">${teamLogoHtml(team)}<b>${team}</b>${team === offense ? '<em>공격</em>' : ''}</div>
+            ${lu.map((p, i) => {
+                const now = team === offense && p.name === s.batter;
+                const mine = myOrder ? myOrder.indexOf(p.name) + 1 : 0;
+                return `<div class="ig-lu-line ${now ? 'now' : ''}">
+                    <i>${i + 1}</i><b>${p.name}</b><small>${LU_POS[p.pos] || p.pos}</small>
+                    ${mine && mine !== i + 1 ? `<span class="ig-lu-mine">내 ${mine}번</span>` : ''}
+                </div>`;
+            }).join('')}
+        </div>`;
+    };
+    setHtmlIfChanged(box, `<div class="ig-lu-cols">${col(away)}${col(home)}</div>
+        ${pred ? '<p class="ig-lu-note">노란 표시는 내가 다시 짠 타순이에요. 경기 후 성적표에서 비교해 드려요</p>' : ''}`);
+}
+
 function openIngameLog() {
     const sheet = document.getElementById('ig-log-sheet');
     const bg = document.getElementById('ig-log-bg');
     if (!sheet) return;
-    renderIngameLog(currentGameState);
+    igSheetView(igSheetMode);
     sheet.classList.add('open');
     sheet.setAttribute('aria-hidden', 'false');
     if (bg) bg.classList.add('open');
@@ -2699,7 +2820,10 @@ function renderIngameLog(s) {
 // 예전 이름으로 부르는 곳이 있어 그대로 연결
 function renderNaverSportsLiveFeed(s) {
     const sheet = document.getElementById('ig-log-sheet');
-    if (sheet && sheet.classList.contains('open')) renderIngameLog(s);
+    if (sheet && sheet.classList.contains('open')) {
+        if (igSheetMode === 'lineup') renderIngameLineups(s);
+        else renderIngameLog(s);
+    }
 }
 function appendPitchTextLog(s) { renderNaverSportsLiveFeed(s); }
 function setupSmartAutoScroll() {}

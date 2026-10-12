@@ -6814,3 +6814,110 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .pg-lu-row > div span { white-space: nowrap; }
 .lu-actions { grid-template-columns: 1fr 1.5fr; }
 .lu-cancel, .lu-save { white-space: nowrap; font-size: 0.92rem; }
+
+/* 타순 다시 짜기: 왼쪽 내 타순(드래그) / 오른쪽 감독 라인업 — 같은 폭·같은 높이 */
+.lu-cols-head { grid-template-columns: 24px 1fr 1fr !important; }
+.lu-row { grid-template-columns: 24px 1fr 1fr !important; align-items: center !important; }
+.lu-row em { margin-top: 0 !important; }
+.lu-chip {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    height: 40px;
+    padding: 0 10px;
+    border-radius: 12px;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.lu-chip b { font-size: 0.9rem; font-weight: 900; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lu-chip small { font-size: 0.68rem; font-weight: 800; color: var(--text-sub); white-space: nowrap; }
+.lu-chip.real { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(110, 231, 183, 0.22); }
+.lu-chip.mine {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    padding-right: 22px;
+}
+.lu-chip.mine .lu-grip {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    width: 6px;
+    height: 14px;
+    transform: translateY(-50%);
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.45) 1.2px, transparent 1.4px);
+    background-size: 6px 4.7px;
+}
+.lu-chip.mine.moved { border-color: rgba(250, 204, 21, 0.6); background: rgba(250, 204, 21, 0.08); }
+.lu-chip.mine.picked { border-color: #34d399; box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.35); }
+.lu-chip.mine.over { border-color: #34d399; background: rgba(16, 185, 129, 0.2); }
+.lu-chip.mine.dragging { opacity: 0.35; }
+.lu-ghost {
+    position: fixed !important;
+    z-index: 9999;
+    pointer-events: none;
+    transform: scale(1.05);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+    background: #1e293b !important;
+}
+.lu-rows { gap: 6px; }
+
+/* 드래그: 칸 자체가 들려서 따라옴, 놓을 자리는 초록, 바뀐 두 칸은 잠깐 반짝 */
+.lu-chip.mine.moved { border-color: rgba(255, 255, 255, 0.16) !important; background: rgba(255, 255, 255, 0.06) !important; }
+.lu-chip.mine.lifting {
+    z-index: 50;
+    background: #1e293b;
+    border-color: #34d399;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    cursor: grabbing;
+    transition: none;
+}
+.lu-chip.mine.over { border-color: #34d399 !important; background: rgba(16, 185, 129, 0.22) !important; transform: scale(0.97); transition: transform 0.12s; }
+.lu-chip.mine.swapped { animation: luSwapped 0.6s ease; }
+@keyframes luSwapped { 0% { background: rgba(16, 185, 129, 0.45); border-color: #34d399; } 100% { background: rgba(255, 255, 255, 0.06); } }
+.lu-row { position: relative; }
+
+/* 인게임 시트: 라인업 / 중계 기록 */
+.ig-seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); }
+.ig-seg-btn { padding: 7px 14px; border: none; border-radius: 9px; background: transparent; color: var(--text-sub); font-size: 0.86rem; font-weight: 900; cursor: pointer; }
+.ig-seg-btn.active { background: linear-gradient(135deg, #10b981 0%, #047857 100%); color: #ffffff; }
+.ig-sheet-body[hidden], .ig-sheet-tabs[hidden] { display: none !important; }
+.ig-lu-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ig-lu-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ig-lu-team { display: flex; align-items: center; gap: 6px; padding: 2px 2px 4px; }
+.ig-lu-team .team-logo-img, .ig-lu-team > span { width: 24px; height: 22px; }
+.ig-lu-team b { font-size: 0.9rem; font-weight: 900; color: var(--text-main); }
+.ig-lu-team em { margin-left: auto; padding: 2px 7px; border-radius: 999px; background: rgba(239, 68, 68, 0.18); color: #fca5a5; font-style: normal; font-size: 0.64rem; font-weight: 900; }
+.ig-lu-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 8px;
+    border-radius: 10px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    min-width: 0;
+}
+.ig-lu-line i { font-style: normal; width: 16px; flex-shrink: 0; font-size: 0.72rem; font-weight: 900; color: var(--text-sub); }
+.ig-lu-line b { font-size: 0.84rem; font-weight: 900; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ig-lu-line small { margin-left: auto; font-size: 0.64rem; font-weight: 800; color: var(--text-sub); white-space: nowrap; }
+.ig-lu-line .ig-lu-mine { flex-shrink: 0; padding: 1px 5px; border-radius: 6px; background: rgba(250, 204, 21, 0.18); color: #fde68a; font-size: 0.6rem; font-weight: 900; white-space: nowrap; }
+.ig-lu-line.now { border-color: #facc15; background: rgba(250, 204, 21, 0.1); }
+.ig-lu-line.now b { color: #fde68a; }
+.ig-lu-note { margin: 8px 0 0; font-size: 0.7rem; color: var(--text-sub); text-align: center; }
+.hm-actions.two { grid-template-columns: 1fr 1.25fr; }
+.hm-lineup { font-size: 0.9rem; padding: 0 6px; }
+.hm-lineup:disabled { opacity: 0.6; cursor: default; }
+.hm-actions .hm-enter { font-size: 0.95rem; }
+/* 오늘의 라인업 짜기: 초록 버튼 (경기 중 카드의 빨간 입장 버튼보다 우선) */
+.hm-card .hm-enter.hm-lineup-go {
+    background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+}

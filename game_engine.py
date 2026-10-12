@@ -1421,6 +1421,7 @@ class GameEngine:
             "tactic_resolution": getattr(self, 'last_tactic_resolution', None),
             "tactic_log": getattr(self, 'tactic_log', []),
             "lineup_prediction": getattr(self, 'prediction', None),
+            "lineups": getattr(self, 'lineups', {}),
             "lineup_report": getattr(self, 'lineup_report', None),
             "can_predict": self.can_predict(),
             "start_score": getattr(self, 'start_score', self.manager_score),
