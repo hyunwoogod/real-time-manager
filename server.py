@@ -401,7 +401,7 @@ def index():
     favorite_team_color = TEAM_COLORS.get(favorite_team, '#10b981')
 
     today_str = datetime.date.today().strftime('%Y-%m-%d')
-    today_schedule_info = database.get_today_schedule_info(today_str, favorite_team)
+    today_schedule_info, today_games = today_schedule_and_games(today_str, favorite_team)
     match_data = today_schedule_info.get('match')
     is_rest_day = today_schedule_info.get('is_rest_day', False)
 
@@ -424,7 +424,7 @@ def index():
         match_home_full=match_home_full,
         today_schedule=today_schedule_info,
         initial_standings=database.compute_standings()['standings'],
-        today_games=[g for g in database.get_schedules_by_date(today_str) if g.get('is_rest_day') != 1],
+        today_games=today_games,
         team_logos=TEAM_LOGOS
     ))
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -828,7 +828,7 @@ def api_lobby():
     team_full = team_full_name(user_team)
 
     today_str = datetime.date.today().strftime('%Y-%m-%d')
-    today_info = database.get_today_schedule_info(today_str, user_team)
+    today_info, today_games = today_schedule_and_games(today_str, user_team)
 
     return jsonify({
         "rankings": rankings,
@@ -839,7 +839,7 @@ def api_lobby():
         "favorite_team": user_team,
         "favorite_team_full": team_full,
         "today_schedule": today_info,
-        "today_games": [g for g in database.get_schedules_by_date(today_str) if g.get('is_rest_day') != 1],
+        "today_games": today_games,
         "countdown": "14분 30초",
         "current_username": session.get('username') or (user_info.get('username') if user_info else '')
     })
@@ -913,6 +913,7 @@ def api_reset():
         away = '한화' if home != '한화' else '삼성'
     engine = get_engine()
     engine.user_team = session.get('favorite_team')   # 우리 팀 공격 때 대타 팝업
+    engine.lineup_date = f"TEST-{test_day()}" if TEST_SEASON else None
     if data.get('resume'):
         st = engine.get_state()
         ongoing = (st.get('home_team') == home and st.get('away_team') == away and not st.get('game_over') and
@@ -926,6 +927,36 @@ def api_reset():
     engine.away_pitcher = away_p
     engine.reset()
     return jsonify({"status": "success", "message": "경기 초기화 완료", "state": engine.get_state()})
+
+
+# ---------------- 테스트 시즌 ----------------
+# 테스트 동안은 실제 일정 대신, 하루 5경기 가상 시즌으로 진행 (내 경기가 끝나면 다음 날로)
+TEST_SEASON = os.environ.get('TEST_SEASON', '1') == '1'
+
+
+def test_day():
+    return int(session.get('test_day') or 1)
+
+
+def today_schedule_and_games(today_str, team):
+    """홈 화면용 (오늘 내 팀 경기 정보, 오늘 경기 목록). 테스트 시즌이면 가상 일정"""
+    if not TEST_SEASON:
+        return (database.get_today_schedule_info(today_str, team),
+                [g for g in database.get_schedules_by_date(today_str) if g.get('is_rest_day') != 1])
+    day = test_day()
+    games = game_engine.test_season_day(day, today_str)
+    mine = next((g for g in games if team in (g['home_team'], g['away_team'])), None)
+    info = {"game_date": today_str, "is_today": True, "is_rest_day": False,
+            "start_time": mine['start_time'] if mine else None, "match": mine,
+            "all_matches": games, "test_day": day}
+    return info, games
+
+
+@app.route('/api/test/next_day', methods=['POST'])
+def api_test_next_day():
+    """(테스트 시즌) 다음 날로 이동"""
+    session['test_day'] = test_day() + 1
+    return jsonify({"status": "success", "test_day": session['test_day']})
 
 
 @app.route('/api/finish', methods=['POST'])

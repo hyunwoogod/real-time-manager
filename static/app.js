@@ -881,8 +881,10 @@ function renderHome(scheduleInfo, todayGames) {
         games.find(m => normalizeTeamShort(m.home_team) === teamCode || normalizeTeamShort(m.away_team) === teamCode) ||
         scheduleInfo.match || null;
 
+    window._testDay = scheduleInfo.test_day || null;
     const label = document.getElementById('hm-section-label');
-    if (label) label.innerText = scheduleInfo.is_today === false && scheduleInfo.game_date
+    if (label) label.innerText = scheduleInfo.test_day ? `테스트 ${scheduleInfo.test_day}일차 경기`
+        : scheduleInfo.is_today === false && scheduleInfo.game_date
         ? `${formatMatchDateLabel(scheduleInfo.game_date).replace('/', '.')} 경기` : '오늘의 경기';
 
     if (mine) {
@@ -2176,6 +2178,14 @@ function resetMatchAndLobby() {
     const streamContainer = document.getElementById('text-stream') || document.getElementById('naver-live-feed');
     if (streamContainer) {
         streamContainer.innerHTML = '';
+    }
+    // 테스트 시즌: 경기가 끝났으면 다음 날로 넘어가 새 상대와 경기
+    if (window._testDay && currentGameState && currentGameState.game_over) {
+        fetch('/api/test/next_day', { method: 'POST' })
+            .then(r => r.json())
+            .then(res => { showToast(`테스트 ${res.test_day}일차로 넘어왔어요`); switchView('pregame-view'); })
+            .catch(() => switchView('pregame-view'));
+        return;
     }
     // 지금 보던 경기의 두 팀 그대로 초기화 (기본값 삼성·한화로 바뀌지 않도록)
     fetch('/api/reset', {

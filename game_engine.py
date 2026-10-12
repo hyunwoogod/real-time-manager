@@ -310,6 +310,42 @@ def daily_lineup(team, opp, date_str=None):
     return ai_lineup(team, throws, random.Random(f"{date_str}|{team}|{opp}"))
 
 
+# ------------------------------------------------------------------
+# 테스트 시즌: 하루 5경기(10개 팀 모두), 날마다 상대가 바뀌는 라운드 로빈, 선발은 각 팀 로테이션 순서
+# ------------------------------------------------------------------
+TEST_TEAMS = ["KIA", "삼성", "LG", "두산", "KT", "SSG", "롯데", "한화", "NC", "키움"]
+HOME_STADIUM = {"KIA": "광주", "삼성": "대구", "LG": "잠실", "두산": "잠실", "KT": "수원",
+                "SSG": "문학", "롯데": "사직", "한화": "대전", "NC": "창원", "키움": "고척"}
+
+
+def test_season_day(day, game_date):
+    """테스트 N일차(1부터)의 5경기: 같은 팀과 3일 연속(3연전) 뒤 다음 상대로, 선발은 5일 로테이션"""
+    n = len(TEST_TEAMS)
+    series = (day - 1) // 3
+    r = series % (n - 1)
+    rest = TEST_TEAMS[1:]
+    rest = rest[-r:] + rest[:-r] if r else rest
+    order = [TEST_TEAMS[0]] + rest
+    games = []
+    for i in range(n // 2):
+        a, b = order[i], order[n - 1 - i]
+        home, away = (a, b) if (i + series) % 2 == 0 else (b, a)
+
+        def starter(team):
+            rot = (TEAMS.get(team, {}).get("roster") or {}).get("rotation") or [{"name": ""}]
+            return rot[(day - 1) % len(rot)]["name"]   # 5인 로테이션: 날마다 다음 선발
+
+        games.append({
+            "id": 900000 + day * 10 + i, "game_date": game_date, "start_time": "18:30",
+            "home_team": home, "away_team": away, "stadium": HOME_STADIUM.get(home, ""),
+            "home_pitcher": starter(home), "away_pitcher": starter(away),
+            "status_text": "경기전", "away_score": None, "home_score": None,
+            "inning_text": "", "cancel_reason": "", "current_pitcher": "", "is_rest_day": 0,
+            "test_day": day,
+        })
+    return games
+
+
 POS_ORDER = ["C", "1B", "2B", "3B", "SS", "LF", "CF", "RF", "DH"]
 POS_KO = {"C": "포수", "1B": "1루", "2B": "2루", "3B": "3루", "SS": "유격", "LF": "좌익", "CF": "중견", "RF": "우익", "DH": "지명"}
 
@@ -494,9 +530,10 @@ class GameEngine:
         self.used_bench = {self.home_team_name: set(), self.away_team_name: set()}
         self.ph_slots = {self.home_team_name: set(), self.away_team_name: set()}   # 대타가 들어간 타순 자리
         # 경기마다 감독(AI)이 짜는 라인업 (상대 선발의 던지는 손을 보고 조금씩 바꿈)
+        ld = getattr(self, 'lineup_date', None)   # 테스트 시즌이면 'TEST-N' (날마다 다른 라인업)
         self.lineups = {
-            self.home_team_name: daily_lineup(self.home_team_name, self.away_team_name),
-            self.away_team_name: daily_lineup(self.away_team_name, self.home_team_name),
+            self.home_team_name: daily_lineup(self.home_team_name, self.away_team_name, ld),
+            self.away_team_name: daily_lineup(self.away_team_name, self.home_team_name, ld),
         }
 
         self.start_score = self.manager_score
@@ -1178,6 +1215,9 @@ class GameEngine:
         구원투수: 투구수와 상관없이 점수 차 3점 이내 + 득점권 주자면 타자마다(조건 R)
         """
         if self.outs >= 3 or self.game_over:
+            return None
+        # 내 응원 구단이 정해져 있으면, 우리 팀이 수비할 때(우리 팀 투수)만
+        if getattr(self, 'user_team', None) and self.get_current_defense_team() != self.user_team:
             return None
         pitcher = self.get_current_pitcher()
         p_count = self.pitch_counts.get(pitcher, 0)
