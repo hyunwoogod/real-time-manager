@@ -401,7 +401,9 @@ def index():
     favorite_team_color = TEAM_COLORS.get(favorite_team, '#10b981')
 
     today_str = datetime.date.today().strftime('%Y-%m-%d')
+    day_advanced = settle_left_test_day()   # 지난번에 경기를 시작하고 나갔다면 다음 날로
     today_schedule_info, today_games = today_schedule_and_games(today_str, favorite_team)
+    today_schedule_info["day_advanced"] = day_advanced
     match_data = today_schedule_info.get('match')
     is_rest_day = today_schedule_info.get('is_rest_day', False)
 
@@ -926,6 +928,7 @@ def api_reset():
     engine.home_pitcher = home_p
     engine.away_pitcher = away_p
     engine.reset()
+    mark_test_day_started()
     return jsonify({"status": "success", "message": "경기 초기화 완료", "state": engine.get_state()})
 
 
@@ -935,7 +938,44 @@ TEST_SEASON = os.environ.get('TEST_SEASON', '1') == '1'
 
 
 def test_day():
-    return int(session.get('test_day') or 1)
+    """테스트 시즌 몇 일차인지 (사용자별로 DB에 저장 → 다른 기기·다시 접속해도 이어짐)"""
+    uid = session.get('user_id')
+    if not uid:
+        return 1
+    try:
+        return max(1, int(database.get_setting(f"test_day:{uid}", "1") or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def advance_test_day():
+    """다음 날로: 일차 +1, '오늘 경기 시작함' 표시 지움, 서버에 남은 지난 경기도 정리"""
+    uid = session.get('user_id')
+    nxt = test_day() + 1
+    if uid:
+        database.set_setting(f"test_day:{uid}", str(nxt))
+        database.set_setting(f"test_started:{uid}", "")
+        with _engines_lock:
+            _engines.pop(uid, None)
+    return nxt
+
+
+def mark_test_day_started():
+    """오늘 경기에 처음 입장(새 경기 시작)했다는 표시 — 이 상태로 앱을 나갔다 오면 다음 날로 넘김"""
+    uid = session.get('user_id')
+    if uid and TEST_SEASON:
+        database.set_setting(f"test_started:{uid}", str(test_day()))
+
+
+def settle_left_test_day():
+    """앱을 다시 열었을 때: 오늘 경기를 시작한 뒤 나갔다면(끝까지 했든 중간에 나갔든) 다음 날로"""
+    uid = session.get('user_id')
+    if not (uid and TEST_SEASON):
+        return False
+    if database.get_setting(f"test_started:{uid}", "") == str(test_day()):
+        advance_test_day()
+        return True
+    return False
 
 
 def today_schedule_and_games(today_str, team):
@@ -954,9 +994,8 @@ def today_schedule_and_games(today_str, team):
 
 @app.route('/api/test/next_day', methods=['POST'])
 def api_test_next_day():
-    """(테스트 시즌) 다음 날로 이동"""
-    session['test_day'] = test_day() + 1
-    return jsonify({"status": "success", "test_day": session['test_day']})
+    """(테스트 시즌) 경기를 마치고 로비로 갈 때 다음 날로 이동"""
+    return jsonify({"status": "success", "test_day": advance_test_day()})
 
 
 @app.route('/api/finish', methods=['POST'])

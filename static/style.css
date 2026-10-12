@@ -6658,3 +6658,4 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .igm-ph strong { color: #7dd3fc; }
 .igm-ph em { color: #cbd5e1; font-size: 0.8rem; }
 .igm-choice strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pg-actions.one { grid-template-columns: 1fr; }

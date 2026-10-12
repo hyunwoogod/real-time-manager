@@ -171,6 +171,10 @@ document.addEventListener('DOMContentLoaded', () => {
     try { setupSmartAutoScroll(); } catch(e) {}
     try { syncTodayTabLabel(currentSystemDate); } catch(e) {}
     try { renderHome(window.INITIAL_TODAY_SCHEDULE, window.INITIAL_TODAY_GAMES); } catch(e) { console.warn('renderHome error:', e); }
+    // 테스트 시즌: 지난번에 경기를 시작하고 나갔다면 다음 날로 넘어왔다고 안내
+    if (window.INITIAL_TODAY_SCHEDULE && window.INITIAL_TODAY_SCHEDULE.day_advanced) {
+        setTimeout(() => showToast(`지난 경기는 종료 처리됐어요 · 테스트 ${window.INITIAL_TODAY_SCHEDULE.test_day}일차 시작`), 6000);
+    }
     // 홈 화면이 열려 있으면 1분마다 점수·경기 상태 새로고침
     setInterval(() => {
         const home = document.getElementById('pane-home');
@@ -2087,6 +2091,9 @@ function fastForwardMatch() {
 // 경기 후 성적표: 최종 점수 · 한 줄 평(내 판단이었다면?) · 적중/실패 · 감독 점수 · 작전 기록
 function renderPostGameSummary(s) {
     if (!s) return;
+    // 테스트 시즌이면 아래 버튼은 '다음 날 경기로'
+    const nextBtn = document.getElementById('pg-btn-lobby');
+    if (nextBtn) nextBtn.textContent = window._testDay ? `${window._testDay + 1}일차 경기로` : '로비로';
     const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     const away = normalizeTeamShort(s.away_team) || s.away_team;
     const home = normalizeTeamShort(s.home_team) || s.home_team;
