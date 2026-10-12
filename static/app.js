@@ -1140,7 +1140,7 @@ function switchLobbyTab(tabName, btnEl) {
         renderKboStandingsTable();
         refreshStandingsInBackground();
     } else if (tabName === 'my_records') {
-        renderMyRecordsPane();
+        loadMyGames();
     }
 
     try { updateBottomNavVisibility(); } catch(e) {}
@@ -1225,95 +1225,104 @@ function renderKboStandingsTable() {
     }).join('');
 }
 
-let cachedTacticsHistory = [];
-let selectedMyRecordsFilter = 'all';
+// ---------------- 내 기록: 경기별 히스토리 ----------------
+let myGames = [];
 
-function renderMyRecordsPane(filterKey = 'all') {
-    selectedMyRecordsFilter = filterKey;
-    renderMyRecordsGamePills();
-    filterAndRenderTacticsHistory(selectedMyRecordsFilter);
+function loadMyGames() {
+    fetch('/api/my_games')
+        .then(r => r.json())
+        .then(data => { myGames = data.games || []; renderMyRecords(data.summary || {}); })
+        .catch(() => {});
 }
 
-function renderMyRecordsGamePills() {
-    const container = document.getElementById('my-records-game-pills');
-    if (!container) return;
-
-    const gameOptions = [
-        { key: 'all', label: '⚾ 전체 경기 히스토리' },
-        { key: '2026-10-06', label: '10/06 한화 vs 롯데' },
-        { key: '2026-09-30', label: '09/30 삼성 vs 한화' },
-        { key: '2026-09-29', label: '09/29 SSG vs LG' },
-        { key: '2026-09-27', label: '09/27 KIA vs LG' }
-    ];
-
-    container.innerHTML = gameOptions.map(opt => {
-        const activeClass = opt.key === selectedMyRecordsFilter ? 'active' : '';
-        return `<button class="game-pill-btn ${activeClass}" onclick="renderMyRecordsPane('${opt.key}')">${opt.label}</button>`;
-    }).join('');
+function mrDateLabel(dateStr) {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return `${m}/${d}(${['일', '월', '화', '수', '목', '금', '토'][new Date(y, m - 1, d).getDay()]})`;
 }
 
-function filterAndRenderTacticsHistory(filterKey) {
-    const titleEl = document.getElementById('my-records-section-title');
-    const tagEl = document.getElementById('my-records-count-tag');
+function renderMyRecords(sum) {
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    set('mr-score', `${Number(sum.score ?? 2000).toLocaleString()}P`);
+    const grade = document.getElementById('mr-grade');
+    if (grade) { grade.textContent = sum.grade || 'B'; grade.className = `pg-grade grade-${(sum.grade || 'b').toLowerCase()}`; }
+    const d = sum.delta || 0;
+    const delta = document.getElementById('mr-delta');
+    if (delta) { delta.textContent = `${d > 0 ? '+' : d < 0 ? '' : '±'}${d}P`; delta.className = `mr-delta ${d > 0 ? 'up' : d < 0 ? 'down' : ''}`; }
+    set('mr-games', sum.games || 0);
+    set('mr-rate', sum.rate === null || sum.rate === undefined ? '-' : `${sum.rate}%`);
+    set('mr-hitmiss', `${sum.hit || 0} / ${sum.miss || 0}`);
+    set('mr-wl', `${sum.wins || 0}승 ${sum.losses || 0}패`);
 
-    let list = cachedTacticsHistory || [];
-    let filtered = list;
-    if (filterKey !== 'all') {
-        filtered = list.filter(h => {
-            if (h.timestamp && h.timestamp.includes(filterKey)) return true;
-            if (h.game_date && h.game_date.includes(filterKey)) return true;
-            return false;
-        });
-        if (filtered.length === 0 && list.length > 0) {
-            filtered = list.slice(0, 3);
-        }
-    }
-
-    if (titleEl) {
-        if (filterKey === 'all') {
-            titleEl.innerText = '📜 전체 경기 승부처 작전 기록';
-        } else {
-            const labelMap = {
-                '2026-10-06': '10/06 한화 vs 롯데 경기',
-                '2026-09-30': '09/30 삼성 vs 한화 경기',
-                '2026-09-29': '09/29 SSG vs LG 경기',
-                '2026-09-27': '09/27 KIA vs LG 경기'
-            };
-            titleEl.innerText = `📜 ${labelMap[filterKey] || filterKey} 작전 기록`;
-        }
-    }
-
-    if (tagEl) {
-        tagEl.innerText = `총 ${filtered.length}건`;
-    }
-
-    renderTacticsHistory(filtered);
-}
-
-function renderTacticsHistory(historyList) {
-    const container = document.getElementById('tactics-history-list');
-    if (!container) return;
-
-    if (!historyList || historyList.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:24px; color:#94a3b8; font-size:0.85rem;">선택하신 경기의 승부처 감독 판단 기록이 아직 없습니다.</div>';
+    const list = document.getElementById('mr-list');
+    if (!list) return;
+    if (!myGames.length) {
+        list.innerHTML = '<div class="mr-empty">아직 끝낸 경기가 없어요.<br>경기를 마치면 여기에 쌓여요</div>';
         return;
     }
-
-    container.innerHTML = historyList.map(h => {
-        const gradeClass = `grade-${(h.result_grade || 'B').toLowerCase()}`;
-        const scoreSign = h.score_change > 0 ? `+${h.score_change}` : `${h.score_change}`;
-        return `
-            <div class="history-item-card">
-                <div class="history-item-left">
-                    <span class="history-item-title">${h.situation || '승부처 작전'}</span>
-                    <span class="history-item-sub">선택: [${h.tactic_chosen || '자율'}] | ${h.commentary || ''}</span>
-                </div>
-                <div class="history-item-grade ${gradeClass}">
-                    ${h.result_grade || 'B'} (${scoreSign}pt)
-                </div>
-            </div>
-        `;
+    list.innerHTML = myGames.map((g, i) => {
+        const away = normalizeTeamShort(g.away) || g.away, home = normalizeTeamShort(g.home) || g.home;
+        const dl = g.delta || 0;
+        const rc = g.result === '승' ? 'win' : g.result === '패' ? 'lose' : g.result === '중단' ? 'left' : '';
+        return `<button class="mr-row" onclick="openMyGameDetail(${i})">
+            <span class="mr-row-day">${g.day ? `<b>${g.day}일차</b>` : ''}<small>${mrDateLabel(g.date)}</small></span>
+            <span class="mr-row-match">
+                <span class="mr-logo">${teamLogoHtml(away)}</span>
+                <b>${g.score_away}</b><i>:</i><b>${g.score_home}</b>
+                <span class="mr-logo">${teamLogoHtml(home)}</span>
+            </span>
+            <span class="mr-row-right">
+                ${g.result ? `<em class="mr-res ${rc}">${g.result}</em>` : ''}
+                <strong class="${dl > 0 ? 'up' : dl < 0 ? 'down' : ''}">${dl > 0 ? '+' : dl < 0 ? '' : '±'}${dl}P</strong>
+            </span>
+        </button>`;
     }).join('');
+}
+
+function openMyGameDetail(i) {
+    const g = myGames[i];
+    const modal = document.getElementById('mr-detail');
+    if (!g || !modal) return;
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    const away = normalizeTeamShort(g.away) || g.away, home = normalizeTeamShort(g.home) || g.home;
+    set('mr-d-title', g.day ? `${g.day}일차 경기` : '경기 기록');
+    set('mr-d-date', `${mrDateLabel(g.date)}${g.status === 'left' ? ` · ${g.inning}에 중단` : ''}`);
+    const rc = g.result === '승' ? 'win' : g.result === '패' ? 'lose' : g.result === '중단' ? 'left' : '';
+    document.getElementById('mr-d-score').innerHTML = `
+        <div class="pg-team"><span class="pg-logo">${teamLogoHtml(away)}</span><span>${away}</span></div>
+        <div class="pg-runs"><b>${g.score_away}</b><i>:</i><b>${g.score_home}</b></div>
+        <div class="pg-team"><span class="pg-logo">${teamLogoHtml(home)}</span><span>${home}</span></div>
+        ${g.result ? `<em class="mr-res ${rc}">${g.my_team ? g.my_team + ' ' : ''}${g.result}</em>` : ''}`;
+    const dl = g.delta || 0;
+    document.getElementById('mr-d-points').innerHTML = `<span>감독 점수</span>
+        <b>${Number(g.start_score).toLocaleString()}</b><i>→</i><b>${Number(g.end_score).toLocaleString()}</b>
+        <strong class="${dl > 0 ? 'up' : dl < 0 ? 'down' : ''}">${dl > 0 ? '+' : dl < 0 ? '' : '±'}${dl}P</strong>`;
+    const rate = g.hit + g.miss ? `${Math.round(g.hit / (g.hit + g.miss) * 100)}%` : '-';
+    document.getElementById('mr-d-stats').innerHTML = `
+        <div><span>적중</span><strong class="up">${g.hit}</strong></div>
+        <div><span>실패</span><strong class="down">${g.miss}</strong></div>
+        <div><span>자리 비움</span><strong>${g.skip}</strong></div>
+        <div><span>적중률</span><strong>${rate}</strong></div>`;
+    const label = (c, ph) => c === 'CHANGE' ? (ph ? '대타' : '교체') : c === 'KEEP' ? (ph ? '그대로' : '유지') : '자리 비움';
+    const tl = g.tactics || [];
+    document.getElementById('mr-d-list').innerHTML = tl.length ? tl.map(t => {
+        const ph = t.kind === 'PH';
+        const who = ph ? `대타 · ${t.pitcher}${t.new_pitcher && t.new_pitcher !== t.pitcher ? ' → ' + t.new_pitcher : ''}` : `${t.pitcher} vs ${t.batter}`;
+        const d2 = t.score_delta || 0;
+        return `<div class="pg-log-row">
+            <span class="pg-log-inn">${t.inning_str}</span>
+            <span class="pg-log-who">${who}</span>
+            <span class="pg-log-choice">나 ${label(t.my_choice, ph)} · 감독 ${label(t.manager_choice, ph)}</span>
+            <span class="pg-log-res ${t.result === 'OUT' ? 'out' : 'on'}">${t.result === 'OUT' ? '아웃' : '출루'}</span>
+            <b class="pg-log-delta ${d2 > 0 ? 'up' : d2 < 0 ? 'down' : ''}">${d2 > 0 ? '+' : d2 < 0 ? '' : '±'}${d2}</b>
+        </div>`;
+    }).join('') : '<div class="pg-log-empty">이 경기는 작전이 없었어요</div>';
+    modal.classList.add('active');
+}
+
+function closeMyGameDetail() {
+    const m = document.getElementById('mr-detail');
+    if (m) m.classList.remove('active');
 }
 
 function selectTeam(home, away) {
@@ -1382,7 +1391,6 @@ function loadLobbyData() {
 
             syncTodayTabLabel(currentSystemDate);
             renderFriendRankings(data.rankings);
-            renderTacticsHistory(data.history);
             loadScheduleTable('today');
         })
         .catch(err => console.error("Lobby error:", err));

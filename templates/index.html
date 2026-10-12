@@ -12,7 +12,7 @@
     <link rel="preload" as="image" href="/brand/hero.jpg?v=8" fetchpriority="high">
     <link rel="preload" as="image" href="/brand/mascot-head.png?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261012_29">
+    <link rel="stylesheet" href="style.css?v=20261012_30">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -380,55 +380,28 @@
             </div>
 
             <!-- TAB 5: PANE MY RECORDS (내 기록 탭) — 하단 바의 switchLobbyTab('my_records')와 이름을 맞춤 -->
-                <div id="pane-my_records" class="lobby-tab-pane">
-                    <div class="records-hub-card">
-                        <div class="card-header">
-                            <div>
-                                <h3>📊 나의 감독 판단 기록 & 히스토리</h3>
-                                <span class="sub-text">실시간 승부처 감독 판단 데이터 및 경기별 분석 통계</span>
+                <div id="pane-my_records" class="lobby-tab-pane mr">
+                    <!-- 전체 요약 -->
+                    <div class="mr-summary">
+                        <div class="mr-score">
+                            <span class="pg-grade grade-b" id="mr-grade">B</span>
+                            <div class="mr-score-text">
+                                <span>감독 점수</span>
+                                <strong id="mr-score">2,000P</strong>
                             </div>
+                            <b class="mr-delta" id="mr-delta">±0P</b>
                         </div>
-
-                        <div class="records-stats-grid">
-                            <div class="stat-box">
-                                <span class="stat-num" id="stat-total-score">2,025 pt</span>
-                                <span class="stat-label">현재 누적 점수</span>
-                            </div>
-                            <div class="stat-box">
-                                <span class="stat-num" id="stat-current-grade">B급</span>
-                                <span class="stat-label">감독 등급</span>
-                            </div>
-                            <div class="stat-box">
-                                <span class="stat-num" id="stat-success-rate">68.5%</span>
-                                <span class="stat-label">명장 적중률</span>
-                            </div>
-                        </div>
-
-                        <!-- Date / Game Filter Pills Container -->
-                        <div class="my-records-filter-section" style="margin-top: 24px; margin-bottom: 16px;">
-                            <div
-                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                                <h4 class="section-title" style="margin: 0;">📅 경기별 감독 판단 기록 선택</h4>
-                                <span style="font-size: 0.78rem; color: #94a3b8;">날짜별 경기를 터치하여 조회</span>
-                            </div>
-                            <div class="my-records-game-pills" id="my-records-game-pills">
-                                <!-- Dynamic Game Pills Rendered via JS -->
-                            </div>
-                        </div>
-
-                        <div class="history-list-section">
-                            <div
-                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                                <h4 class="section-title" style="margin: 0;" id="my-records-section-title">📜 최근 승부처 작전
-                                    기록</h4>
-                                <span id="my-records-count-tag"
-                                    style="font-size: 0.78rem; color: #38bdf8; font-weight: 700;">전체</span>
-                            </div>
-                            <div id="tactics-history-list" class="history-list-grid">
-                                <!-- Rendered via JS -->
-                            </div>
+                        <div class="mr-stats">
+                            <div><span>경기</span><strong id="mr-games">0</strong></div>
+                            <div><span>적중률</span><strong id="mr-rate">-</strong></div>
+                            <div><span>적중 / 실패</span><strong id="mr-hitmiss">0 / 0</strong></div>
+                            <div><span>내 팀</span><strong id="mr-wl">0승 0패</strong></div>
                         </div>
                     </div>
+
+                    <!-- 경기별 기록 (누르면 자세히) -->
+                    <h3 class="hm-section">경기별 기록</h3>
+                    <div class="mr-list" id="mr-list"></div>
                 </div>
         </section>
 
@@ -716,6 +689,20 @@
         <!-- ========================================== -->
         <!-- IN-GAME MODAL 1: CRISIS DECISION POPUP -->
         <!-- ========================================== -->
+        <!-- 내 기록: 경기 자세히 -->
+        <div id="mr-detail" class="modal-overlay" onclick="if (event.target === this) closeMyGameDetail()">
+            <div class="igm-card mr-detail">
+                <div class="mr-d-head">
+                    <div><strong id="mr-d-title">-</strong><span id="mr-d-date"></span></div>
+                    <button class="ig-sheet-close" onclick="closeMyGameDetail()" aria-label="닫기">×</button>
+                </div>
+                <div class="mr-d-score" id="mr-d-score"></div>
+                <div class="mr-d-points" id="mr-d-points"></div>
+                <div class="mr-stats" id="mr-d-stats"></div>
+                <div class="mr-d-list" id="mr-d-list"></div>
+            </div>
+        </div>
+
         <div id="crisis-modal" class="modal-overlay">
             <div class="igm-card igm-crisis">
                 <div class="igm-head">
@@ -827,7 +814,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261012_36"></script>
+    <script src="app.js?v=20261012_37"></script>
 </body>
 
 </html>

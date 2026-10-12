@@ -6659,3 +6659,86 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .igm-ph em { color: #cbd5e1; font-size: 0.8rem; }
 .igm-choice strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pg-actions.one { grid-template-columns: 1fr; }
+
+/* ==========================================================================
+   내 기록: 요약 + 경기별 기록 (누르면 자세히)
+   ========================================================================== */
+.mr-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 18px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    margin-bottom: 14px;
+}
+.mr-score { display: flex; align-items: center; gap: 12px; }
+.mr-score-text { display: flex; flex-direction: column; gap: 1px; }
+.mr-score-text span { font-size: 0.74rem; font-weight: 800; color: var(--text-sub); }
+.mr-score-text strong { font-size: 1.45rem; font-weight: 900; color: #fbbf24; font-variant-numeric: tabular-nums; }
+.mr-delta { margin-left: auto; padding: 4px 10px; border-radius: 999px; background: rgba(148, 163, 184, 0.14); color: #cbd5e1; font-size: 0.86rem; font-weight: 900; }
+.mr-delta.up { background: rgba(16, 185, 129, 0.16); color: #34d399; }
+.mr-delta.down { background: rgba(239, 68, 68, 0.16); color: #f87171; }
+.mr-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.mr-stats > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 4px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+}
+.mr-stats span { font-size: 0.66rem; font-weight: 800; color: var(--text-sub); white-space: nowrap; }
+.mr-stats strong { font-size: 1rem; font-weight: 900; color: var(--text-main); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mr-stats strong.up { color: #34d399; }
+.mr-stats strong.down { color: #f87171; }
+.mr-list { display: flex; flex-direction: column; gap: 8px; }
+.mr-row {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    color: var(--text-main);
+    cursor: pointer;
+    text-align: left;
+}
+.mr-row:active { transform: scale(0.99); }
+.mr-row-day { display: flex; flex-direction: column; gap: 1px; }
+.mr-row-day b { font-size: 0.92rem; font-weight: 900; }
+.mr-row-day small { font-size: 0.68rem; font-weight: 700; color: var(--text-sub); }
+.mr-row-match { display: flex; align-items: center; justify-content: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.mr-row-match b { font-size: 1.1rem; font-weight: 900; min-width: 16px; text-align: center; }
+.mr-row-match i { font-style: normal; color: var(--text-sub); font-weight: 800; }
+.mr-logo { width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; }
+.mr-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.mr-row-right strong { font-size: 0.9rem; font-weight: 900; color: #cbd5e1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mr-row-right strong.up { color: #34d399; }
+.mr-row-right strong.down { color: #f87171; }
+.mr-res { font-style: normal; padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 900; background: rgba(148, 163, 184, 0.16); color: #cbd5e1; white-space: nowrap; }
+.mr-res.win { background: rgba(16, 185, 129, 0.18); color: #34d399; }
+.mr-res.lose { background: rgba(239, 68, 68, 0.18); color: #f87171; }
+.mr-res.left { background: rgba(250, 204, 21, 0.16); color: #fde68a; }
+.mr-empty { padding: 28px 16px; border-radius: 16px; border: 1px dashed var(--card-border); text-align: center; color: var(--text-sub); font-size: 0.86rem; line-height: 1.6; }
+
+.mr-detail { width: min(360px, calc(100% - 24px)); max-height: calc(100% - 40px); gap: 12px; }
+.mr-d-head { display: flex; align-items: flex-start; justify-content: space-between; }
+.mr-d-head strong { display: block; font-size: 1.1rem; font-weight: 900; color: var(--text-main); }
+.mr-d-head span { font-size: 0.76rem; font-weight: 700; color: var(--text-sub); }
+.mr-d-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 10px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); }
+.mr-d-score .pg-runs b { font-size: 2rem; }
+.mr-d-score .mr-res { grid-column: 1 / -1; justify-self: center; }
+.mr-d-points { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--card-bg); border: 1px solid var(--card-border); font-variant-numeric: tabular-nums; }
+.mr-d-points span { font-size: 0.74rem; font-weight: 800; color: var(--text-sub); margin-right: 4px; }
+.mr-d-points b { font-size: 0.95rem; font-weight: 900; color: var(--text-main); }
+.mr-d-points i { font-style: normal; color: var(--text-sub); }
+.mr-d-points strong { margin-left: auto; font-size: 1rem; font-weight: 900; color: #cbd5e1; }
+.mr-d-points strong.up { color: #34d399; }
+.mr-d-points strong.down { color: #f87171; }
+.mr-d-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; max-height: 40vh; }

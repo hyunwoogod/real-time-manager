@@ -946,6 +946,7 @@ def api_reset():
     engine.away_pitcher = away_p
     engine.reset()
     engine._test_result_saved = False
+    engine._history_saved = False
     mark_test_day_started()
     return jsonify({"status": "success", "message": "경기 초기화 완료", "state": engine.get_state()})
 
@@ -971,6 +972,10 @@ def advance_test_day():
     uid = session.get('user_id')
     nxt = test_day() + 1
     if uid:
+        eng = _engines.get(uid)
+        # 경기를 시작했는데 끝내지 않고 넘어가면 '중단'으로 내 기록에 남김
+        if eng and getattr(eng, 'test_day', None) == nxt - 1 and not eng.game_over and sum(eng.pitch_counts.values()) > 0:
+            save_game_history(eng, 'left')
         database.set_setting(f"test_day:{uid}", str(nxt))
         database.set_setting(f"test_started:{uid}", "")
         with _engines_lock:
@@ -1042,6 +1047,83 @@ def my_test_results():
         return {}
 
 
+# ---------------- 내 경기 기록 (경기별 히스토리) ----------------
+def my_game_history(uid=None):
+    uid = uid or session.get('user_id')
+    if not uid:
+        return []
+    try:
+        return json.loads(database.get_setting(f"games:{uid}", "[]") or "[]")
+    except ValueError:
+        return []
+
+
+def save_game_history(engine, status):
+    """경기가 끝나거나(final) 도중에 나간(left) 경기를 내 기록에 저장 (한 경기 한 번)"""
+    uid = session.get('user_id')
+    if not uid or getattr(engine, '_history_saved', False):
+        return
+    team = session.get('favorite_team')
+    log = list(getattr(engine, 'tactic_log', []) or [])
+    hit = sum(1 for t in log if t.get('score_delta', 0) > 0)
+    miss = sum(1 for t in log if t.get('score_delta', 0) < 0)
+    skip = sum(1 for t in log if t.get('my_choice') == 'SKIP')
+    mine_home = team == engine.home_team_name
+    my_runs = engine.score_home if mine_home else engine.score_away
+    opp_runs = engine.score_away if mine_home else engine.score_home
+    in_game = team in (engine.home_team_name, engine.away_team_name)
+    if status == 'left':
+        result = '중단'
+    elif not in_game:
+        result = ''
+    else:
+        result = '승' if my_runs > opp_runs else '패' if my_runs < opp_runs else '무'
+    day = getattr(engine, 'test_day', None)
+    rec = {
+        "day": day,
+        "date": game_engine.test_date(day) if day else datetime.date.today().isoformat(),
+        "home": engine.home_team_name, "away": engine.away_team_name,
+        "score_home": engine.score_home, "score_away": engine.score_away,
+        "my_team": team if in_game else None, "result": result, "status": status,
+        "inning": engine.inning_str() if callable(getattr(engine, 'inning_str', None)) else f"{engine.inning}회{'초' if engine.is_top else '말'}",
+        "start_score": getattr(engine, 'start_score', engine.manager_score), "end_score": engine.manager_score,
+        "delta": engine.manager_score - getattr(engine, 'start_score', engine.manager_score),
+        "hit": hit, "miss": miss, "skip": skip, "tactics": log,
+    }
+    games = [g for g in my_game_history(uid) if not (day and g.get("day") == day)]
+    games.insert(0, rec)
+    database.set_setting(f"games:{uid}", json.dumps(games[:200], ensure_ascii=False))
+    engine._history_saved = True
+
+
+def record_game_end(engine):
+    """경기가 끝났으면 내 기록과 (테스트 시즌) 순위용 결과를 저장"""
+    if engine.game_over:
+        save_game_history(engine, 'final')
+        record_test_result(engine)
+
+
+@app.route('/api/my_games')
+def api_my_games():
+    """내 기록 탭: 경기별 히스토리 + 전체 요약"""
+    games = my_game_history()
+    user = database.get_user_by_id(session.get('user_id')) or {}
+    hit = sum(g.get('hit', 0) for g in games)
+    miss = sum(g.get('miss', 0) for g in games)
+    return jsonify({
+        "games": games,
+        "summary": {
+            "score": user.get('score', 2000), "grade": user.get('grade', 'B'),
+            "games": len(games), "hit": hit, "miss": miss,
+            "skip": sum(g.get('skip', 0) for g in games),
+            "rate": round(hit / (hit + miss) * 100) if hit + miss else None,
+            "delta": sum(g.get('delta', 0) for g in games),
+            "wins": sum(1 for g in games if g.get('result') == '승'),
+            "losses": sum(1 for g in games if g.get('result') == '패'),
+        }
+    })
+
+
 def record_test_result(engine):
     """테스트 시즌 내 팀 경기가 끝나면 결과 저장 (팀 순위·일정에 반영)"""
     if not TEST_SEASON or not engine.game_over or getattr(engine, '_test_result_saved', False):
@@ -1096,7 +1178,7 @@ def api_finish():
     """(테스트용) 지금 경기를 끝까지 진행하고 결과를 돌려줌"""
     engine = get_engine()
     state = engine.finish_game()
-    record_test_result(engine)
+    record_game_end(engine)
     return jsonify(state)
 
 
@@ -1104,7 +1186,7 @@ def api_finish():
 def api_step():
     engine = get_engine()
     state = engine.step_pitch()
-    record_test_result(engine)
+    record_game_end(engine)
     return jsonify(state)
 
 
