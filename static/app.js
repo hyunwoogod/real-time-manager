@@ -1140,7 +1140,8 @@ function switchLobbyTab(tabName, btnEl) {
         renderKboStandingsTable();
         refreshStandingsInBackground();
     } else if (tabName === 'my_records') {
-        loadMyGames();
+        loadMyGames();    } else if (tabName === 'minigame') {
+        loadMinigames();
     }
 
     try { updateBottomNavVisibility(); } catch(e) {}
@@ -2698,4 +2699,81 @@ function drawBaseballField(s) {
     if (!s) return;
     renderIngameField(s);
     renderIngameLast(s);
+}
+
+
+// ================= 미니게임 (3x3, 게임마다 하루 1번 · 도전 10P · 성공 최대 +20P) =================
+// 게임이 정해지면 여기에 칸 번호별로 { title, desc, play(done) } 를 채워 넣음
+// play(done)은 게임을 진행한 뒤 done(success, reward)를 부르면 됨 (reward는 0~20)
+const MINIGAMES = {
+    // 1: { title: '...', desc: '...', play: (done) => { ... done(true, 15); } },
+};
+let _mgState = null;
+
+function loadMinigames() {
+    const grid = document.getElementById('mg-grid');
+    if (grid && !_mgState) renderMinigames(null);
+    fetch('/api/minigames')
+        .then(r => r.json())
+        .then(d => { if (d.status === 'success') { _mgState = d; renderMinigames(d); } })
+        .catch(() => {});
+}
+
+function renderMinigames(d) {
+    const grid = document.getElementById('mg-grid');
+    if (!grid) return;
+    if (d) {
+        const sc = document.getElementById('mg-score');
+        if (sc) sc.textContent = `${Number(d.score ?? 2000).toLocaleString()}P`;
+        const day = document.getElementById('mg-day');
+        if (day) day.textContent = d.test_day ? `테스트 ${d.test_day}일차 · 게임마다 하루 1번` : '게임마다 하루 1번 도전';
+    }
+    const slots = (d && d.slots) || Array.from({ length: 9 }, (_, i) => ({ slot: i + 1, status: 'ready' }));
+    grid.innerHTML = slots.map(s => {
+        const g = MINIGAMES[s.slot];
+        let cls = 'soon', chip = '준비 중';
+        if (g) {
+            if (s.status === 'success') { cls = 'done ok'; chip = `성공 +${s.reward}P`; }
+            else if (s.status === 'fail') { cls = 'done'; chip = '실패'; }
+            else if (s.status === 'playing') { cls = 'done'; chip = '도전 종료'; }
+            else { cls = 'ready'; chip = '도전 · 10P'; }
+        }
+        return `<button class="mg-card ${cls}" onclick="openMinigame(${s.slot})">
+            <span class="mg-no">${String(s.slot).padStart(2, '0')}</span>
+            <span class="mg-title">${g ? g.title : `미니게임 ${s.slot}`}</span>
+            <span class="mg-chip">${chip}</span>
+        </button>`;
+    }).join('');
+}
+
+function openMinigame(slot) {
+    const g = MINIGAMES[slot];
+    if (!g) { showToast('준비 중인 미니게임이에요. 곧 열려요.'); return; }
+    const rec = _mgState && _mgState.slots.find(x => x.slot === slot);
+    if (rec && rec.status !== 'ready') { showToast('오늘은 이미 도전했어요. 내일 다시 도전하세요.'); return; }
+    fetch('/api/minigames/start', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot })
+    })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status !== 'success') { showToast(d.message || '도전할 수 없어요.'); return; }
+            _mgState = d; renderMinigames(d);
+            g.play((success, reward) => finishMinigame(slot, success, reward));
+        })
+        .catch(() => showToast('연결이 불안정해요. 다시 시도해 주세요.'));
+}
+
+function finishMinigame(slot, success, reward) {
+    fetch('/api/minigames/finish', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot, success: !!success, reward: reward || 0 })
+    })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status !== 'success') return;
+            _mgState = d; renderMinigames(d);
+            const rec = d.slots.find(x => x.slot === slot);
+            showToast(rec && rec.status === 'success' ? `성공! +${rec.reward}P` : '아쉽게 실패했어요.');
+        })
+        .catch(() => {});
 }

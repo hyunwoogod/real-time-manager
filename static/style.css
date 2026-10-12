@@ -6742,3 +6742,37 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .mr-d-points strong.up { color: #34d399; }
 .mr-d-points strong.down { color: #f87171; }
 .mr-d-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; max-height: 40vh; }
+
+/* ================= 미니게임 (3x3) ================= */
+.mg { padding: 4px 0 8px; }
+.mg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.mg-head-text h3 { margin: 0; font-size: 20px; font-weight: 900; color: #f8fafc; letter-spacing: -0.4px; }
+.mg-head-text span { display: block; margin-top: 2px; font-size: 12px; color: #94a3b8; white-space: nowrap; }
+.mg-points { text-align: right; padding: 8px 12px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); }
+.mg-points span { display: block; font-size: 11px; color: #6ee7b7; font-weight: 700; }
+.mg-points strong { font-size: 17px; font-weight: 900; color: #ecfdf5; white-space: nowrap; }
+.mg-rule { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+.mg-rule div { padding: 8px 4px; border-radius: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.06); text-align: center; }
+.mg-rule span { display: block; font-size: 11px; color: #94a3b8; }
+.mg-rule b { font-size: 14px; font-weight: 900; color: #e2e8f0; white-space: nowrap; }
+.mg-rule b.up { color: #34d399; }
+.mg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mg-card {
+    position: relative; aspect-ratio: 1 / 1; min-width: 0; padding: 10px 8px;
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+    border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(160deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+    color: #e2e8f0; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s ease;
+}
+.mg-card:active { transform: scale(0.96); }
+.mg-no { font-size: 12px; font-weight: 900; color: #475569; letter-spacing: 0.5px; }
+.mg-title { font-size: 14px; font-weight: 800; line-height: 1.25; word-break: keep-all; }
+.mg-chip { font-size: 11px; font-weight: 800; padding: 3px 7px; border-radius: 999px; white-space: nowrap; background: rgba(148, 163, 184, 0.12); color: #94a3b8; }
+.mg-card.soon .mg-title { color: #64748b; }
+.mg-card.ready { border-color: rgba(16, 185, 129, 0.45); box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.15) inset; }
+.mg-card.ready .mg-no { color: #34d399; }
+.mg-card.ready .mg-chip { background: #10b981; color: #fff; }
+.mg-card.done { opacity: 0.6; }
+.mg-card.done.ok { opacity: 1; }
+.mg-card.done.ok .mg-chip { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }

@@ -1124,6 +1124,119 @@ def api_my_games():
     })
 
 
+# ---------------- 미니게임 (9칸, 게임마다 하루 1번 · 도전 10P · 성공 최대 +20P) ----------------
+MINIGAME_SLOTS = 9
+MINIGAME_COST = 10
+MINIGAME_MAX_REWARD = 20
+_minigame_lock = threading.Lock()
+
+
+def grade_for(score):
+    """감독 점수 → 등급 (게임 엔진과 같은 기준)"""
+    if score >= 2150: return "S"
+    if score >= 2050: return "A"
+    if score >= 1950: return "B"
+    if score >= 1850: return "C"
+    return "F"
+
+
+def minigame_day_key():
+    """'오늘'의 기준: 테스트 시즌이면 일차, 아니면 실제 날짜"""
+    return f"t{test_day()}" if TEST_SEASON else datetime.date.today().isoformat()
+
+
+def load_minigames(uid):
+    try:
+        st = json.loads(database.get_setting(f"minigame:{uid}", "") or "{}")
+    except (TypeError, ValueError):
+        st = {}
+    if st.get("day") != minigame_day_key():
+        st = {"day": minigame_day_key(), "slots": {}}  # 날이 바뀌면 모두 다시 도전 가능
+    st.setdefault("slots", {})
+    return st
+
+
+def adjust_user_score(uid, delta):
+    """감독 점수 더하기/빼기 (진행 중인 경기 엔진에도 맞춰서, 경기 점수 변화에는 섞이지 않게)"""
+    user = database.get_user_by_id(uid) or {}
+    score = int(user.get('score') or 2000) + delta
+    grade = grade_for(score)
+    database.update_user_score(score, grade, uid)
+    eng = _engines.get(uid)
+    if eng is not None:
+        eng.manager_score = score
+        eng.manager_grade = grade
+        if hasattr(eng, 'start_score'):
+            eng.start_score += delta
+    return score, grade
+
+
+def minigame_payload(uid, st):
+    user = database.get_user_by_id(uid) or {}
+    slots = []
+    for i in range(1, MINIGAME_SLOTS + 1):
+        rec = st["slots"].get(str(i)) or {}
+        slots.append({"slot": i, "status": rec.get("status", "ready"), "reward": rec.get("reward", 0)})
+    return {"status": "success", "day": st["day"], "test_day": test_day() if TEST_SEASON else None,
+            "score": user.get('score', 2000), "grade": user.get('grade', 'B'),
+            "cost": MINIGAME_COST, "max_reward": MINIGAME_MAX_REWARD, "slots": slots}
+
+
+@app.route('/api/minigames')
+def api_minigames():
+    uid = session.get('user_id')
+    if not uid:
+        return jsonify({"status": "error", "message": "로그인이 필요해요."}), 401
+    return jsonify(minigame_payload(uid, load_minigames(uid)))
+
+
+@app.route('/api/minigames/start', methods=['POST'])
+def api_minigame_start():
+    """도전 시작: 오늘 처음이면 10P를 빼고 '도전 중'으로 표시 (나가도 오늘 도전은 쓴 것으로)"""
+    uid = session.get('user_id')
+    if not uid:
+        return jsonify({"status": "error", "message": "로그인이 필요해요."}), 401
+    slot = str((request.get_json(silent=True) or {}).get('slot', ''))
+    if slot not in {str(i) for i in range(1, MINIGAME_SLOTS + 1)}:
+        return jsonify({"status": "error", "message": "없는 미니게임이에요."}), 400
+    with _minigame_lock:
+        st = load_minigames(uid)
+        if slot in st["slots"]:
+            return jsonify({"status": "error", "message": "오늘은 이미 도전했어요. 내일 다시 도전하세요."}), 400
+        user = database.get_user_by_id(uid) or {}
+        if int(user.get('score') or 0) < MINIGAME_COST:
+            return jsonify({"status": "error", "message": "감독 포인트가 부족해요."}), 400
+        adjust_user_score(uid, -MINIGAME_COST)
+        st["slots"][slot] = {"status": "playing", "reward": 0}
+        database.set_setting(f"minigame:{uid}", json.dumps(st))
+        return jsonify(minigame_payload(uid, st))
+
+
+@app.route('/api/minigames/finish', methods=['POST'])
+def api_minigame_finish():
+    """도전 끝: 성공이면 보상(최대 20P)을 더함"""
+    uid = session.get('user_id')
+    if not uid:
+        return jsonify({"status": "error", "message": "로그인이 필요해요."}), 401
+    data = request.get_json(silent=True) or {}
+    slot = str(data.get('slot', ''))
+    with _minigame_lock:
+        st = load_minigames(uid)
+        rec = st["slots"].get(slot)
+        if not rec or rec.get("status") != "playing":
+            return jsonify({"status": "error", "message": "진행 중인 도전이 없어요."}), 400
+        try:
+            reward = max(0, min(MINIGAME_MAX_REWARD, int(data.get('reward', 0))))
+        except (TypeError, ValueError):
+            reward = 0
+        success = bool(data.get('success')) and reward > 0
+        if success:
+            adjust_user_score(uid, reward)
+        st["slots"][slot] = {"status": "success" if success else "fail", "reward": reward if success else 0}
+        database.set_setting(f"minigame:{uid}", json.dumps(st))
+        return jsonify(minigame_payload(uid, st))
+
+
 def record_test_result(engine):
     """테스트 시즌 내 팀 경기가 끝나면 결과 저장 (팀 순위·일정에 반영)"""
     if not TEST_SEASON or not engine.game_over or getattr(engine, '_test_result_saved', False):
