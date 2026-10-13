@@ -65,9 +65,13 @@ def is_configured(provider):
     return bool(client_id and (client_secret or not PROVIDERS[provider]['secret_required']))
 
 
+# 로그인 화면에 보여줄 버튼 순서. 네이버는 아직 로그인이 안 돼서 잠시 숨김 (되면 'naver'를 다시 넣기)
+LOGIN_BUTTONS = ('kakao', 'google')
+
+
 def enabled_providers():
     """로그인 화면에 보여줄 (코드, 이름) 목록"""
-    return [(p, PROVIDERS[p]['name']) for p in ('kakao', 'naver', 'google') if is_configured(p)]
+    return [(p, PROVIDERS[p]['name']) for p in LOGIN_BUTTONS if is_configured(p)]
 
 
 def authorize_url(provider, redirect_uri, state):
