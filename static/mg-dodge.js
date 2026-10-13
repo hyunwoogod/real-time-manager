@@ -117,10 +117,10 @@ const BALLBOY_SVG = `
 </svg>`;
 
 const DODGE_ACTIONS = {
-    left: { label: '피하기', icon: '<path d="M15 5l-7 7 7 7"/>', ms: 600 },
-    jump: { label: '점프', icon: '<path d="M12 19V6M6 11l6-6 6 6"/>', ms: 700 },
-    catch: { label: '잡기', icon: '<path d="M7 13V8a2 2 0 014 0v3M11 10V6a2 2 0 014 0v5M15 9a2 2 0 014 0v4a7 7 0 01-7 7h-1a6 6 0 01-6-6v-1a2 2 0 014 0"/>', ms: 650 },
-    right: { label: '피하기', icon: '<path d="M9 5l7 7-7 7"/>', ms: 600 },
+    left: { label: '피하기', when: '오른쪽 공일 때', icon: '<path d="M15 5l-7 7 7 7"/>', ms: 600 },
+    jump: { label: '점프', when: '땅볼일 때', icon: '<path d="M12 19V6M6 11l6-6 6 6"/>', ms: 700 },
+    catch: { label: '잡기', when: '정면 공일 때', icon: '<path d="M7 13V8a2 2 0 014 0v3M11 10V6a2 2 0 014 0v5M15 9a2 2 0 014 0v4a7 7 0 01-7 7h-1a6 6 0 01-6-6v-1a2 2 0 014 0"/>', ms: 650 },
+    right: { label: '피하기', when: '왼쪽 공일 때', icon: '<path d="M9 5l7 7-7 7"/>', ms: 600 },
 };
 // 공 종류 → 살아남는 동작
 const DODGE_BALLS = {
@@ -367,7 +367,7 @@ const DodgeGame = {
             <div class="dg-pad">
                 ${Object.entries(DODGE_ACTIONS).map(([k, a]) => `
                     <button class="dg-btn dg-${k}" data-act="${k}">
-                        <svg viewBox="0 0 24 24">${a.icon}</svg><span>${a.label}</span>
+                        <svg viewBox="0 0 24 24">${a.icon}</svg><span>${a.label}</span><small class="dg-when">${a.when}</small>
                     </button>`).join('')}
             </div>`;
         document.getElementById('app').appendChild(el);
@@ -434,7 +434,7 @@ const DodgeGame = {
         cancelAnimationFrame(this._raf);
         clearTimeout(this._actT); clearTimeout(this._nextT); clearTimeout(this._poseT);
         this.running = false; this.over = false;
-        this.n = 0; this.lives = 3; this.ballObj = null; this.acts = []; this._speedUpAt = 0; this.action = null; this.actionUntil = 0;
+        this.n = 0; this.lives = 3; this.ballObj = null; this.acts = []; this._speedUpAt = 0; this.actionUntil = 0; this.releaseAction();
         this.setPose('sit');
         this.$.ball.style.opacity = 0; this.$.shadow.style.opacity = 0; this.$.ring.className = 'dg-ring';
         this.$.hint.className = 'dg-hint';
@@ -608,17 +608,25 @@ const DodgeGame = {
 
     act(a) {
         if (!this.running || this.over) return;
+        if (this.action) return; // 한 번에 한 동작만: 동작이 끝나기 전에는 다른 버튼을 눌러도 무시
         const now = performance.now();
         this.action = a; this.actionUntil = now + DODGE_ACTIONS[a].ms;
         this.acts = (this.acts || []).filter(x => x.end > now - 2000).concat([{ a, start: now, end: this.actionUntil }]);
         this.setPose(a);
         this.el.querySelector(`.dg-${a}`)?.classList.add('press');
+        this.el.querySelector('.dg-pad')?.classList.add('locked');
         clearTimeout(this._actT);
         this._actT = setTimeout(() => {
-            this.action = null;
-            this.el.querySelectorAll('.dg-btn.press').forEach(x => x.classList.remove('press'));
+            this.releaseAction();
             if (this.running && !this.over) this.setPose('sit');
         }, DODGE_ACTIONS[a].ms);
+    },
+
+    // 동작이 끝남: 버튼 다시 누를 수 있게
+    releaseAction() {
+        this.action = null;
+        this.el.querySelectorAll('.dg-btn.press').forEach(x => x.classList.remove('press'));
+        this.el.querySelector('.dg-pad')?.classList.remove('locked');
     },
 
     judge(b) {
@@ -643,7 +651,7 @@ const DodgeGame = {
         } else {
             b.result = 'hit'; b.dir = b.type === 'right' ? 1 : -1;
             this.lives -= 1;
-            clearTimeout(this._actT); this.action = null;
+            clearTimeout(this._actT); this.releaseAction();
             this.setPose('hit');
             this.flash('bad');
             this.$.stage.classList.remove('shake'); void this.$.stage.offsetWidth; this.$.stage.classList.add('shake');

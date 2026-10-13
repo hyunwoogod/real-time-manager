@@ -7087,3 +7087,11 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 
 /* 볼보이 그림 틀을 넓힘(피하기·점프해도 안 잘리게): 몸통 크기는 예전과 같게 */
 .dg-boy { width: min(91.2%, 408px, 58.9cqh) !important; bottom: 2% !important; }
+
+/* 버튼 아래: 언제 누르는지 */
+.dg-btn { height: 78px !important; gap: 2px !important; }
+.dg-when { font-size: 10px; font-weight: 800; color: #fbbf24; letter-spacing: -0.4px; white-space: nowrap; line-height: 1.1; }
+.dg-btn.press .dg-when, .dg-btn:active .dg-when { color: #fef3c7; }
+
+/* 동작 중에는 다른 버튼을 흐리게 (한 번에 하나만) */
+.dg-pad.locked .dg-btn:not(.press) { opacity: 0.4; }
