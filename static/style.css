@@ -6896,8 +6896,8 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 /* 내야: 파울라인 오른쪽(페어)에만 — 3루 둘레 흙 · 내야 잔디 */
 .dg-infield { position: absolute; inset: 0;
     background:
-        radial-gradient(ellipse 21% 6.5% at 82% 33%, #1b9149 96%, transparent 100%),
-        radial-gradient(ellipse 42% 19% at 80% 40%, #b9773f 98%, transparent 100%);
+        radial-gradient(ellipse 20% 6% at 77% 38%, #1b9149 96%, transparent 100%),
+        radial-gradient(ellipse 42% 19% at 78% 41%, #b9773f 98%, transparent 100%);
     clip-path: polygon(50% 27.5%, 100% 27.5%, 100% 100%, 84% 100%); }
 /* 펜스 앞 흙길 (볼보이가 앉는 곳) */
 .dg-track { position: absolute; inset: 0; background: #a86a36; opacity: 0.9; clip-path: polygon(42% 27.5%, 47% 27.5%, 36% 100%, 4% 100%); }
@@ -7038,3 +7038,52 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-call.c-catch { border-color: #34d399; color: #d1fae5; }
 
 .dg-call.c-speed { border-color: #fb923c; color: #ffedd5; }
+
+/* 경기장 그림 좌우 반전: 3루 쪽 파울 지역에서 홈을 보면 경기장이 왼쪽, 관중석이 오른쪽 */
+.dg-scene { position: absolute; inset: 0; transform: scaleX(-1); }
+
+/* ---- 경기장 다시 그림: 관중(캔버스) · 펜스 · 흙길 · 홈 주변 ---- */
+.dg-crowd { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dg-track { clip-path: polygon(45% 28%, 48.5% 28%, 62% 100%, 4% 100%) !important; }
+.dg-wall { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #0f5132; clip-path: polygon(44.6% 28%, 45.4% 28%, 5.5% 100%, 2.5% 100%) !important; }
+.dg-dirt { z-index: 1; top: 24% !important; width: 34% !important; height: 8.5% !important; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12); }
+.dg-plate { z-index: 2; top: 27.4% !important; width: 18px !important; height: 8px !important; }
+.dg-box { position: absolute; z-index: 2; top: 26.2%; width: 12px; height: 12px; border: 1.5px solid rgba(255,255,255,0.85); transform: translateX(-50%) scaleY(0.6); }
+.dg-box.l { left: calc(50% - 15px); } .dg-box.r { left: calc(50% + 15px); }
+.dg-1bline { position: absolute; z-index: 1; inset: 0; background: rgba(255,255,255,0.85); clip-path: polygon(50% 27.4%, 100% 28.6%, 100% 29%, 50% 27.8%); }
+.dg-foul { z-index: 2 !important; }
+.dg-catcher { position: absolute; z-index: 2; left: 50%; top: 22.6%; width: 16px; height: 16px; transform: translateX(-50%); }
+.dg-ump { position: absolute; z-index: 1; left: 50%; top: 19.6%; width: 18px; height: 22px; transform: translateX(-50%); }
+.dg-catcher svg, .dg-ump svg { width: 100%; height: 100%; display: block; }
+.dg-mound, .dg-pitcher, .dg-3b { z-index: 2; }
+/* 뒷모습 볼보이: 의자 등받이는 앉아 있을 때만 */
+.dg-boy.st-jump .bb-stool-back, .dg-boy.st-left .bb-stool-back, .dg-boy.st-right .bb-stool-back { display: none; }
+
+/* 마운드·투수: 홈~2루 가운데 선 위 (반전 전 좌표 76% → 화면 24%) */
+.dg-mound { left: 76% !important; top: 35.3% !important; width: 16% !important; height: 4.4% !important; }
+
+/* 관중석이 홈 뒤에서 꺾이므로 잔디는 그 아래부터, 펜스·흙길은 모서리에서 시작 */
+.dg-grass { top: 24% !important; }
+.dg-track { clip-path: polygon(44% 24.8%, 47.5% 24.8%, 62% 100%, 4% 100%) !important; }
+.dg-wall { clip-path: polygon(43.7% 24.8%, 44.5% 24.8%, 5.5% 100%, 2.5% 100%) !important; }
+.dg-stands { display: none; }
+
+/* 점프해도 위가 잘리지 않게: 화면 높이에 맞춰 볼보이 크기 제한, 점프 높이 낮춤 */
+.dg-stage { container-type: size; }
+.dg-boy { width: min(48%, 215px, 31cqh) !important; }
+@keyframes bb-jump { 0% { transform: translateY(0); } 25% { transform: translateY(-82px); } 75% { transform: translateY(-78px); } 100% { transform: translateY(0); } }
+
+/* ---- 3D 투영 야구장: 캔버스 하나 + 사람 그림 (좌우 반전 없음) ---- */
+.dg-scene { transform: none !important; }
+.dg-field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.dg-scene .dg-sky { background: none !important; height: 20%; }
+.dg-fig { position: absolute; z-index: 2; }
+.dg-fig svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.dg-crack { z-index: 4; }
+
+/* 잡기 글러브: 잡기 자세에서만 (머리 위 가운데) */
+.dg-boy .bb-catch-glove { display: none; }
+.dg-boy.st-catch .bb-catch-glove { display: inline; }
+
+/* 볼보이 그림 틀을 넓힘(피하기·점프해도 안 잘리게): 몸통 크기는 예전과 같게 */
+.dg-boy { width: min(91.2%, 408px, 58.9cqh) !important; bottom: 2% !important; }
