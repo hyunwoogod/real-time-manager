@@ -2795,11 +2795,9 @@ function drawBaseballField(s) {
 
 
 // ================= 미니게임 (3x3, 게임마다 하루 1번 · 도전 10P · 성공 최대 +20P) =================
-// 게임이 정해지면 여기에 칸 번호별로 { title, desc, play(done) } 를 채워 넣음
-// play(done)은 게임을 진행한 뒤 done(success, reward)를 부르면 됨 (reward는 0~20)
-const MINIGAMES = {
-    // 1: { title: '...', desc: '...', play: (done) => { ... done(true, 15); } },
-};
+// 칸 번호별 게임 { title, open(slot) } — 게임 파일(static/mg-*.js)이 채워 넣음
+// 게임은 mgStartChallenge(slot)로 도전을 시작하고, 끝나면 finishMinigame(slot, success, reward)를 부름 (reward 0~20)
+const MINIGAMES = {};
 let _mgState = null;
 
 function loadMinigames() {
@@ -2818,7 +2816,11 @@ function renderMinigames(d) {
         const sc = document.getElementById('mg-score');
         if (sc) sc.textContent = `${Number(d.score ?? 2000).toLocaleString()}P`;
         const day = document.getElementById('mg-day');
-        if (day) day.textContent = d.test_day ? `테스트 ${d.test_day}일차 · 게임마다 하루 1번` : '게임마다 하루 1번 도전';
+        if (day) day.textContent = d.free ? '테스트 기간 · 무료로 마음껏 연습' : d.test_day ? `테스트 ${d.test_day}일차 · 게임마다 하루 1번` : '게임마다 하루 1번 도전';
+        const rule = document.getElementById('mg-rule');
+        if (rule) setHtmlIfChanged(rule, d.free
+            ? '<div><span>테스트 기간</span><b>무료</b></div><div><span>도전 횟수</span><b>무제한</b></div><div><span>포인트</span><b>반영 안 됨</b></div>'
+            : '<div><span>도전</span><b>-10P</b></div><div><span>성공 시</span><b class="up">최대 +20P</b></div><div><span>횟수</span><b>하루 1번</b></div>');
     }
     const slots = (d && d.slots) || Array.from({ length: 9 }, (_, i) => ({ slot: i + 1, status: 'ready' }));
     grid.innerHTML = slots.map(s => {
@@ -2828,7 +2830,7 @@ function renderMinigames(d) {
             if (s.status === 'success') { cls = 'done ok'; chip = `성공 +${s.reward}P`; }
             else if (s.status === 'fail') { cls = 'done'; chip = '실패'; }
             else if (s.status === 'playing') { cls = 'done'; chip = '도전 종료'; }
-            else { cls = 'ready'; chip = '도전 · 10P'; }
+            else { cls = 'ready'; chip = d && d.free ? '연습 · 무료' : '도전 · 10P'; }
         }
         return `<button class="mg-card ${cls}" onclick="openMinigame(${s.slot})">
             <span class="mg-no">${String(s.slot).padStart(2, '0')}</span>
@@ -2841,31 +2843,42 @@ function renderMinigames(d) {
 function openMinigame(slot) {
     const g = MINIGAMES[slot];
     if (!g) { showToast('준비 중인 미니게임이에요. 곧 열려요.'); return; }
-    const rec = _mgState && _mgState.slots.find(x => x.slot === slot);
+    const rec = _mgState && !_mgState.free && _mgState.slots.find(x => x.slot === slot);
     if (rec && rec.status !== 'ready') { showToast('오늘은 이미 도전했어요. 내일 다시 도전하세요.'); return; }
-    fetch('/api/minigames/start', {
+    g.open(slot);
+}
+
+// 도전 시작 (10P 차감). 성공하면 true
+function mgStartChallenge(slot) {
+    return fetch('/api/minigames/start', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot })
     })
         .then(r => r.json())
         .then(d => {
-            if (d.status !== 'success') { showToast(d.message || '도전할 수 없어요.'); return; }
+            if (d.status !== 'success') { showToast(d.message || '도전할 수 없어요.'); loadMinigames(); return false; }
             _mgState = d; renderMinigames(d);
-            g.play((success, reward) => finishMinigame(slot, success, reward));
+            return true;
         })
-        .catch(() => showToast('연결이 불안정해요. 다시 시도해 주세요.'));
+        .catch(() => { showToast('연결이 불안정해요. 다시 시도해 주세요.'); return false; });
 }
 
-function finishMinigame(slot, success, reward) {
-    fetch('/api/minigames/finish', {
+// 도전 끝 (성공이면 보상 지급). quiet이면 게임 화면이 결과를 보여 주므로 알림 생략
+function finishMinigame(slot, success, reward, quiet) {
+    return fetch('/api/minigames/finish', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slot, success: !!success, reward: reward || 0 })
     })
         .then(r => r.json())
         .then(d => {
-            if (d.status !== 'success') return;
+            if (d.status !== 'success') return d;
             _mgState = d; renderMinigames(d);
-            const rec = d.slots.find(x => x.slot === slot);
-            showToast(rec && rec.status === 'success' ? `성공! +${rec.reward}P` : '아쉽게 실패했어요.');
+            const sc = document.getElementById('lobby-my-score');
+            if (sc) sc.innerText = `${Number(d.score).toLocaleString()}P`;
+            if (!quiet) {
+                const rec = d.slots.find(x => x.slot === slot);
+                showToast(rec && rec.status === 'success' ? `성공! +${rec.reward}P` : '아쉽게 실패했어요.');
+            }
+            return d;
         })
         .catch(() => {});
 }

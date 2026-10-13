@@ -1169,6 +1169,8 @@ def api_my_games():
 MINIGAME_SLOTS = 9
 MINIGAME_COST = 10
 MINIGAME_MAX_REWARD = 20
+# 테스트 기간: 하루 1번 제한 없음 · 포인트 차감/지급 없음 (연습 모드). 정식 운영 때 MINIGAME_FREE=0
+MINIGAME_FREE = os.environ.get('MINIGAME_FREE', '1' if TEST_SEASON else '0') == '1'
 _minigame_lock = threading.Lock()
 
 
@@ -1214,7 +1216,8 @@ def minigame_payload(uid, st):
         slots.append({"slot": i, "status": rec.get("status", "ready"), "reward": rec.get("reward", 0)})
     return {"status": "success", "day": st["day"], "test_day": test_day() if TEST_SEASON else None,
             "score": user.get('score', 2000), "grade": user.get('grade', 'D'),
-            "cost": MINIGAME_COST, "max_reward": MINIGAME_MAX_REWARD, "slots": slots}
+            "cost": MINIGAME_COST, "max_reward": MINIGAME_MAX_REWARD, "slots": slots,
+            "free": MINIGAME_FREE}
 
 
 @app.route('/api/minigames')
@@ -1222,7 +1225,8 @@ def api_minigames():
     uid = session.get('user_id')
     if not uid:
         return jsonify({"status": "error", "message": "로그인이 필요해요."}), 401
-    return jsonify(minigame_payload(uid, load_minigames(uid)))
+    st = {"day": minigame_day_key(), "slots": {}} if MINIGAME_FREE else load_minigames(uid)
+    return jsonify(minigame_payload(uid, st))
 
 
 @app.route('/api/minigames/start', methods=['POST'])
@@ -1234,6 +1238,8 @@ def api_minigame_start():
     slot = str((request.get_json(silent=True) or {}).get('slot', ''))
     if slot not in {str(i) for i in range(1, MINIGAME_SLOTS + 1)}:
         return jsonify({"status": "error", "message": "없는 미니게임이에요."}), 400
+    if MINIGAME_FREE:  # 테스트 기간: 제한·차감 없이 바로 시작
+        return jsonify(minigame_payload(uid, {"day": minigame_day_key(), "slots": {}}))
     with _minigame_lock:
         st = load_minigames(uid)
         if slot in st["slots"]:
@@ -1255,6 +1261,8 @@ def api_minigame_finish():
         return jsonify({"status": "error", "message": "로그인이 필요해요."}), 401
     data = request.get_json(silent=True) or {}
     slot = str(data.get('slot', ''))
+    if MINIGAME_FREE:  # 테스트 기간: 포인트 지급 없음
+        return jsonify(minigame_payload(uid, {"day": minigame_day_key(), "slots": {}}))
     with _minigame_lock:
         st = load_minigames(uid)
         rec = st["slots"].get(slot)
