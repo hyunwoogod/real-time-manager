@@ -11,9 +11,7 @@ let currentUserId = 1;
 // 응원 구단은 서버 세션(DB) 값만 사용 (기본 구단 없음)
 let selectedTeamCode = window.CURRENT_SESSION_TEAM || null;
 let selectedTeamFull = window.CURRENT_SESSION_TEAM_FULL || null;
-let userLoginProvider = 'General';
 let userNickname = '김명장 감독';
-let isIdentityVerified = false;
 
 // KBO 10개 구단 메타데이터 매핑 및 도우미 함수
 const teamLogos = {
@@ -451,26 +449,9 @@ function runSplashScreen() {
     }, 5000);
 }
 
-// Modal Handlers for Auth
-function openLoginModal() {
-    const modal = document.getElementById('login-modal');
-    if (modal) modal.classList.add('active');
-}
 
-function closeLoginModal() {
-    const modal = document.getElementById('login-modal');
-    if (modal) modal.classList.remove('active');
-}
 
-function openRegisterModal() {
-    const modal = document.getElementById('register-modal');
-    if (modal) modal.classList.add('active');
-}
 
-function closeRegisterModal() {
-    const modal = document.getElementById('register-modal');
-    if (modal) modal.classList.remove('active');
-}
 
 // Settings Modal Handlers (환경설정 및 로그아웃)
 function openSettingsModal() {
@@ -517,193 +498,19 @@ function toggleSoundSetting(checkbox) {
 }
 
 window.addEventListener('click', (event) => {
-    const loginModal = document.getElementById('login-modal');
-    const regModal = document.getElementById('register-modal');
     const settingsModal = document.getElementById('settings-modal');
-    if (event.target === loginModal) {
-        closeLoginModal();
-    }
-    if (event.target === regModal) {
-        closeRegisterModal();
-    }
     if (event.target === settingsModal) {
         closeSettingsModal();
     }
 });
 
-// 본인인증 가상 UI 액션
-function triggerIdentityVerify() {
-    const btn = document.getElementById('btn-do-verify');
-    const badge = document.getElementById('verify-badge');
 
-    btn.innerText = "⏳ 통신사 인증 진행 중...";
-    btn.disabled = true;
 
-    setTimeout(() => {
-        isIdentityVerified = true;
-        btn.style.display = 'none';
-        badge.classList.remove('hidden');
-        showToast("🪪 PASS 간편 본인인증이 성공적으로 완료되었습니다!");
-    }, 1200);
-}
 
-// 회원가입 제출
-function submitRegister() {
-    const username = document.getElementById('reg-username').value.trim();
-    const password = document.getElementById('reg-password').value.trim();
-    const email = document.getElementById('reg-email').value.trim();
-    const marketingAgreed = document.getElementById('reg-marketing').checked;
 
-    if (!isIdentityVerified) {
-        showToast("⚠️ 본인인증(PASS 간편인증)을 먼저 진행해주세요!");
-        return;
-    }
 
-    fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            username: username,
-            password: password,
-            email: email,
-            marketing_agreed: marketingAgreed,
-            nickname: username + " 감독",
-            team: selectedTeamCode
-        })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.status === 'success') {
-            currentUserId = data.user.id;
-            userNickname = data.user.nickname;
-            showToast(`🎉 회원가입 성공! 닉네임과 응원 구단을 설정하세요.`);
-            closeRegisterModal();
-            hideOverlay('login-screen');
-            showOverlay('team-select-screen');
-        } else {
-            showToast(`❌ ${data.message}`);
-        }
-    })
-    .catch(err => {
-        showToast("❌ 서버와 통신 중 오류가 발생했습니다.");
-    });
-}
 
-// 로그인 제출 및 메인 로비 직행 라우팅
-function submitLogin() {
-    const usernameInput = document.getElementById('login-username');
-    const passwordInput = document.getElementById('login-password');
-    const username = usernameInput ? usernameInput.value.trim() : '';
-    const password = passwordInput ? passwordInput.value.trim() : '';
 
-    function proceedToLobby(user) {
-        currentUserId = user ? user.id : 1;
-        let nick = user ? (user.nickname || user.username) : (username || "김명장");
-        if (nick && !nick.endsWith('감독')) {
-            nick = nick + ' 감독';
-        }
-        userNickname = nick;
-        window.CURRENT_SESSION_USER = username || userNickname;
-        window.CURRENT_SESSION_NICKNAME = nick;
-        localStorage.setItem('antigravity_user_nickname', userNickname);
-        if (user) selectedTeamCode = normalizeTeamShort(user.favorite_team || user.team) || selectedTeamCode;
-        selectedTeamFull = teamFullMap[selectedTeamCode] || selectedTeamFull;
-        syncUserTeamUI(selectedTeamCode, selectedTeamFull);
-
-        showToast(`🔑 환영합니다, ${userNickname}님!`);
-        closeLoginModal();
-        hideOverlay('login-screen');
-        switchView('pregame-view');
-        try { updateBottomNavVisibility(); } catch(e) {}
-    }
-
-    if (!username || !password) {
-        proceedToLobby(null);
-        return;
-    }
-
-    fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username, password: password })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.status === 'success') {
-            proceedToLobby(data.user);
-        } else {
-            proceedToLobby(null);
-        }
-    })
-    .catch(() => {
-        proceedToLobby(null);
-    });
-}
-
-// Direct Screen Routing & Seamless Entrance Handlers (Ensures 2000pt & Main Screen Routing)
-function enterMainLobbyDirect(loginType = 'Existing', customNick = '김명장 감독') {
-    userNickname = customNick || '김명장 감독';
-    window.CURRENT_SESSION_USER = userNickname;
-    currentUserId = 1;
-
-    // 1. Immediately dismiss all blocking overlays and modals
-    hideOverlay('login-screen');
-    hideOverlay('team-select-screen');
-    closeLoginModal();
-    closeRegisterModal();
-    try { updateBottomNavVisibility(); } catch(e) {}
-
-    // 2. Set score UI elements to 2,000 pts
-    const scoreEl = document.getElementById('lobby-my-score');
-    if (scoreEl) scoreEl.innerText = '2,000 pts';
-    
-    const gradeBadge = document.getElementById('lobby-my-grade');
-    if (gradeBadge) {
-        gradeBadge.innerText = 'D급';
-        gradeBadge.className = 'grade-badge grade-d';
-    }
-
-    const nameEl = document.getElementById('lobby-user-name');
-    if (nameEl) nameEl.innerText = userNickname;
-
-    const tag = document.getElementById('lobby-login-type');
-    if (tag) {
-        tag.innerText = loginType === 'Guest' ? '게스트 감독' : '회원 계정 인증됨';
-        tag.className = 'login-tag kakao';
-    }
-
-    saveUserState();
-
-    // 3. Immediately transition to main pregame view & load lobby data
-    switchView('pregame-view');
-    loadLobbyData();
-
-    // 4. Trigger Toast Notification
-    if (loginType === 'Existing') {
-        showToast(`🔑 로그인 성공! ${userNickname} 감독님, 메인 화면(2,000pt)으로 진입합니다.`);
-    } else if (loginType === 'Register') {
-        showToast(`🎉 회원가입 완료! 2,000pt가 부여되어 메인 화면으로 진입합니다.`);
-    } else {
-        showToast(`⚡ 게스트 감독 입장! 2,000pt와 메인 일정 캘린더를 확인하세요.`);
-    }
-}
-
-function handleExistingLoginDirect() {
-    enterMainLobbyDirect('Existing', userNickname || '김명장 감독');
-}
-
-function handleRegisterDirect() {
-    enterMainLobbyDirect('Register', '신규 명장 감독');
-}
-
-function handleGuestLoginDirect() {
-    enterMainLobbyDirect('Guest', '게스트 감독');
-}
-
-// 게스트 로그인
-function handleGuestLogin() {
-    handleGuestLoginDirect();
-}
 
 // Phase 1-3: 응원 구단 그리드 선택
 function selectTeamGrid(code, fullName) {
@@ -954,9 +761,6 @@ function triggerLiveMatchReady() {
     showToast('경기가 시작됐어요. 입장해 보세요!');
 }
 
-function tryEnterIngame() {
-    forceLiveMatchStart();
-}
 
 function forceLiveMatchStart() {
     enterLiveMatch();
@@ -1040,14 +844,6 @@ function updateBottomNavVisibility() {
     }
 }
 
-function showOverlay(id) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.classList.add('active');
-        el.style.display = 'flex';
-    }
-    try { updateBottomNavVisibility(); } catch(e) {}
-}
 
 function hideOverlay(id) {
     const el = document.getElementById(id);
@@ -1346,22 +1142,6 @@ function closeMyGameDetail() {
     if (m) m.classList.remove('active');
 }
 
-function selectTeam(home, away) {
-    if (home === away) {
-        away = (home === '롯데') ? '한화' : '롯데';
-    }
-    currentHomeTeam = home;
-    currentAwayTeam = away;
-    fetch('/api/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ home_team: home, away_team: away })
-    })
-    .then(r => r.json())
-    .then(data => {
-        renderHomeMatch({ away_team: away, home_team: home, stadium: currentStadium, start_time: currentStartTimeStr });
-    });
-}
 
 function loadLobbyData() {
     const uid = window.CURRENT_SESSION_USER_ID || currentUserId || 1;
@@ -1425,36 +1205,13 @@ function schedTodayStr() {
 }
 let selectedScheduleDate = getFormattedTodayStr();
 
-const teamLogoImgMap = {
-    "한화": "/logos/hanwha.png",
-    "삼성": "/logos/samsung.png",
-    "KIA": "/logos/kia.png",
-    "KT": "/logos/kt.png",
-    "LG": "/logos/lg.png",
-    "SSG": "/logos/ssg.png",
-    "키움": "/logos/kiwoom.png",
-    "롯데": "/logos/lotte.png",
-    "NC": "/logos/nc.png",
-    "두산": "/logos/doosan.png"
-};
 
-const teamLogoMap = {
-    "한화": "🦅", "롯데": "⚓", "KIA": "🐯", "삼성": "🦁",
-    "SSG": "🐶", "두산": "🐻", "NC": "🦖", "KT": "🧙",
-    "키움": "🦸", "LG": "🧢"
-};
 
-function getTeamLogoHtml(teamName, extraClass = '') {
-    return '';
-}
 
 const teamPitcherMap = {
     "한화": "이상규", "삼성": "최원태", "KIA": "올러", "KT": "고영표", "LG": "임찬규", "SSG": "이로운", "키움": "전준표", "롯데": "비슬리", "NC": "토다", "두산": "잭로그"
 };
 
-const teamBatterMap = {
-    "한화": "심우준", "삼성": "김지찬", "KIA": "박재현", "KT": "최원준", "LG": "박해민", "SSG": "정준재", "키움": "추재현", "롯데": "황성빈", "NC": "김주원", "두산": "정수빈"
-};
 
 function loadScheduleTable(filterDate = schedTodayStr()) {
     const goToday = !filterDate || filterDate === 'today';
@@ -1550,10 +1307,6 @@ function selectScheduleDate(dateStr) {
     renderMatchupsForDate(dateStr);
 }
 
-function scrollDateBar(direction) {
-    const box = document.getElementById('sched-date-scroll');
-    if (box) box.scrollBy({ left: direction * 150, behavior: 'smooth' });
-}
 
 // 이전/다음 달: 그 달의 1일로 이동
 function shiftSchedMonth(delta) {
@@ -1599,25 +1352,6 @@ function enterMatchupFromSchedule(homeTeam, awayTeam, homePitcher, awayPitcher) 
     forceLiveMatchStart();
 }
 
-function selectMatchFromSchedule(dateStr, home, away, stadium, timeStr, homePitcher, awayPitcher) {
-    if (home === away) {
-        showToast("⚠️ 동일 구단 간의 대진은 선택할 수 없습니다.");
-        return;
-    }
-    // 유저의 고유 응원 구단(selectedTeamCode)은 변경하지 않고, 선택한 경기 관전 정보만 갱신
-    currentHomeTeam = home;
-    currentAwayTeam = away;
-    currentHomePitcher = homePitcher || teamPitcherMap[home] || '페덱';
-    currentAwayPitcher = awayPitcher || teamPitcherMap[away] || '박준영';
-    currentStadium = stadium;
-    currentStartTimeStr = timeStr;
-
-    selectTeam(home, away, currentHomePitcher, currentAwayPitcher);
-    const homeFull = teamFullMap[normalizeTeamShort(home)] || home;
-    const awayFull = teamFullMap[normalizeTeamShort(away)] || away;
-    renderHomeMatch({ away_team: away, home_team: home, stadium, start_time: timeStr, game_date: dateStr }, { isToday: dateStr === getFormattedTodayStr() });
-    showToast(`🎯 [${away} vs ${home}] ${dateStr} ${stadium} 대진이 로비 메인 매치업으로 선택되었습니다.`);
-}
 
 // ================= 랭킹 · 친구 =================
 // 등급: 2000점 D(초짜 감독)에서 500점마다 한 단계 (서버 game_engine.grade_for와 같은 기준)
@@ -1714,7 +1448,7 @@ function renderFriendRequests(received) {
     const cnt = document.getElementById('rk-req-count');
     const dot = document.getElementById('nav-rk-dot');
     if (cnt) { cnt.textContent = received.length; cnt.hidden = !received.length; }
-    if (dot) dot.hidden = !received.length;
+    if (dot) { dot.hidden = !received.length; dot.textContent = `친구 요청 ${received.length}`; } // 하단 바 랭킹 위 말풍선
     if (!box) return;
     setHtmlIfChanged(box, received.length ? received.map(u => `<div class="rk-row">
         ${rkUserRow(u, `<div class="rk-btns">
@@ -1730,7 +1464,7 @@ function renderSentRequests(sent) {
     if (!wrap || !box) return;
     wrap.hidden = !sent.length;
     box.innerHTML = sent.map(u => `<div class="rk-row">
-        ${rkUserRow(u, `<button class="rk-btn" onclick="cancelFriendRequest(${u.id})">요청 취소</button>`)}
+        ${rkUserRow(u, friendReqBtn(u.id, true))}
     </div>`).join('');
 }
 
@@ -1762,53 +1496,56 @@ function renderSearchResults(results) {
     if (!results.length) { box.innerHTML = '<div class="rk-empty">검색된 감독이 없어요</div>'; return; }
     const btn = u => ({
         friend: '<span class="rk-state">친구</span>',
-        sent: '<span class="rk-state">요청 보냄</span>',
+        sent: friendReqBtn(u.id, true),
         received: `<button class="rk-btn ok" onclick="respondFriend(${u.id}, true)">수락</button>`,
-    }[u.relation] || `<button class="rk-btn ok" onclick="addFriend(${u.id})">요청</button>`);
+    }[u.relation] || friendReqBtn(u.id, false));
     box.innerHTML = results.map(u => `<div class="rk-row">${rkUserRow(u, btn(u))}</div>`).join('');
 }
 
-function friendPost(url, body) {
+// 친구 요청 버튼: 요청 전 = 초록 '요청', 보낸 뒤 = 빨간 '요청 취소'
+function friendReqBtn(id, sent) {
+    return sent
+        ? `<button class="rk-btn cancel" onclick="cancelFriendRequest(${id}, this)">요청 취소</button>`
+        : `<button class="rk-btn ok" onclick="addFriend(${id}, this)">요청</button>`;
+}
+// 누르는 즉시 버튼을 바꾸고(서버 답을 기다리지 않음), 실패하면 원래대로 되돌림
+function friendToggle(btn, id, sent) {
+    if (btn) btn.outerHTML = friendReqBtn(id, sent);
+}
+
+function friendPost(url, body, quiet) {
     return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         .then(r => r.json())
         .then(res => {
-            showToast(res.message || (res.status === 'success' ? '완료했어요.' : '다시 시도해 주세요.'));
-            const q = document.getElementById('friend-search-input');
-            if (q && q.value.trim() && document.getElementById('friend-sheet').classList.contains('active')) executeFriendSearch();
-            return loadFriends();
+            if (!quiet || res.status !== 'success') showToast(res.message || (res.status === 'success' ? '완료했어요.' : '다시 시도해 주세요.'));
+            loadFriends();
+            return res;
         })
-        .catch(() => showToast('연결이 불안정해요. 다시 시도해 주세요.'));
+        .catch(() => { showToast('연결이 불안정해요. 다시 시도해 주세요.'); return { status: 'error' }; });
 }
-function addFriend(id) { return friendPost('/api/friends/request', { user_id: id }); }
-function respondFriend(id, accept) { return friendPost('/api/friends/respond', { user_id: id, accept }); }
-function cancelFriendRequest(id) { return friendPost('/api/friends/cancel', { user_id: id }); }
-
-function startSSEStream() {
-    if (sseSource) return;
-
-    sseSource = new EventSource('/api/stream');
-    sseSource.onmessage = (event) => {
-        const state = JSON.parse(event.data);
-        currentGameState = state;
-        updateScoreboardUI(state);
-        drawBaseballField(state);
-
-        if (state.game_over) {
-            stopSSEStream();
-            renderPostGameSummary(state);
-            switchView('postgame-view');
-            return;
-        }
-
-        if (state.crisis_active && state.current_crisis) {
-            openCrisisModal(state.current_crisis);
-        }
-    };
-
-    sseSource.onerror = (err) => {
-        console.log("SSE Connection closed or retrying...");
-    };
+function addFriend(id, btn) {
+    friendToggle(btn, id, true);
+    return friendPost('/api/friends/request', { user_id: id }, true).then(res => {
+        if (res.status !== 'success') friendToggle(document.querySelector(`[onclick^="cancelFriendRequest(${id},"]`), id, false);
+        else if (res.relation === 'friend') executeFriendSearch(); // 상대도 요청했었으면 바로 친구
+    });
 }
+function respondFriend(id, accept) {
+    return friendPost('/api/friends/respond', { user_id: id, accept }).then(() => {
+        const q = document.getElementById('friend-search-input');
+        if (q && q.value.trim() && document.getElementById('friend-sheet').classList.contains('active')) executeFriendSearch();
+    });
+}
+function cancelFriendRequest(id, btn) {
+    // 검색 결과의 버튼은 바로 '요청'으로, 보낸 요청 목록의 줄은 바로 사라지게
+    const row = btn && btn.closest('#rk-sent .rk-row');
+    if (row) row.remove(); else friendToggle(btn, id, false);
+    document.querySelectorAll(`#friend-search-results [onclick^="cancelFriendRequest(${id},"]`).forEach(b => friendToggle(b, id, false));
+    return friendPost('/api/friends/cancel', { user_id: id }, true).then(res => {
+        if (res.status !== 'success') executeFriendSearch();
+    });
+}
+
 
 function stopSSEStream() {
     if (sseSource) {
@@ -1840,38 +1577,8 @@ function updateScoreboardUI(s) {
 }
 
 let clientPitchSeq = 0;
-const pitchPresets = [
-    { name: "직구", speed: "148km/h", result: "스트라이크", code: "STRIKE" },
-    { name: "슬라이더", speed: "136km/h", result: "볼", code: "BALL" },
-    { name: "투심", speed: "142km/h", result: "파울", code: "FOUL" },
-    { name: "체인지업", speed: "131km/h", result: "타격 (안타)", code: "SINGLE" },
-    { name: "커브", speed: "125km/h", result: "스트라이크", code: "STRIKE" },
-    { name: "포크볼", speed: "134km/h", result: "아웃", code: "OUT" },
-    { name: "직구", speed: "151km/h", result: "파울", code: "FOUL" },
-    { name: "슬라이더", speed: "138km/h", result: "볼", code: "BALL" },
-    { name: "투심", speed: "144km/h", result: "타격 (2루타)", code: "DOUBLE" },
-    { name: "직구", speed: "149km/h", result: "타격 (홈런)", code: "HOMERUN" },
-    { name: "커브", speed: "128km/h", result: "볼", code: "BALL" },
-    { name: "포크볼", speed: "135km/h", result: "스트라이크", code: "STRIKE" }
-];
 
-let userIsReadingHistory = false;
 
-function updateLeds(containerId, count, activeClass) {
-    const ids = [containerId, `mini-${containerId}`];
-    ids.forEach(id => {
-        const container = document.getElementById(id);
-        if (!container) return;
-        const leds = container.querySelectorAll('.led, .dot');
-        leds.forEach((led, i) => {
-            if (i < count) {
-                led.classList.add(activeClass);
-            } else {
-                led.classList.remove(activeClass);
-            }
-        });
-    });
-}
 
 function openCrisisModal(crisis) {
     const modal = document.getElementById('crisis-modal');
@@ -1986,48 +1693,7 @@ function submitTactic(tacticId) {
     });
 }
 
-function openTacticResultModal(res) {
-    const modal = document.getElementById('tactic-result-modal');
-    if (!modal || !res) return;
-    const strip = t => String(t || '').replace(/\s*\([OX]\)\s*/g, '').trim();
 
-    const badge = document.getElementById('res-grade-badge');
-    if (badge) {
-        badge.textContent = res.grade || 'D';
-        badge.className = `result-badge grade-${(res.grade || 'd').toLowerCase()}`;
-    }
-    const delta = res.score_delta || 0;
-    const deltaEl = document.getElementById('res-score-delta');
-    if (deltaEl) {
-        deltaEl.textContent = delta > 0 ? `+${delta}` : `${delta}`;
-        deltaEl.className = delta > 0 ? 'delta-plus' : delta < 0 ? 'delta-minus' : 'delta-zero';
-    }
-    const mine = strip(res.my_choice_label) || ((res.my_choice === 'CHANGE' || res.tactic_id === 'PITCHER_CHANGE') ? '교체' : '유지');
-    const mgr = strip(res.mgr_choice_label) || (res.actual_manager_choice === 'CHANGE' ? '교체' : '유지');
-    const out = res.actual_result === 'OUT' || /^아웃/.test(res.actual_result_label || '');
-    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
-    set('res-my-choice', mine);
-    set('res-actual-choice', mgr);
-    set('res-atbat-result', out ? '아웃' : '출루');
-    set('res-commentary', delta > 0 ? '좋은 판단이었어요!' : delta < 0 ? '아쉬운 판단이었어요' : '무난한 판단이었어요');
-    const comm = document.getElementById('res-commentary');
-    if (comm) comm.className = `igm-comment ${delta > 0 ? 'good' : delta < 0 ? 'bad' : ''}`;
-
-    modal.classList.add('active');
-    playWebAudioAlert('tactic_result');
-}
-
-function closeTacticResultModal() {
-    const modal = document.getElementById('tactic-result-modal');
-    if (modal) {
-        modal.classList.remove('active');
-    }
-    const pending = window._pendingCrisis;
-    window._pendingCrisis = null;
-    if (pending && currentGameState && currentGameState.crisis_active) {
-        openCrisisModal(currentGameState.current_crisis || pending);
-    }
-}
 
 let autoPitchInterval = null;
 
@@ -2350,19 +2016,8 @@ function resetMatchAndLobby() {
     switchView('pregame-view');
 }
 
-function openShareModal() {
-    document.getElementById('share-modal').classList.add('active');
-}
 
-function closeShareModal() {
-    document.getElementById('share-modal').classList.remove('active');
-}
 
-function copyShareLink() {
-    navigator.clipboard.writeText(window.location.href);
-    showToast(`📋 ${userNickname} 감독님의 공유 링크가 클립보드에 복사되었습니다!`);
-    closeShareModal();
-}
 
 function showToast(msg) {
     const container = document.getElementById('toast-container');
@@ -2803,10 +2458,8 @@ function renderNaverSportsLiveFeed(s) {
         else renderIngameLog(s);
     }
 }
-function appendPitchTextLog(s) { renderNaverSportsLiveFeed(s); }
 function setupSmartAutoScroll() {}
 function initCanvas() {}
-function toggleGraphicView() {}
 
 function drawBaseballField(s) {
     if (!s) s = currentGameState;

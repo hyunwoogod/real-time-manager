@@ -1,6 +1,4 @@
-/* ==========================================================================
-   방구석 감독 - Professional Sports Analytics Dark Theme Styling
-   ========================================================================== */
+
 
 :root {
     --bg-dark: #080c14;
@@ -51,9 +49,6 @@ body {
     box-sizing: border-box;
 }
 
-/* ==========================================
-   PHASE 1-1: INTRO SPLASH & LOADER (1.8s)
-   ========================================== */
 .splash-overlay {
     position: absolute;
     top: 0;
@@ -84,7 +79,7 @@ body {
     z-index: -1 !important;
 }
 
-button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-guest-link, .btn-live-entry-glow, .bottom-nav-item, .sub-nav-item, .date-pill-item, .matchup-card {
+button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .bottom-nav-item, .sub-nav-item{
     pointer-events: auto !important;
     cursor: pointer !important;
     user-select: none;
@@ -99,88 +94,12 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     align-items: center;
 }
 
-.brand-badge {
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--accent-emerald);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    font-size: 0.65rem;
-    font-weight: 800;
-    padding: 4px 12px;
-    border-radius: 20px;
-    letter-spacing: 2px;
-    margin-bottom: 12px;
-}
-
-.baseball-spin-wrapper {
-    margin-bottom: 10px;
-}
-
-.spinning-ball {
-    display: inline-block;
-    font-size: 3rem;
-    animation: ballSpin 1.5s linear infinite;
-}
-
-@keyframes ballSpin {
-    from { transform: rotate(0deg) scale(1); }
-    50% { transform: rotate(180deg) scale(1.15); }
-    to { transform: rotate(360deg) scale(1); }
-}
-
-.splash-logo {
-    font-family: var(--font-heading);
-    font-size: 2rem;
-    font-weight: 900;
-    color: #ffffff;
-    text-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
-    margin-bottom: 6px;
-    letter-spacing: 1px;
-}
-
-.splash-subtitle {
-    font-size: 0.85rem;
-    color: var(--text-sub);
-    margin-bottom: 30px;
-}
-
-.loader-box {
-    width: 100%;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 14px;
-    border-radius: 14px;
-    margin-bottom: 20px;
-}
-
 .loader-status {
     font-size: 0.75rem;
     color: var(--text-sub);
     margin-bottom: 8px;
 }
 
-.loader-bar-bg {
-    width: 100%;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.loader-bar-fill {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #10b981, #f59e0b);
-    transition: width 0.1s linear;
-}
-
-.splash-footer {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.3);
-}
-
-/* ==========================================
-   SCREEN OVERLAYS (Login & Team Select)
-   ========================================== */
 .screen-overlay {
     position: absolute;
     top: 0;
@@ -215,75 +134,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     box-shadow: 0 20px 50px rgba(0,0,0,0.8);
 }
 
-.logo-group {
-    margin-bottom: 24px;
-}
-
-.logo-group .logo-icon {
-    font-size: 3rem;
-    display: block;
-    margin-bottom: 8px;
-}
-
-.logo-group h2 {
-    font-family: var(--font-heading);
-    font-size: 1.5rem;
-    color: #ffffff;
-    margin-bottom: 6px;
-}
-
-.logo-group p {
-    font-size: 0.8rem;
-    color: var(--text-sub);
-}
-
-.login-btn-group {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.btn-kakao-login {
-    background: var(--accent-kakao);
-    color: #181600;
-    border: none;
-    padding: 14px;
-    border-radius: 14px;
-    font-size: 0.95rem;
-    font-weight: 800;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.btn-tving-login {
-    background: var(--accent-tving);
-    color: white;
-    border: none;
-    padding: 14px;
-    border-radius: 14px;
-    font-size: 0.95rem;
-    font-weight: 800;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.btn-guest-login {
-    background: transparent;
-    color: var(--text-sub);
-    border: none;
-    font-size: 0.8rem;
-    margin-top: 6px;
-    cursor: pointer;
-    text-decoration: underline;
-}
-
-/* Nickname Input & Team Select Screen */
 .team-select-card h3 {
     font-size: 1.2rem;
     margin-bottom: 4px;
@@ -331,7 +181,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
 }
 
-/* KBO 10 Teams Scrollable Grid Container */
 .team-scroll-container {
     max-height: 250px;
     overflow-y: auto;
@@ -373,10 +222,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
 }
 
-.team-grid-btn .team-icon {
-    font-size: 1.4rem;
-}
-
 .team-info-box {
     display: flex;
     flex-direction: column;
@@ -408,33 +253,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     opacity: 1;
 }
 
-/* Real-Time Live Clock Component */
-.live-clock-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(2, 6, 23, 0.8);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    border-radius: 12px;
-    padding: 8px 14px;
-    margin-bottom: 12px;
-    font-size: 0.8rem;
-}
-
-.live-clock-bar .clock-icon {
-    font-size: 0.9rem;
-}
-
-.digital-time {
-    font-family: var(--font-heading);
-    font-weight: 800;
-    color: var(--accent-gold);
-    letter-spacing: 1px;
-}
-
-/* ==========================================
-   VIEW SCREENS
-   ========================================== */
 .view-screen {
     display: none;
     flex-direction: column;
@@ -451,67 +269,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     display: flex;
 }
 
-/* ==========================================
-   SCREEN 1: PRE-GAME LOBBY
-   ========================================== */
-.lobby-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    backdrop-filter: blur(12px);
-    padding: 14px;
-    border-radius: 16px;
-    margin-bottom: 14px;
-}
-
-.user-profile-badge {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.user-avatar {
-    font-size: 1.8rem;
-    background: rgba(255, 255, 255, 0.08);
-    padding: 6px;
-    border-radius: 50%;
-}
-
-.user-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.user-name {
-    font-weight: 700;
-    font-size: 1rem;
-}
-
-.login-tag.kakao {
-    font-size: 0.7rem;
-    color: var(--accent-kakao);
-}
-
-.lobby-score-box {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-}
-
-.score-label {
-    font-size: 0.65rem;
-    color: var(--text-sub);
-}
-
-.score-value {
-    font-family: var(--font-heading);
-    font-size: 1.2rem;
-    font-weight: 800;
-    color: var(--accent-gold);
-}
-
 .grade-badge {
     padding: 2px 8px;
     border-radius: 6px;
@@ -524,113 +281,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .grade-b { background: #10b981; color: #fff; }
 .grade-c { background: #f59e0b; color: #fff; }
 .grade-f { background: #ef4444; color: #fff; }
-
-/* Match Banner Card (Strict Mobile Responsive 100% Width & Centered Layout) */
-.match-banner-card {
-    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-    border: 1px solid rgba(139, 92, 246, 0.4);
-    border-radius: 20px;
-    padding: 20px 16px;
-    text-align: center;
-    margin: 0 0 16px 0;
-    width: 100%;
-    box-sizing: border-box;
-    position: relative;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.banner-tag {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #e11d48;
-    color: #ffffff;
-    font-size: 0.72rem;
-    font-weight: 800;
-    padding: 4px 12px;
-    border-radius: 12px;
-    margin: 0 auto 10px auto;
-    letter-spacing: 0.5px;
-    max-width: 100%;
-    box-sizing: border-box;
-    word-break: keep-all;
-    white-space: normal;
-}
-
-.match-banner-card h2 {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: #ffffff;
-    text-align: center;
-    margin: 0 auto 10px auto;
-    width: 100%;
-    box-sizing: border-box;
-    word-break: keep-all;
-    line-height: 1.35;
-}
-
-.countdown-box {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    gap: 6px;
-    background: rgba(0, 0, 0, 0.4);
-    padding: 9px 12px;
-    border-radius: 10px;
-    color: var(--accent-gold);
-    font-weight: 700;
-    font-size: 0.88rem;
-    margin: 0 auto 14px auto;
-    width: 100%;
-    box-sizing: border-box;
-    word-break: keep-all;
-    line-height: 1.3;
-}
-
-.lobby-action-btns {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    box-sizing: border-box;
-    margin: 0 auto;
-}
-
-/* Prominent Live Entry Button */
-.btn-live-entry-glow {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    background: linear-gradient(90deg, #e11d48, #ef4444);
-    color: #ffffff;
-    border: none;
-    padding: 14px 16px;
-    border-radius: 16px;
-    font-size: 0.95rem;
-    font-weight: 900;
-    cursor: pointer;
-    box-shadow: 0 0 22px rgba(239, 68, 68, 0.5);
-    animation: liveEntryPulse 1.5s infinite alternate;
-    transition: transform 0.2s;
-    word-break: keep-all;
-    line-height: 1.35;
-}
-
-@keyframes liveEntryPulse {
-    from { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); transform: scale(1); }
-    to { box-shadow: 0 0 28px rgba(239, 68, 68, 0.8); transform: scale(1.02); }
-}
 
 .btn-primary-glow {
     width: 100%;
@@ -646,687 +296,11 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     transition: all 0.2s;
 }
 
-.btn-locked {
-    background: rgba(255, 255, 255, 0.08) !important;
-    color: var(--text-sub) !important;
-    box-shadow: none !important;
-    cursor: not-allowed !important;
-}
-
-/* Cookie Run Ranking Hub Card */
-.ranking-hub-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 20px;
-    padding: 16px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.card-header h3 {
-    font-size: 0.95rem;
-}
-
-.card-header .sub-text {
-    font-size: 0.75rem;
-    color: var(--text-sub);
-}
-
-.ranking-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    overflow-y: auto;
-    max-height: 380px;
-}
-
-.rank-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 10px 14px;
-}
-
-.rank-item.my-rank {
-    background: rgba(16, 185, 129, 0.15);
-    border-color: var(--accent-emerald);
-}
-
-.rank-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.rank-num {
-    font-family: var(--font-heading);
-    font-weight: 800;
-    font-size: 1rem;
-    width: 24px;
-    text-align: center;
-}
-.rank-num.r-1 { color: #f59e0b; }
-.rank-num.r-2 { color: #94a3b8; }
-.rank-num.r-3 { color: #b45309; }
-
-.rank-avatar {
-    font-size: 1.4rem;
-}
-
-.rank-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.rank-name {
-    font-size: 0.85rem;
-    font-weight: 700;
-}
-
-.rank-team {
-    font-size: 0.7rem;
-    color: var(--text-sub);
-}
-
-.rank-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.rank-score {
-    font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 0.95rem;
-    color: var(--accent-gold);
-}
-
-/* ==========================================
-   SCREEN 2: IN-GAME SECOND SCREEN
-   ========================================== */
-.scoreboard-header {
-    background: #030712;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    padding: 12px;
-    margin-bottom: 12px;
-}
-
-.scoreboard-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.btn-back {
-    background: rgba(255,255,255,0.08);
-    border: none;
-    color: var(--text-sub);
-    padding: 4px 10px;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    cursor: pointer;
-}
-
-.match-teams-display {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
 .team-name {
     font-weight: 800;
     font-size: 1.1rem;
 }
 
-.score-digital {
-    font-family: var(--font-heading);
-    font-size: 1.6rem;
-    font-weight: 900;
-    color: var(--accent-emerald);
-    letter-spacing: 2px;
-}
-
-.manager-live-score {
-    text-align: right;
-}
-
-.manager-live-score .label {
-    font-size: 0.65rem;
-    color: var(--text-sub);
-    display: block;
-}
-
-.manager-live-score .val {
-    font-family: var(--font-heading);
-    font-size: 0.9rem;
-    color: var(--accent-gold);
-    font-weight: 800;
-}
-
-.scoreboard-sub {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(255,255,255,0.03);
-    padding: 8px 12px;
-    border-radius: 10px;
-}
-
-.inning-badge {
-    background: var(--accent-blue);
-    color: white;
-    font-size: 0.8rem;
-    font-weight: 800;
-    padding: 4px 10px;
-    border-radius: 6px;
-}
-
-/* BSO LEDs */
-.bso-container {
-    display: flex;
-    gap: 10px;
-}
-
-.bso-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.bso-label {
-    font-family: var(--font-heading);
-    font-size: 0.75rem;
-    font-weight: 800;
-}
-.label-b { color: #22c55e; }
-.label-s { color: #eab308; }
-.label-o { color: #ef4444; }
-
-.leds {
-    display: flex;
-    gap: 3px;
-}
-
-.led {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.15);
-}
-.led.active-b { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
-.led.active-s { background: #eab308; box-shadow: 0 0 6px #eab308; }
-.led.active-o { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
-
-/* Mini Runner Diamond */
-.runner-diamond-mini {
-    position: relative;
-    width: 28px;
-    height: 28px;
-    transform: rotate(-45deg);
-    margin: 0 8px;
-}
-
-.runner-diamond-mini .base {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border: 1px solid rgba(255,255,255,0.4);
-    background: rgba(255,255,255,0.1);
-}
-
-.base-1b { right: 0; bottom: 0; }
-.base-2b { right: 0; top: 0; }
-.base-3b { left: 0; top: 0; }
-
-.base.occupied {
-    background: #f59e0b;
-    border-color: #f59e0b;
-    box-shadow: 0 0 6px #f59e0b;
-}
-
-/* Ingame Main */
-.ingame-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    overflow-y: auto;
-}
-
-.field-visual-container {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 16px;
-    padding: 10px;
-}
-
-.duel-info-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(0,0,0,0.4);
-    padding: 8px 12px;
-    border-radius: 10px;
-    margin-bottom: 8px;
-}
-
-.player-box {
-    display: flex;
-    flex-direction: column;
-}
-
-.player-box .role {
-    font-size: 0.65rem;
-    color: var(--text-sub);
-}
-
-.player-box strong {
-    font-size: 0.9rem;
-}
-
-.player-box .detail {
-    font-size: 0.7rem;
-    color: var(--text-sub);
-}
-
-.vs-badge {
-    font-family: var(--font-heading);
-    font-weight: 900;
-    color: #ef4444;
-    font-size: 0.9rem;
-}
-
-.field-stage-wrapper {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    max-height: 380px;
-    background: #064e3b;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
-}
-
-#baseballFieldCanvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-.fielders-overlay-layer {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 5;
-}
-
-.fielder-node {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 6;
-    font-size: 0.7rem;
-    color: #fff;
-    font-weight: 700;
-}
-
-.fielder-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: #ffffff;
-    border: 1.5px solid #ef4444;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-    overflow: hidden;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.fielder-name-pill {
-    background: rgba(15, 23, 42, 0.88);
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 1px 6px;
-    border-radius: 10px;
-    font-size: 0.62rem;
-    font-weight: 700;
-    margin-top: 2px;
-    white-space: nowrap;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.runner-node {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 7;
-}
-
-.runner-avatar {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: #ef4444;
-    border: 2px solid #fef08a;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    color: #ffffff;
-    font-weight: 800;
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.9);
-    animation: pulse-runner 1.5s infinite alternate;
-}
-
-@keyframes pulse-runner {
-    from { transform: scale(1); box-shadow: 0 0 6px rgba(239, 68, 68, 0.6); }
-    to { transform: scale(1.1); box-shadow: 0 0 12px rgba(254, 240, 138, 0.9); }
-}
-
-/* Left-Top Mini Scoreboard Overlay Widget (Compact Minimal Style) */
-.mini-scoreboard-widget {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    z-index: 10;
-    width: 80px;
-    background: rgba(15, 23, 42, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    padding: 4px 5px;
-    backdrop-filter: blur(4px);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-    pointer-events: none;
-}
-
-.mini-score-teams {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    margin-bottom: 3px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    padding-bottom: 2px;
-}
-
-.mini-team-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 0.60rem;
-    color: #ffffff;
-    font-weight: 700;
-}
-
-.mini-team-logo {
-    font-size: 0.65rem;
-    margin-right: 1px;
-}
-
-.mini-team-name {
-    font-size: 0.60rem;
-    flex: 1;
-}
-
-.mini-team-score {
-    font-family: var(--font-heading);
-    font-size: 0.78rem;
-    font-weight: 900;
-    color: #ffffff;
-}
-
-.mini-team-row.away-row .mini-team-score { color: #f87171; }
-.mini-team-row.home-row .mini-team-score { color: #60a5fa; }
-
-.mini-inning-base-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 3px;
-    padding-bottom: 2px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.mini-inning-badge {
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 900;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    gap: 1px;
-}
-
-.mini-inning-badge .dir-arrow {
-    font-size: 0.52rem;
-    color: #ef4444;
-}
-
-.mini-base-diamond {
-    position: relative;
-    width: 16px;
-    height: 16px;
-}
-
-.mini-base-diamond .base {
-    position: absolute;
-    width: 5px;
-    height: 5px;
-    background: rgba(255, 255, 255, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    transform: rotate(45deg);
-    transition: all 0.2s ease;
-}
-
-.mini-base-diamond .base.b1b { right: 1px; top: 5px; }
-.mini-base-diamond .base.b2b { left: 5px; top: 1px; }
-.mini-base-diamond .base.b3b { left: 1px; top: 5px; }
-
-.mini-base-diamond .base.occupied {
-    background: #fef08a !important;
-    border-color: #f59e0b !important;
-    box-shadow: 0 0 5px #f59e0b !important;
-}
-
-.mini-bso-row {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    margin-bottom: 3px;
-    padding-bottom: 2px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.bso-line {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-}
-
-.bso-label {
-    font-weight: 800;
-    font-size: 0.52rem;
-    width: 8px;
-}
-
-.bso-label.font-b { color: #22c55e; }
-.bso-label.font-s { color: #eab308; }
-.bso-label.font-o { color: #ef4444; }
-
-.bso-dots {
-    display: flex;
-    gap: 2px;
-}
-
-.bso-dots .dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.bso-dots .dot.active-b { background: #22c55e; box-shadow: 0 0 3px #22c55e; }
-.bso-dots .dot.active-s { background: #eab308; box-shadow: 0 0 3px #eab308; }
-.bso-dots .dot.active-o { background: #ef4444; box-shadow: 0 0 3px #ef4444; }
-
-.mini-pitcher-info {
-    font-size: 0.54rem;
-    color: #94a3b8;
-    font-weight: 700;
-    line-height: 1.2;
-}
-
-.mini-pitcher-info #mini-p-name {
-    color: #ffffff;
-    font-weight: 800;
-    font-size: 0.58rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.mini-pitcher-info .sub {
-    color: #94a3b8;
-    font-size: 0.52rem;
-}
-
-/* Integrated On-Deck Batters Section inside Mini-Scoreboard Widget */
-.mini-on-deck-section {
-    margin-top: 3px;
-    padding-top: 2px;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.on-deck-title {
-    font-size: 0.52rem;
-    font-weight: 800;
-    color: #94a3b8;
-    margin-bottom: 1px;
-}
-
-.on-deck-list {
-    font-size: 0.55rem;
-    font-weight: 700;
-    line-height: 1.25;
-    color: #e2e8f0;
-}
-
-/* Right-Bottom Floating View Toggle Button */
-.btn-graphic-toggle {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    z-index: 15;
-    background: #ffffff;
-    color: #0f172a;
-    border: none;
-    border-radius: 20px;
-    padding: 6px 14px;
-    font-size: 0.78rem;
-    font-weight: 800;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-    transition: transform 0.2s ease, background 0.2s ease;
-}
-
-.btn-graphic-toggle:hover {
-    transform: scale(1.05);
-    background: #f8fafc;
-}
-
-.btn-graphic-toggle:active {
-    transform: scale(0.96);
-}
-
-
-/* Commentary Feed */
-.commentary-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 16px;
-    padding: 12px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 150px;
-}
-
-.feed-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.8rem;
-    font-weight: 700;
-    margin-bottom: 8px;
-}
-
-.btn-sm {
-    background: rgba(255,255,255,0.08);
-    border: none;
-    color: var(--text-sub);
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: 0.7rem;
-    cursor: pointer;
-}
-
-.commentary-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    overflow-y: auto;
-    max-height: 140px;
-}
-
-.commentary-list li {
-    background: rgba(255,255,255,0.03);
-    padding: 8px 10px;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    line-height: 1.4;
-    border-left: 3px solid var(--accent-emerald);
-}
-
-.ingame-footer {
-    padding-top: 10px;
-}
-
-.btn-secondary {
-    width: 100%;
-    background: rgba(255,255,255,0.06);
-    color: var(--text-main);
-    border: 1px solid var(--card-border);
-    padding: 10px;
-    border-radius: 10px;
-    font-size: 0.85rem;
-    cursor: pointer;
-}
-
-/* ==========================================
-   MODAL: CRISIS DECISION POPUP (Strict 2-Choice)
-   ========================================== */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -1356,240 +330,9 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Compact Mobile Crisis Popup Card Override */
-.crisis-card {
-    max-width: 380px;
-    width: 90%;
-    background: rgba(15, 23, 42, 0.96);
-    border: 2px solid rgba(239, 68, 68, 0.85);
-    border-radius: 18px;
-    padding: 14px 16px;
-    box-shadow: 0 15px 40px rgba(239, 68, 68, 0.35);
-    backdrop-filter: blur(16px);
-}
-
 @keyframes popIn {
     from { transform: scale(0.85); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
-}
-
-.crisis-siren-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    margin-bottom: 8px;
-}
-
-.siren-light {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #ef4444;
-    box-shadow: 0 0 8px #ef4444;
-    animation: sirenPulse 0.8s infinite alternate;
-}
-
-@keyframes sirenPulse {
-    from { opacity: 0.3; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1.2); }
-}
-
-.crisis-siren-header h3 {
-    color: #ef4444;
-    font-size: 0.95rem;
-    font-weight: 800;
-    margin: 0;
-}
-
-.timer-bar-wrapper {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 6px 10px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-}
-
-.timer-text {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.7rem;
-    color: var(--text-sub);
-    margin-bottom: 3px;
-}
-
-.timer-text strong {
-    color: var(--accent-gold);
-    font-family: var(--font-heading);
-}
-
-.progress-bar-bg {
-    width: 100%;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.progress-bar-fill {
-    height: 100%;
-    width: 100%;
-    background: linear-gradient(90deg, #f59e0b, #ef4444);
-    transition: width 1s linear;
-}
-
-.crisis-pitcher-status-box {
-    background: rgba(15, 23, 42, 0.85);
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    border-radius: 12px;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.crisis-status-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.8rem;
-    color: #e2e8f0;
-}
-
-.crisis-status-row .lbl {
-    color: #94a3b8;
-    font-size: 0.78rem;
-}
-
-.crisis-status-row .val-pitcher {
-    color: #38bdf8;
-    font-weight: 800;
-}
-
-.crisis-status-row .val-count {
-    color: #f59e0b;
-    font-weight: 800;
-}
-
-.crisis-status-row .val-cond-badge {
-    background: rgba(239, 68, 68, 0.2);
-    color: #fca5a5;
-    border: 1px solid rgba(239, 68, 68, 0.5);
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
-.crisis-desc-text {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #f8fafc;
-    text-align: center;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 8px 12px;
-    border-radius: 10px;
-    margin-bottom: 8px;
-    letter-spacing: 0.3px;
-    line-height: 1.35;
-}
-
-/* High-Contrast Bold 2-Split Tactics Block Buttons (Compact) */
-.tactics-options-bold {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin: 8px 0 6px 0;
-    width: 100%;
-}
-
-.btn-tactic-block {
-    width: 100%;
-    min-height: 46px;
-    padding: 10px 14px;
-    border-radius: 12px;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    box-sizing: border-box;
-}
-
-.btn-tactic-block:active {
-    transform: scale(0.97);
-}
-
-.btn-block-text {
-    font-size: 1.05rem;
-    font-weight: 900;
-    color: #ffffff;
-    letter-spacing: 1px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-/* Button 1: [ 투수 교체한다 ] (Vivid Electric Blue Block) */
-.btn-pitcher-change {
-    background: linear-gradient(135deg, #0284c7, #2563eb);
-    border: 1.5px solid #38bdf8;
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.45);
-}
-
-.btn-pitcher-change:hover {
-    background: linear-gradient(135deg, #0369a1, #1d4ed8);
-    box-shadow: 0 6px 20px rgba(56, 189, 248, 0.65);
-    transform: translateY(-1px);
-}
-
-/* Button 2: [ 믿고 그대로 간다 ] (Vivid Flame Red/Orange Block) */
-.btn-stay-pitcher {
-    background: linear-gradient(135deg, #ea580c, #dc2626);
-    border: 1.5px solid #f87171;
-    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.45);
-}
-
-.btn-stay-pitcher:hover {
-    background: linear-gradient(135deg, #c2410c, #b91c1c);
-    box-shadow: 0 6px 20px rgba(248, 113, 113, 0.65);
-    transform: translateY(-1px);
-}
-
-.pass-note {
-    font-size: 0.65rem;
-    color: var(--text-sub);
-    text-align: center;
-    margin-top: 2px;
-}
-
-/* ==========================================
-   SCREEN 3: POST-GAME SETTLEMENT
-   ========================================== */
-.settlement-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 20px;
-    padding: 24px 16px;
-    text-align: center;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-.trophy-header .trophy-icon {
-    font-size: 3rem;
-}
-
-.trophy-header h2 {
-    font-size: 1.4rem;
-    margin-top: 6px;
-}
-
-.trophy-header .subtitle {
-    font-size: 0.8rem;
-    color: var(--text-sub);
 }
 
 .grade-banner {
@@ -1625,37 +368,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     color: var(--text-sub);
 }
 
-.score-summary-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.summary-box {
-    background: rgba(0,0,0,0.3);
-    padding: 12px;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-}
-
-.summary-box .lbl {
-    font-size: 0.7rem;
-    color: var(--text-sub);
-}
-
-.summary-box strong {
-    font-size: 1.1rem;
-    color: var(--accent-gold);
-}
-
-.action-btn-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
 .btn-kakao {
     background: var(--accent-kakao);
     color: #181600;
@@ -1667,17 +379,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     cursor: pointer;
 }
 
-.btn-secondary-glow {
-    background: rgba(255,255,255,0.1);
-    color: white;
-    border: 1px solid rgba(255,255,255,0.2);
-    padding: 12px;
-    border-radius: 14px;
-    font-size: 0.9rem;
-    cursor: pointer;
-}
-
-/* Toast Notification */
 .toast-container {
     position: absolute;
     bottom: 20px;
@@ -1706,49 +407,10 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* ==========================================
-   AUTHENTICATION & USER FRIEND SEARCH STYLES
-   ========================================== */
 .auth-card {
     max-width: 420px;
     width: 92%;
     padding: 24px;
-}
-
-.auth-tabs {
-    display: flex;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 12px;
-    padding: 4px;
-    margin-bottom: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.auth-tab-btn {
-    flex: 1;
-    background: transparent;
-    border: none;
-    color: var(--text-sub);
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.auth-tab-btn.active {
-    background: var(--accent-emerald);
-    color: #ffffff;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
-}
-
-.auth-panel {
-    display: none;
-}
-
-.auth-panel.active {
-    display: block;
 }
 
 .auth-form {
@@ -1788,194 +450,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
 }
 
-.identity-box {
-    background: rgba(16, 185, 129, 0.05);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    padding: 12px;
-    border-radius: 12px;
-}
-
-.btn-verify {
-    background: linear-gradient(135deg, #0284c7, #0369a1);
-    color: white;
-    border: none;
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    cursor: pointer;
-    width: 100%;
-    transition: transform 0.1s ease;
-}
-
-.btn-verify:active {
-    transform: scale(0.98);
-}
-
-.verify-badge {
-    margin-top: 8px;
-    background: rgba(16, 185, 129, 0.2);
-    color: var(--accent-emerald);
-    border: 1px solid var(--accent-emerald);
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    text-align: center;
-}
-
-.verify-badge.hidden {
-    display: none;
-}
-
-.checkbox-group {
-    margin-top: 4px;
-}
-
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.75rem;
-    color: var(--text-sub);
-    cursor: pointer;
-}
-
-.checkbox-label input {
-    accent-color: var(--accent-emerald);
-    width: 16px;
-    height: 16px;
-}
-
-.btn-auth-submit {
-    margin-top: 10px;
-    padding: 14px;
-    font-size: 0.95rem;
-}
-
-.guest-fallback {
-    margin-top: 16px;
-    text-align: center;
-}
-
-.btn-guest-link {
-    background: transparent;
-    border: none;
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 0.75rem;
-    cursor: pointer;
-    text-decoration: underline;
-}
-
-/* Friend Search Box in Lobby */
-.btn-search-toggle {
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--accent-emerald);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.friend-search-box {
-    display: none;
-    background: rgba(15, 23, 42, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    padding: 12px;
-    margin: 10px 0 16px 0;
-}
-
-.friend-search-box.active {
-    display: block;
-}
-
-.search-input-group {
-    display: flex;
-    gap: 8px;
-}
-
-.search-input-group input {
-    flex: 1;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: white;
-    padding: 9px 12px;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    outline: none;
-}
-
-.btn-search-submit {
-    background: var(--accent-emerald);
-    color: white;
-    border: none;
-    padding: 9px 16px;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 0.85rem;
-    cursor: pointer;
-}
-
-.search-results-list {
-    margin-top: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-.search-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.04);
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.search-item-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.search-item-name {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: white;
-}
-
-.search-item-team {
-    font-size: 0.72rem;
-    color: var(--text-sub);
-}
-
-.btn-add-friend {
-    background: rgba(16, 185, 129, 0.2);
-    color: var(--accent-emerald);
-    border: 1px solid var(--accent-emerald);
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.btn-add-friend.added {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.4);
-    border-color: rgba(255, 255, 255, 0.2);
-    cursor: default;
-}
-
-/* ==========================================
-   CLEAN LANDING UI & AUTH MODAL STYLES
-   ========================================== */
 .landing-card {
     background: rgba(15, 23, 42, 0.92);
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -2089,18 +563,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     border-color: rgba(255, 255, 255, 0.35);
 }
 
-/* Auth Modal Specific Styling */
-.auth-modal-card {
-    max-width: 400px;
-    width: 90%;
-    padding: 24px;
-    background: rgba(15, 23, 42, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 20px;
-    backdrop-filter: blur(24px);
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
-}
-
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -2156,153 +618,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     color: white;
 }
 
-/* ==========================================
-   Tactic Result Feedback Modal Styling
-   ========================================== */
-.result-feedback-card {
-    max-width: 420px;
-    width: 90%;
-    padding: 24px;
-    background: rgba(15, 23, 42, 0.96);
-    border: 1px solid rgba(139, 92, 246, 0.4);
-    border-radius: 20px;
-    backdrop-filter: blur(24px);
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
-    text-align: center;
-}
-
-.result-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-.result-icon {
-    font-size: 1.5rem;
-}
-
-.result-header h3 {
-    font-size: 1.2rem;
-    font-weight: 800;
-    color: #fff;
-    margin: 0;
-}
-
-.result-grade-box {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
-    padding: 14px;
-    margin-bottom: 16px;
-}
-
-.result-badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
-    font-size: 1.8rem;
-    font-weight: 900;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-}
-
-.result-badge.grade-s { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
-.result-badge.grade-a { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
-.result-badge.grade-b { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; }
-.result-badge.grade-c { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff; }
-.result-badge.grade-f { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
-
-.result-score-change {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-.result-score-change .lbl {
-    font-size: 0.75rem;
-    color: var(--text-sub);
-}
-
-.result-score-change strong {
-    font-size: 1.4rem;
-    font-weight: 900;
-}
-
-.delta-plus { color: #10b981; }
-.delta-minus { color: #ef4444; }
-.delta-zero { color: #94a3b8; }
-
-.comparison-box {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    text-align: left;
-}
-
-.cmp-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.88rem;
-}
-
-.cmp-label {
-    color: var(--text-sub);
-}
-
-.cmp-val {
-    color: #fff;
-    font-weight: 700;
-}
-
-.result-commentary {
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    color: #34d399;
-    padding: 12px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin-bottom: 18px;
-    line-height: 1.4;
-}
-
-.btn-close-result {
-    width: 100%;
-    margin-top: 4px;
-}
-
-.live-sim-log {
-    background: rgba(59, 130, 246, 0.15) !important;
-    border-left: 3px solid #3b82f6 !important;
-    color: #93c5fd !important;
-    font-weight: 600 !important;
-}
-
-/* ==========================================
-   2026 KBO SCHEDULE HUB & MATCHUP CARD STYLES (Reference Image Style)
-   ========================================== */
-.schedule-hub-container {
-    background: #090d16;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    padding: 16px 12px;
-    margin-bottom: 24px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
 .schedule-sub-nav {
     display: flex;
     gap: 4px;
@@ -2333,227 +648,10 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
 }
 
-.sched-month-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    margin-bottom: 14px;
-}
-
-.month-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.btn-month-nav {
-    background: transparent;
-    border: none;
-    color: #ffffff;
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 0 6px;
-}
-
-.month-title {
-    font-size: 1.15rem;
-    font-weight: 900;
-    color: #ffffff;
-    cursor: pointer;
-}
-
-.btn-recent-sched {
-    position: absolute;
-    right: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.12);
-    color: #94a3b8;
-    border: none;
-    border-radius: 14px;
-    padding: 4px 12px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.btn-recent-sched:hover {
-    background: rgba(255, 255, 255, 0.25);
-    color: #ffffff;
-}
-
-/* Horizontal Date Picker Bar */
-.sched-date-picker-wrap {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 18px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding-bottom: 8px;
-}
-
-.btn-date-arrow {
-    background: rgba(255, 255, 255, 0.06);
-    border: none;
-    color: #94a3b8;
-    width: 26px;
-    height: 36px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.btn-date-arrow:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
-}
-
-.sched-date-scroll-container {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    overflow-x: auto;
-    scroll-behavior: smooth;
-    flex: 1;
-    padding: 4px 0;
-    scrollbar-width: none;
-}
-
-.sched-date-scroll-container::-webkit-scrollbar {
-    display: none;
-}
-
-.date-pill-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-width: 32px;
-    cursor: pointer;
-    padding: 4px 0;
-    transition: all 0.2s ease;
-    border-bottom: 2px solid transparent;
-}
-
-.date-pill-item .dow {
-    font-size: 0.65rem;
-    color: #64748b;
-    font-weight: 700;
-    margin-bottom: 2px;
-}
-
-.date-pill-item .day-num {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: #94a3b8;
-}
-
-.date-pill-item.active {
-    border-bottom: 2px solid #38bdf8;
-}
-
-.date-pill-item.active .dow {
-    color: #38bdf8;
-    font-weight: 900;
-}
-
-.date-pill-item.active .day-num {
-    color: #38bdf8;
-    font-weight: 900;
-}
-
-/* Daily Matchup Cards */
 .sched-matchup-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
-}
-
-.matchup-card {
-    background: rgba(15, 23, 42, 0.65);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 12px;
-    padding: 12px 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: all 0.2s ease;
-}
-
-.matchup-card:hover {
-    background: rgba(30, 41, 59, 0.85);
-    border-color: rgba(56, 189, 248, 0.3);
-}
-
-.matchup-card-left {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    flex: 1;
-}
-
-.matchup-meta-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.78rem;
-}
-
-.status-badge-cyan {
-    background: #0284c7;
-    color: #ffffff;
-    font-size: 0.62rem;
-    font-weight: 800;
-    padding: 2px 6px;
-    border-radius: 4px;
-}
-
-.status-badge-gray {
-    background: #475569;
-    color: #e2e8f0;
-    font-size: 0.62rem;
-    font-weight: 800;
-    padding: 2px 6px;
-    border-radius: 4px;
-}
-
-.match-time-stadium {
-    color: #e2e8f0;
-    font-weight: 800;
-    font-size: 0.82rem;
-}
-
-.match-stadium-name {
-    color: #94a3b8;
-    font-size: 0.78rem;
-    margin-left: 2px;
-}
-
-.matchup-teams-block {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.matchup-team-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: #ffffff;
-}
-
-.matchup-team-logo {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 4px;
 }
 
 .team-logo-img {
@@ -2563,48 +661,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     max-width: 28px;
     object-fit: contain;
     vertical-align: middle;
-}
-
-.team-icon-img {
-    width: 38px;
-    height: 38px;
-    object-fit: contain;
-    margin-right: 10px;
-    flex-shrink: 0;
-}
-
-.matchup-team-logo-img {
-    width: 24px;
-    height: 22px;
-    object-fit: contain;
-    vertical-align: middle;
-}
-
-.mini-team-logo-img {
-    width: 20px;
-    height: 18px;
-    object-fit: contain;
-    vertical-align: middle;
-}
-
-.sb-team-logo-img {
-    width: 24px;
-    height: 22px;
-    object-fit: contain;
-    vertical-align: middle;
-    margin: 0 4px;
-}
-
-.matchup-team-name {
-    font-weight: 800;
-    color: #ffffff;
-}
-
-.matchup-pitcher-name {
-    font-size: 0.75rem;
-    color: #cbd5e1;
-    margin-left: 6px;
-    font-weight: 600;
 }
 
 .home-tag {
@@ -2620,339 +676,8 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     vertical-align: middle;
 }
 
-.btn-matchup-action {
-    background: rgba(15, 23, 42, 0.8);
-    color: #e2e8f0;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
-    padding: 8px 14px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-    margin-left: 12px;
-}
-
-.btn-matchup-action:hover {
-    background: #0284c7;
-    color: #ffffff;
-    border-color: #38bdf8;
-    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
-}
     border-color: #60a5fa;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.schedule-list-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    max-height: 420px;
-    overflow-y: auto;
-    padding-right: 4px;
-}
-
-.schedule-item-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: all 0.2s ease;
-}
-
-.schedule-item-card:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(96, 165, 250, 0.4);
-}
-
-.schedule-item-card.is-today {
-    background: rgba(59, 130, 246, 0.12);
-    border: 1px solid rgba(96, 165, 250, 0.5);
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
-}
-
-.schedule-item-card.is-rest {
-    background: rgba(239, 68, 68, 0.08);
-    border-color: rgba(239, 68, 68, 0.3);
-}
-
-.sched-left {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-}
-
-.sched-date-badge {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,0.3);
-    padding: 6px 10px;
-    border-radius: 10px;
-    min-width: 68px;
-}
-
-.sched-date {
-    font-size: 0.85rem;
-    font-weight: 800;
-    color: var(--text-main);
-}
-
-.sched-dow {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--accent-gold);
-}
-
-.sched-info {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-}
-
-.sched-matchup {
-    font-size: 0.95rem;
-    font-weight: 800;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.sched-stadium-tag {
-    font-size: 0.72rem;
-    background: rgba(255, 255, 255, 0.1);
-    color: #94a3b8;
-    padding: 2px 6px;
-    border-radius: 6px;
-    font-weight: 600;
-}
-
-.sched-time-tag {
-    font-size: 0.75rem;
-    color: #60a5fa;
-    font-weight: 700;
-}
-
-.btn-select-match {
-    background: rgba(59, 130, 246, 0.2);
-    border: 1px solid rgba(59, 130, 246, 0.4);
-    color: #93c5fd;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-select-match:hover {
-    background: #3b82f6;
-    color: #fff;
-}
-
-/* ==========================================
-   NAVER SPORTS BASEBALL LIVE FEED UI STYLES
-   ========================================== */
-.naver-commentary-card {
-    background: #0d131f;
-    border: 1px solid #1e293b;
-    border-radius: 20px;
-    padding: 16px;
-    margin-top: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-}
-
-/* 1. Fixed Current Batter Profile Header */
-.batter-profile-header-card {
-    background: #131b2e;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 12px 16px;
-    margin-top: 12px;
-    margin-bottom: 10px;
-}
-
-.batter-header-flex {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.batter-avatar-box {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #1e293b, #3b82f6);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 1.4rem;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-    flex-shrink: 0;
-}
-
-.batter-info-box {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.batter-name-row {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-}
-
-.batter-name-text {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: #ffffff;
-}
-
-.batter-meta-text {
-    font-size: 0.8rem;
-    color: #94a3b8;
-    font-weight: 600;
-}
-
-.batter-stats-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 5px;
-    font-size: 0.76rem;
-    color: #cbd5e1;
-}
-
-.batter-stats-row strong {
-    color: #ffffff;
-    font-weight: 700;
-}
-
-.batter-stats-row .sep {
-    color: rgba(255, 255, 255, 0.25);
-    font-size: 0.68rem;
-}
-
-/* 2. At-Bat Result Statement Banner (Excludes Win Probability) */
-.at-bat-result-banner {
-    background: rgba(30, 41, 59, 0.85);
-    border-left: 4px solid #38bdf8;
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 12px;
-}
-
-.result-statement-text {
-    font-size: 0.92rem;
-    color: #ffffff;
-    line-height: 1.4;
-}
-
-.result-statement-text strong {
-    color: #f8fafc;
-    font-weight: 800;
-}
-
-/* 3. Pitch Timeline Stack (1, 2, 3구...) */
-.pitch-timeline-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #0f172a;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 9px 13px;
-    margin-bottom: 6px;
-    transition: all 0.2s ease;
-}
-
-.pitch-timeline-row:hover {
-    background: #1e293b;
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-.pitch-badge-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.pitch-num-circle {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 800;
-    color: #ffffff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-}
-
-.badge-blue .pitch-num-circle { background: #3b82f6; }
-.badge-orange .pitch-num-circle { background: #f59e0b; }
-.badge-green .pitch-num-circle { background: #10b981; }
-.badge-red .pitch-num-circle { background: #ef4444; }
-
-.pitch-result-label {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #ffffff;
-}
-
-.pitch-detail-desc {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.82rem;
-    color: #94a3b8;
-}
-
-.pitch-speed-type {
-    color: #e2e8f0;
-    font-weight: 600;
-}
-
-.pitch-count-split {
-    color: #64748b;
-    font-weight: 600;
-}
-
-.feed-title-box {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.live-indicator-dot {
-    width: 9px;
-    height: 9px;
-    background: #ef4444;
-    border-radius: 50%;
-    box-shadow: 0 0 10px #ef4444;
-    animation: pulse 1.5s infinite;
-}
-
-.feed-title {
-    font-size: 0.9rem;
-    font-weight: 800;
-    color: #f8fafc;
-    letter-spacing: -0.2px;
 }
 
 .btn-pitch-step {
@@ -2967,236 +692,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
-.naver-live-feed-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    max-height: 520px;
-    overflow-y: auto;
-    padding-right: 4px;
-    margin-top: 12px;
-}
-
-.naver-batter-card {
-    background: #131b2e;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
-    transition: border-color 0.2s;
-}
-
-.naver-batter-card:hover {
-    border-color: rgba(96, 165, 250, 0.4);
-}
-
-.batter-card-header {
-    background: rgba(255, 255, 255, 0.04);
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.batter-profile-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.batter-avatar-circle {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #1e293b, #334155);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 1.3rem;
-    border: 2px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-
-.batter-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.batter-name-row {
-    font-size: 1.02rem;
-    font-weight: 800;
-    color: #f8fafc;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.batter-order-avg {
-    font-size: 0.78rem;
-    color: #94a3b8;
-    font-weight: 600;
-}
-
-.batter-stats-bar {
-    font-size: 0.74rem;
-    color: #64748b;
-    font-weight: 600;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 2px;
-}
-
-.btn-pitch-location {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #94a3b8;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 0.74rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-pitch-location:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.3);
-}
-
-.batter-card-body {
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.play-summary-box {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #f1f5f9;
-    line-height: 1.5;
-    background: rgba(255, 255, 255, 0.03);
-    padding: 8px 12px;
-    border-radius: 8px;
-    border-left: 3px solid #3b82f6;
-}
-
-.win-prob-line {
-    font-size: 0.88rem;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
-}
-
-.win-prob-team {
-    color: #e2e8f0;
-}
-
-.win-prob-delta.up {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.12);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 800;
-}
-
-.win-prob-delta.down {
-    color: #3b82f6;
-    background: rgba(59, 130, 246, 0.12);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 800;
-}
-
-.pitch-detail-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 4px;
-}
-
-.pitch-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    font-size: 0.84rem;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    margin-bottom: 6px;
-    transition: background 0.2s;
-}
-
-.pitch-item:hover {
-    background: rgba(255, 255, 255, 0.06);
-}
-
-.pitch-num-badge {
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: #fff;
-    flex-shrink: 0;
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.pitch-num-badge.ball { background: #10b981; }
-.pitch-num-badge.strike { background: #3b82f6; }
-.pitch-num-badge.foul { background: #f59e0b; }
-.pitch-num-badge.hit { background: #ef4444; }
-.pitch-num-badge.out { background: #64748b; }
-
-.pitch-info-col {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-}
-
-.pitch-text-stream {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #f1f5f9;
-    line-height: 1.4;
-}
-
-.pitch-tags-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.78rem;
-}
-
-.pitch-res-name.ball { color: #34d399; font-weight: 700; }
-.pitch-res-name.strike { color: #60a5fa; font-weight: 700; }
-.pitch-res-name.foul { color: #fbbf24; font-weight: 700; }
-.pitch-res-name.hit { color: #f87171; font-weight: 800; }
-.pitch-res-name.out { color: #94a3b8; font-weight: 700; }
-
-.pitch-speed-type {
-    color: #94a3b8;
-    font-weight: 600;
-}
-
-.pitch-count-tag {
-    color: #94a3b8 !important;
-    font-weight: 700;
-    margin-left: auto;
-}
-
-/* Explicit Text Stream Container & High Contrast Log Card Styles */
-#text-stream, .text-stream-box, .scrollable-feed {
+#text-stream{
     display: flex !important;
     flex-direction: column !important;
     gap: 10px !important;
@@ -3206,143 +702,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     padding-right: 6px !important;
 }
 
-.stream-session-header {
-    background: rgba(255, 255, 255, 0.06) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    border-radius: 8px !important;
-    padding: 8px 12px !important;
-    color: #38bdf8 !important;
-    font-size: 0.86rem !important;
-    font-weight: 700 !important;
-    margin-top: 8px !important;
-    display: block !important;
-}
-
-.stream-session-header .stats-sub {
-    color: #94a3b8 !important;
-    font-weight: 600 !important;
-    font-size: 0.78rem !important;
-}
-
-.stream-log-card {
-    background: #0f172a !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    border-left: 5px solid #3b82f6 !important;
-    border-radius: 10px !important;
-    padding: 12px 14px !important;
-    color: #ffffff !important;
-    font-size: 0.94rem !important;
-    line-height: 1.5 !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    display: block !important;
-}
-
-.stream-log-card.default-log {
-    border-left-color: #10b981 !important;
-    background: rgba(16, 185, 129, 0.1) !important;
-}
-
-.stream-log-card.summary-log {
-    border-left-color: #f59e0b !important;
-    background: rgba(245, 158, 11, 0.1) !important;
-}
-
-.stream-log-card.pitch-card.strike { border-left-color: #3b82f6 !important; }
-.stream-log-card.pitch-card.ball { border-left-color: #10b981 !important; }
-.stream-log-card.pitch-card.foul { border-left-color: #f59e0b !important; }
-.stream-log-card.pitch-card.hit { border-left-color: #ef4444 !important; }
-.stream-log-card.pitch-card.out { border-left-color: #64748b !important; }
-
-.stream-log-card .sub-text {
-    font-size: 0.84rem !important;
-    color: #cbd5e1 !important;
-    margin-top: 6px !important;
-    display: block !important;
-}
-
-.log-top-row {
-    display: flex !important;
-    align-items: center !important;
-    gap: 10px !important;
-    width: 100% !important;
-}
-
-.pitch-badge {
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 0.76rem;
-    font-weight: 800;
-    color: #ffffff !important;
-    white-space: nowrap;
-}
-
-.pitch-badge.strike { background: #3b82f6 !important; }
-.pitch-badge.ball { background: #10b981 !important; }
-.pitch-badge.foul { background: #f59e0b !important; }
-.pitch-badge.hit { background: #ef4444 !important; }
-.pitch-badge.out { background: #64748b !important; }
-
-.pitch-text-main {
-    color: #ffffff !important;
-    font-weight: 700 !important;
-    font-size: 0.94rem !important;
-    flex: 1 !important;
-}
-
-.count-tag {
-    color: #94a3b8 !important;
-    font-weight: 700 !important;
-    font-size: 0.8rem !important;
-    white-space: nowrap !important;
-    margin-left: auto !important;
-}
-
-.win-prob-tag {
-    color: #f43f5e !important;
-    font-weight: 700 !important;
-    font-size: 0.82rem !important;
-}
-
-/* Broadcast Player Screen Header Bar */
-.broadcast-player-bar {
-    background: rgba(15, 23, 42, 0.95);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 8px 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 0.78rem;
-    color: #94a3b8;
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-}
-
-.live-tag-pulsing {
-    background: #ef4444;
-    color: #ffffff !important;
-    font-size: 0.72rem;
-    font-weight: 800;
-    padding: 2px 8px;
-    border-radius: 4px;
-    animation: livePulse 1.8s infinite;
-}
-
-@keyframes livePulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-}
-
-.broadcast-title-text {
-    font-weight: 700;
-    color: #e2e8f0;
-}
-
-/* ==========================================
-   LOBBY BOTTOM TAB BAR & TAB PANES STYLES (STRICT SLIM COMPACT OVERRIDE)
-   ========================================== */
 #pregame-view {
     padding-bottom: 92px !important;
 }
@@ -3361,9 +720,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* ==========================================================================
-   하단 탭 바 — 야구 게임 스타일 (홈플레이트·다이아몬드·배트·트로피 아이콘)
-   ========================================================================== */
 .bottom-nav-bar {
     position: absolute !important;
     bottom: 0 !important;
@@ -3385,7 +741,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     align-items: stretch !important;
     z-index: 9000 !important;
 }
-/* 위쪽 경계: 그라운드 라인처럼 은은한 초록 빛 */
+
 .bottom-nav-bar::before {
     content: '';
     position: absolute;
@@ -3396,13 +752,11 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.7), transparent);
 }
 
-/* 로그인 화면(미로그인) 상태에서는 하단 바 숨김 */
 .bottom-nav-bar.hidden,
 #login-screen.active ~ .bottom-nav-bar {
     display: none !important;
 }
 
-/* 로그인 완료 후 메인 로비 또는 게임 화면 진입 시 하단 바 정상 노출 */
 .bottom-nav-bar.visible,
 #pregame-view.active ~ .bottom-nav-bar:not(.hidden),
 #ingame-view.active ~ .bottom-nav-bar:not(.hidden) {
@@ -3464,7 +818,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     white-space: nowrap;
 }
 
-/* 선택된 탭: 초록 배지 + 위쪽에 야구공 실밥 무늬 */
 .bottom-nav-item.active {
     color: #d1fae5 !important;
 }
@@ -3486,305 +839,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     background: repeating-linear-gradient(90deg, #ef4444 0 4px, transparent 4px 7px);
 }
 
-/* Records Hub Card Styles */
-.records-hub-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 20px;
-    padding: 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    text-align: center;
-}
-
-.records-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin: 16px 0;
-}
-
-.records-stats-grid .stat-box {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 12px 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-}
-
-.records-stats-grid .stat-num {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: #38bdf8;
-}
-
-.records-stats-grid .stat-label {
-    font-size: 0.72rem;
-    color: #94a3b8;
-    font-weight: 600;
-}
-
-.history-list-section {
-    margin-top: 16px;
-    text-align: left;
-}
-
-.history-list-section .section-title {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #e2e8f0;
-    margin-bottom: 10px;
-}
-
-.history-item-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.history-item-left {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.history-item-title {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #ffffff;
-}
-
-.history-item-sub {
-    font-size: 0.75rem;
-    color: #94a3b8;
-}
-
-.history-item-grade {
-    font-weight: 800;
-    font-size: 0.85rem;
-    padding: 2px 8px;
-    border-radius: 6px;
-}
-
-.history-item-grade.grade-s { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-.history-item-grade.grade-a { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-.history-item-grade.grade-b { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-.history-item-grade.grade-c { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
-.history-item-grade.grade-f { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-
-/* At-Bat History Archive & Final Result Title Styles */
-.at-bat-history-block {
-    background: #0f172a !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    border-radius: 10px !important;
-    padding: 12px 14px !important;
-    margin-bottom: 10px !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
-}
-
-.at-bat-final-result-title {
-    font-size: 0.98rem !important;
-    font-weight: 800 !important;
-    color: #ffffff !important;
-    padding-bottom: 10px !important;
-    margin-bottom: 10px !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    line-height: 1.4 !important;
-    word-break: keep-all !important;
-}
-
-.at-bat-final-result-title .result-title-icon {
-    font-size: 1.1rem !important;
-}
-
-.at-bat-final-result-title .result-title-text {
-    color: #f8fafc !important;
-    font-weight: 800 !important;
-}
-
-.at-bat-block-header {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    padding-bottom: 8px !important;
-    margin-bottom: 8px !important;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.1) !important;
-}
-
-.at-bat-active-tag {
-    font-size: 0.88rem !important;
-    font-weight: 700 !important;
-    color: #38bdf8 !important;
-}
-
-.at-bat-status-badge {
-    font-size: 0.75rem !important;
-    font-weight: 700 !important;
-    color: #10b981 !important;
-    background: rgba(16, 185, 129, 0.15) !important;
-    border: 1px solid rgba(16, 185, 129, 0.3) !important;
-    padding: 2px 8px !important;
-    border-radius: 12px !important;
-}
-
-/* ==========================================
-   INNING TAB BAR & HALF-INNING DIVIDERS
-   ========================================== */
-.inning-tab-scroll-wrapper {
-    width: 100%;
-    overflow-x: auto;
-    padding: 8px 4px;
-    margin-bottom: 10px;
-    background: #090d16;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    -webkit-overflow-scrolling: touch;
-}
-
-.inning-tab-scroll-wrapper::-webkit-scrollbar {
-    height: 4px;
-}
-
-.inning-tab-scroll-wrapper::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-}
-
-.inning-tab-scroll-bar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: max-content;
-}
-
-.inning-tab-pill {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #94a3b8;
-    font-size: 0.78rem;
-    font-weight: 700;
-    padding: 6px 14px;
-    border-radius: 20px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-}
-
-.inning-tab-pill:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: #ffffff;
-}
-
-.inning-tab-pill.active {
-    background: #3b82f6 !important;
-    color: #ffffff !important;
-    border-color: #60a5fa !important;
-    font-weight: 800 !important;
-    box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4) !important;
-}
-
-.half-inning-divider {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 14px;
-    margin: 14px 0 10px 0;
-    border-radius: 8px;
-    font-size: 0.82rem;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    word-break: keep-all;
-}
-
-.half-inning-divider.top-divider {
-    background: rgba(59, 130, 246, 0.12);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.half-inning-divider.bottom-divider {
-    background: rgba(239, 68, 68, 0.12);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-/* Timeline Pitcher Change Banner Card */
-.pitcher-change-timeline-banner {
-    background: linear-gradient(135deg, rgba(2, 132, 199, 0.25), rgba(37, 99, 235, 0.25));
-    border: 1.5px solid rgba(56, 189, 248, 0.65);
-    border-radius: 12px;
-    padding: 10px 14px;
-    margin: 10px 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    box-shadow: 0 4px 16px rgba(2, 132, 199, 0.25);
-    backdrop-filter: blur(8px);
-}
-
-.pitcher-change-timeline-banner.is-keep {
-    background: linear-gradient(135deg, rgba(234, 88, 12, 0.2), rgba(220, 38, 38, 0.2));
-    border-color: rgba(248, 113, 113, 0.65);
-    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.25);
-}
-
-.pitcher-change-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.pitcher-change-badge {
-    background: #0284c7;
-    color: #ffffff;
-    font-size: 0.75rem;
-    font-weight: 800;
-    padding: 3px 9px;
-    border-radius: 6px;
-    letter-spacing: 0.5px;
-}
-
-.pitcher-change-timeline-banner.is-keep .pitcher-change-badge {
-    background: #ea580c;
-}
-
-.pitcher-change-names {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #f1f5f9;
-}
-
-.new-p-highlight {
-    color: #38bdf8;
-    font-size: 0.92rem;
-    font-weight: 900;
-}
-
-.pitcher-change-timeline-banner.is-keep .new-p-highlight {
-    color: #fb923c;
-}
-
-.pitcher-change-desc {
-    font-size: 0.78rem;
-    color: #cbd5e1;
-    line-height: 1.35;
-    font-weight: 600;
-}
-
-/* ==========================================================================
-   KBO Official Standings Component (KBO 정규시즌 팀 순위표 - Dark Theme UI/UX)
-   ========================================================================== */
 .kbo-standings-container {
     background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
     color: #f8fafc;
@@ -3794,275 +848,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.08);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-.standings-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    margin-bottom: 20px;
-    position: relative;
-}
-
-.season-select-btn {
-    background: rgba(30, 41, 59, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #f1f5f9;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-weight: 700;
-    font-size: 0.82rem;
-    cursor: pointer;
-    outline: none;
-    transition: all 0.2s ease;
-}
-
-.season-select-btn:hover {
-    background: rgba(51, 65, 85, 0.9);
-    border-color: rgba(255, 255, 255, 0.25);
-}
-
-.year-navigator {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.year-nav-btn {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    font-size: 1.25rem;
-    cursor: pointer;
-    font-weight: bold;
-    padding: 0 4px;
-    transition: color 0.2s ease;
-}
-
-.year-nav-btn:hover {
-    color: #38bdf8;
-}
-
-.year-title {
-    font-size: 1.35rem;
-    font-weight: 900;
-    color: #ffffff;
-    letter-spacing: -0.5px;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
-.standings-info-btn {
-    color: #94a3b8;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    margin-left: auto;
-    transition: color 0.2s ease;
-}
-
-.standings-info-btn:hover {
-    color: #38bdf8;
-}
-
-.standings-sub-tabs {
-    display: flex;
-    justify-content: space-around;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    margin-bottom: 18px;
-}
-
-.standings-tab-btn {
-    background: transparent;
-    border: none;
-    padding: 10px 14px;
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #94a3b8;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s ease;
-}
-
-.standings-tab-btn:hover {
-    color: #cbd5e1;
-}
-
-.standings-tab-btn.active {
-    color: #ffffff;
-    font-weight: 900;
-}
-
-.standings-tab-btn.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background: linear-gradient(90deg, #38bdf8, #0ea5e9);
-    border-radius: 2px;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
-}
-
-.standings-section-title {
-    font-size: 1.05rem;
-    font-weight: 900;
-    color: #ffffff;
-    margin-bottom: 14px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.standings-table-wrap {
-    overflow-x: auto;
-    margin-bottom: 18px;
-    -webkit-overflow-scrolling: touch;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(15, 23, 42, 0.4);
-}
-
-.kbo-standings-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.82rem;
-    text-align: center;
-    white-space: nowrap;
-}
-
-.kbo-standings-table th {
-    background: rgba(30, 41, 59, 0.7);
-    color: #94a3b8;
-    padding: 11px 8px;
-    font-weight: 700;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 0.78rem;
-}
-
-.kbo-standings-table th.highlight {
-    color: #38bdf8;
-    font-weight: 900;
-}
-
-.kbo-standings-table td {
-    padding: 11px 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    color: #cbd5e1;
-    font-weight: 600;
-    vertical-align: middle;
-}
-
-.kbo-standings-table tr:hover {
-    background: rgba(255, 255, 255, 0.04);
-}
-
-/* Postseason Left Border Glow Indicators */
-.kbo-standings-table tr.ps-ks td:first-child {
-    border-left: 4px solid #3b82f6;
-}
-.kbo-standings-table tr.ps-po td:first-child {
-    border-left: 4px solid #38bdf8;
-}
-.kbo-standings-table tr.ps-jpo td:first-child {
-    border-left: 4px solid #2dd4bf;
-}
-.kbo-standings-table tr.ps-wc td:first-child {
-    border-left: 4px solid #a3e635;
-}
-
-.col-rank {
-    font-weight: 900;
-    color: #ffffff;
-    width: 34px;
-}
-
-.col-team-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-    font-weight: 800;
-    color: #ffffff;
-    padding-left: 4px;
-}
-
-.standings-team-logo {
-    width: 24px;
-    height: 24px;
-    object-fit: contain;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
-}
-
-.col-team-wrap .chevron {
-    color: #64748b;
-    font-weight: normal;
-    font-size: 0.78rem;
-}
-
-.winrate-val {
-    color: #38bdf8;
-    font-weight: 900;
-    text-shadow: 0 0 6px rgba(56, 189, 248, 0.3);
-}
-
-.recent-badges-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-}
-
-.badge-result {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 800;
-}
-
-.badge-result.badge-w {
-    background: rgba(34, 197, 94, 0.2);
-    color: #4ade80;
-    border: 1px solid rgba(34, 197, 94, 0.4);
-}
-
-.badge-result.badge-l {
-    background: rgba(56, 189, 248, 0.18);
-    color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.35);
-}
-
-.badge-result.badge-d {
-    background: rgba(148, 163, 184, 0.12);
-    color: #cbd5e1;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-}
-
-.recent-last-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-}
-
-.recent-last-item .arr {
-    font-size: 0.6rem;
-    color: #94a3b8;
-}
-
-.recent-last-item .badge-result {
-    border-bottom: 2px solid #38bdf8;
-}
-
-.standings-next-team-logo {
-    width: 22px;
-    height: 22px;
-    object-fit: contain;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
 }
 
 .ps-legend-bar {
@@ -4080,86 +865,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     display: flex;
     align-items: center;
     gap: 6px;
-}
-
-.ps-legend-item .color-box {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-    box-shadow: 0 0 6px currentColor;
-}
-
-.ps-legend-item.ps-ks .color-box { background-color: #3b82f6; color: #3b82f6; }
-.ps-legend-item.ps-po .color-box { background-color: #38bdf8; color: #38bdf8; }
-.ps-legend-item.ps-jpo .color-box { background-color: #2dd4bf; color: #2dd4bf; }
-.ps-legend-item.ps-wc .color-box { background-color: #a3e635; color: #a3e635; }
-
-/* My Records Game Filter Pills */
-.my-records-game-pills {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    -webkit-overflow-scrolling: touch;
-}
-
-.game-pill-btn {
-    background: rgba(30, 41, 59, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #94a3b8;
-    padding: 7px 14px;
-    border-radius: 20px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-}
-
-.game-pill-btn:hover {
-    color: #f1f5f9;
-    border-color: rgba(255, 255, 255, 0.25);
-}
-
-.game-pill-btn.active {
-    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-    color: #ffffff;
-    border-color: #f97316;
-    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
-}
-
-/* ==========================================
-   SETTINGS BUTTON & MODAL POPUP STYLING
-   ========================================== */
-.btn-settings-gear {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    color: #f1f5f9;
-    font-size: 1.15rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    flex-shrink: 0;
-    line-height: 1;
-    padding: 0;
-}
-
-.btn-settings-gear:hover {
-    background: rgba(56, 189, 248, 0.2);
-    border-color: rgba(56, 189, 248, 0.5);
-    color: #38bdf8;
-    transform: rotate(45deg) scale(1.06);
-    box-shadow: 0 6px 18px rgba(56, 189, 248, 0.3);
-}
-
-.btn-settings-gear:active {
-    transform: scale(0.95);
 }
 
 .settings-modal-card {
@@ -4300,9 +1005,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     transform: translateX(20px);
 }
 
-/* ==========================================================================
-   시작(로딩) 화면 — 밤 야구장 + 엠블럼 + 주루 로딩바
-   ========================================================================== */
 #splash-screen {
     background:
         radial-gradient(ellipse 60% 40% at 8% 0%, rgba(255, 255, 255, 0.10) 0%, transparent 70%),
@@ -4319,10 +1021,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     align-items: center;
     text-align: center;
 }
-.zg-logo-wrap {
-    filter: drop-shadow(0 10px 24px rgba(16, 185, 129, 0.35));
-    animation: zgLogoIn 0.6s cubic-bezier(0.2, 1.2, 0.4, 1) both;
-}
+
 @keyframes zgLogoIn {
     from { opacity: 0; transform: translateY(12px) scale(0.85); }
     to { opacity: 1; transform: none; }
@@ -4390,7 +1089,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* 주루 로딩바 */
 .basepath {
     position: relative;
     width: calc(100% - 28px);
@@ -4470,11 +1168,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     stroke-linecap: round;
     stroke-linejoin: round;
 }
-.basepath-runner .helmet {
-    fill: var(--team-color);
-    stroke: #f8fafc;
-    stroke-width: 1.4;
-}
+
 @keyframes runnerBob {
     from { transform: translateX(-50%) translateY(0) rotate(-4deg); }
     to { transform: translateX(-50%) translateY(-3px) rotate(4deg); }
@@ -4487,10 +1181,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     color: #e2e8f0;
 }
 
-
-/* ==========================================================================
-   팀 순위 (순위/기록 탭) - 가로 스크롤 없는 한 화면 리스트
-   ========================================================================== */
 .st-year-nav {
     display: flex;
     align-items: center;
@@ -4624,13 +1314,11 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .st-streak.win { background: rgba(16, 185, 129, 0.18); color: #34d399; }
 .st-streak.lose { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 
-/* 가을야구 진출 색 (왼쪽 띠) */
 .st-row.ps-ks { border-left-color: #3b82f6; }
 .st-row.ps-po { border-left-color: #38bdf8; }
 .st-row.ps-jpo { border-left-color: #2dd4bf; }
 .st-row.ps-wc { border-left-color: #a3e635; }
 
-/* 내 응원 구단 강조 */
 .st-row.is-mine {
     background: color-mix(in srgb, var(--team-color) 22%, rgba(15, 23, 42, 0.9));
     border-color: color-mix(in srgb, var(--team-color) 70%, transparent);
@@ -4680,40 +1368,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     color: var(--text-sub);
 }
 
-/* 일정 카드: 경기 결과 점수 */
-.matchup-score {
-    margin-left: 6px;
-    min-width: 22px;
-    font-family: var(--font-body);
-    font-variant-numeric: tabular-nums;
-    font-size: 1.05rem;
-    font-weight: 900;
-    color: var(--text-sub);
-}
-.matchup-score.win { color: var(--text-main); }
-.status-badge-final {
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    background: rgba(148, 163, 184, 0.18);
-    color: #cbd5e1;
-}
-.status-badge-canceled {
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    background: rgba(239, 68, 68, 0.15);
-    color: #f87171;
-}
-
-/* 로고 이미지 + 화면 읽기 전용 텍스트 */
-.zg-logo-img {
-    display: block;
-    border-radius: 22%;
-    object-fit: cover;
-}
 .sr-only {
     position: absolute !important;
     width: 1px;
@@ -4726,9 +1380,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     border: 0;
 }
 
-/* ==========================================================================
-   시작 화면: 로고 그림을 화면 가득 배경으로 + 아래쪽 흰 카툰 카드
-   ========================================================================== */
 #splash-screen {
     background: linear-gradient(180deg, #79cef6 0%, #79cef6 45%, #5aa9e0 100%) !important;
     flex-direction: column !important;
@@ -4746,7 +1397,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     width: 100%;
     height: auto;
     margin-bottom: -34px;
-    /* 흰 테두리 없이 하늘색 배경에 스며들도록 가장자리를 부드럽게 */
+    
     -webkit-mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 4%, #000 82%, transparent 100%);
     -webkit-mask-composite: source-in;
     mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 4%, #000 82%, transparent 100%);
@@ -4813,15 +1464,12 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     color: #1f4e7a;
 }
 
-/* ==========================================================================
-   시작 화면 로딩: 잔디 위 흙길 + 달리는 마스코트 (로고 그림 톤)
-   ========================================================================== */
 #splash-screen .basepath {
     height: 104px;
     margin: 4px 6px 0;
     width: calc(100% - 12px);
 }
-/* 잔디 띠 (잔디 깎은 줄무늬) */
+
 #splash-screen .basepath::before {
     content: '';
     position: absolute;
@@ -4833,7 +1481,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     background: repeating-linear-gradient(90deg, #5cbf62 0 18px, #4fae55 18px 36px);
     border: 2.5px solid #1f4e7a;
 }
-/* 흙길 */
+
 #splash-screen .basepath-track {
     top: 58px;
     left: 4px;
@@ -4847,7 +1495,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     background: repeating-linear-gradient(90deg, #e23b3b 0 10px, #ff5a4f 10px 20px);
     border-radius: 5px;
 }
-/* 베이스: 흰 베이스 + 남색 테두리, 지나가면 노란색 */
+
 #splash-screen .basepath-base { top: 52px; gap: 12px; }
 #splash-screen .base-mark {
     width: 18px;
@@ -4872,7 +1520,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 }
 #splash-screen .basepath-base.reached .base-label { color: #1f4e7a; }
 
-/* 달리는 마스코트 */
 #splash-screen .mascot-runner {
     top: -2px;
     width: 52px;
@@ -4901,27 +1548,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     height: 100%;
     object-fit: cover;
 }
-.mascot-runner .runner-legs {
-    position: absolute;
-    left: 50%;
-    top: 44px;
-    width: 20px;
-    height: 18px;
-    transform: translateX(-50%);
-}
-.mascot-runner .leg {
-    position: absolute;
-    left: 8px;
-    top: 0;
-    width: 5px;
-    height: 15px;
-    border-radius: 3px;
-    background: #2f6ea8;
-    border-bottom: 4px solid #1f4e7a;
-    transform-origin: top center;
-}
-.mascot-runner .leg-front { animation: legSwing 0.32s ease-in-out infinite alternate; }
-.mascot-runner .leg-back { animation: legSwing 0.32s ease-in-out infinite alternate-reverse; background: #275d8f; }
+
 .mascot-runner .runner-dust {
     position: absolute;
     left: -10px;
@@ -4936,16 +1563,12 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     from { transform: translateX(-50%) translateY(0) rotate(-6deg); }
     to { transform: translateX(-50%) translateY(-4px) rotate(6deg); }
 }
-@keyframes legSwing {
-    from { transform: rotate(35deg); }
-    to { transform: rotate(-35deg); }
-}
+
 @keyframes dustPuff {
     from { opacity: 0.9; transform: translateX(0) scale(0.6); }
     to { opacity: 0; transform: translateX(-12px) scale(1.4); }
 }
 
-/* 진행 문구: 만화 말풍선 느낌 */
 #splash-screen .loader-status {
     display: inline-block;
     margin-top: 10px;
@@ -4957,28 +1580,15 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     font-size: 1rem;
     color: #1f4e7a;
 }
-/* 환영 카드 아바타: 마스코트 톤의 흰 테두리 */
+
 #splash-screen .splash-welcome-logo {
     border: 2.5px solid #1f4e7a;
     box-shadow: 0 2px 0 #1f4e7a;
 }
 
-/* 마스코트 몸통(빨간 체크 유니폼)·팔·다리 보강 */
 #splash-screen .mascot-runner { top: -10px; height: 72px; }
 .mascot-runner .runner-head { width: 42px; height: 42px; z-index: 3; }
-.mascot-runner .runner-body {
-    position: absolute;
-    left: 50%;
-    top: 38px;
-    width: 24px;
-    height: 16px;
-    transform: translateX(-50%);
-    border-radius: 8px 8px 5px 5px;
-    background: repeating-linear-gradient(90deg, #d63a3a 0 4px, #a92626 4px 6px);
-    border: 2.5px solid #1f4e7a;
-    z-index: 2;
-    animation: mascotBob 0.32s ease-in-out infinite alternate;
-}
+
 .mascot-runner .arm {
     position: absolute;
     top: 2px;
@@ -4989,21 +1599,9 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     border: 2px solid #1f4e7a;
     transform-origin: top center;
 }
-.mascot-runner .arm-front { right: -7px; animation: legSwing 0.32s ease-in-out infinite alternate-reverse; }
-.mascot-runner .arm-back { left: -7px; animation: legSwing 0.32s ease-in-out infinite alternate; }
-.mascot-runner .runner-legs { top: 50px; width: 24px; height: 20px; z-index: 1; }
-.mascot-runner .leg {
-    left: 8px;
-    width: 8px;
-    height: 16px;
-    border-radius: 4px;
-    background: #2f6ea8;
-    border: 2px solid #1f4e7a;
-    border-bottom: 5px solid #1f4e7a;
-}
+
 .mascot-runner .runner-dust { top: 62px; }
 
-/* 얼굴만 통통 튀며 달리기 (몸통·다리 없이) */
 #splash-screen .mascot-runner { top: 2px; width: 50px; height: 56px; }
 .mascot-runner .runner-head {
     width: 46px;
@@ -5032,9 +1630,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     to { transform: translateX(-50%) scale(0.6); opacity: 0.2; }
 }
 
-/* ==========================================================================
-   시작 화면: 원래 앱 색(진한 남색 + 초록 포인트)으로 — 그림 배경도 남색으로 바꿈
-   ========================================================================== */
 #splash-screen {
     background: radial-gradient(circle at 50% 0%, #13213a 0%, #0b1424 45%, #060b14 100%) !important;
 }
@@ -5067,7 +1662,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     color: #d1fae5;
 }
 
-/* 시작 화면 글씨: 두꺼운 게임체 대신 읽기 편한 본문체 */
 #splash-screen .zg-tagline,
 #splash-screen .splash-welcome-text strong,
 #splash-screen .base-label,
@@ -5080,9 +1674,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 #splash-screen .base-label { font-weight: 700 !important; font-size: 0.74rem !important; }
 #splash-screen .loader-status { font-weight: 700 !important; font-size: 0.9rem !important; }
 
-/* ==========================================================================
-   홈 화면: 글자 최소화 · 한 줄 · 버튼 하나 (내 정보 줄 + 오늘의 경기 카드)
-   ========================================================================== */
 .home-top {
     display: flex;
     align-items: center;
@@ -5154,102 +1745,8 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     stroke-linecap: round;
 }
 
-.home-match {
-    padding: 16px;
-    border-radius: 22px;
-    background: linear-gradient(160deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%);
-    border: 1px solid rgba(110, 231, 183, 0.25);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-}
-.home-match-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 14px;
-}
-.home-match-meta {
-    min-width: 0;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--text-sub);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.home-chip {
-    flex-shrink: 0;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    white-space: nowrap;
-}
-.chip-ready { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; }
-.chip-final { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
-.chip-cancel { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
-.chip-live { background: #ef4444; color: #ffffff; animation: chipPulse 1.2s ease-in-out infinite; }
 @keyframes chipPulse { 50% { opacity: 0.65; } }
 
-.home-match-teams {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-.home-team-col {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    min-width: 0;
-}
-.mt-logo {
-    width: 60px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 1.9rem;
-    background: rgba(255, 255, 255, 0.06);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-}
-.home-team-col.is-mine .mt-logo {
-    border-color: var(--accent-emerald);
-    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.18);
-}
-.mt-name {
-    font-size: 1.1rem;
-    font-weight: 900;
-    color: var(--text-main);
-    white-space: nowrap;
-}
-.mt-side { font-size: 0.72rem; color: var(--text-sub); }
-.home-vs {
-    font-size: 1.3rem;
-    font-weight: 900;
-    color: var(--text-sub);
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-}
-.home-enter {
-    width: 100%;
-    white-space: nowrap;
-    font-size: 1.1rem !important;
-}
-.home-enter:disabled {
-    background: rgba(148, 163, 184, 0.2) !important;
-    color: var(--text-sub) !important;
-    box-shadow: none !important;
-    animation: none !important;
-    cursor: default;
-}
-
-/* ==========================================================================
-   홈: 내 팀 경기 카드 + 다른 경기 목록 + 날씨 연출 (시작 화면과 같은 남색 카드·초록 포인트·잔디)
-   ========================================================================== */
 .hm-section {
     margin: 4px 4px 10px;
     font-size: 0.95rem;
@@ -5267,7 +1764,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     border: 1px solid rgba(110, 231, 183, 0.35);
     box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
 }
-/* 카드 맨 위 잔디 띠 (시작 화면 주루 로딩바와 같은 무늬) */
+
 .hm-field {
     position: absolute;
     left: 0;
@@ -5375,7 +1872,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     cursor: default;
 }
 
-/* 상태별 */
 .hm-card.st-live { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.25), 0 16px 36px rgba(0, 0, 0, 0.5); }
 .hm-card.st-live .hm-chip { background: #ef4444; color: #ffffff; }
 .hm-card.st-live .hm-center { color: #ffffff; }
@@ -5384,13 +1880,11 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .hm-card.st-final .hm-center { color: #f8fafc; }
 .hm-card.st-cancel .hm-chip { background: rgba(148, 163, 184, 0.18); color: #e2e8f0; }
 
-/* 쉬는 날 */
 .hm-empty { display: flex; align-items: center; gap: 14px; }
 .hm-empty img { border-radius: 50%; border: 2px solid #f8fafc; box-shadow: 0 0 0 2px #10b981; }
 .hm-empty strong { display: block; font-size: 1.05rem; color: var(--text-main); }
 .hm-empty span { display: block; margin-top: 2px; font-size: 0.82rem; color: var(--text-sub); }
 
-/* ---------- 날씨 연출 (취소된 경기) ---------- */
 .wx-layer { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .wx-fx { position: absolute; inset: -40px; }
 .wx-label {
@@ -5423,7 +1917,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 }
 .hm-card.st-cancel .hm-teams { opacity: 0.45; filter: saturate(0.6); }
 
-/* 비: 비스듬히 떨어지는 빗줄기 두 겹 + 어두운 하늘 */
 .hm-card.wx-rain .wx-layer { background: linear-gradient(180deg, rgba(30, 58, 95, 0.55), rgba(15, 23, 42, 0.35)); }
 .hm-card.wx-rain .wx-fx {
     background-image: repeating-linear-gradient(105deg, transparent 0 22px, rgba(186, 220, 255, 0.45) 22px 23px);
@@ -5436,7 +1929,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     to { transform: translate(-10px, 0); }
 }
 
-/* 폭염: 뜨거운 햇볕 + 아지랑이 */
 .hm-card.wx-heat .wx-layer {
     background:
         radial-gradient(circle at 85% 0%, rgba(255, 170, 40, 0.55) 0%, transparent 45%),
@@ -5456,7 +1948,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 }
 @keyframes sunSpin { to { transform: rotate(360deg); } }
 
-/* 미세먼지: 뿌연 안개 + 떠다니는 먼지 */
 .hm-card.wx-dust .wx-layer { background: rgba(161, 140, 98, 0.35); backdrop-filter: blur(1.5px); }
 .hm-card.wx-dust .wx-fx {
     background-image:
@@ -5468,10 +1959,8 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .hm-card.wx-dust .wx-label { color: #fde68a; }
 @keyframes dustDrift { to { transform: translate(30px, -20px); } }
 
-/* 그라운드 사정·기타 */
 .hm-card.wx-ground .wx-layer { background: rgba(71, 85, 105, 0.45); }
 
-/* ---------- 다른 경기 목록 ---------- */
 .hm-list { display: flex; flex-direction: column; gap: 8px; }
 .hm-row {
     position: relative;
@@ -5537,12 +2026,12 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .hm-row.wx-heat .hm-row-chip { background: rgba(249, 115, 22, 0.2); color: #fed7aa; }
 .hm-row.wx-dust .hm-row-chip { background: rgba(202, 138, 4, 0.2); color: #fde68a; }
 .hm-row.wx-ground .hm-row-chip { background: rgba(148, 163, 184, 0.18); color: #e2e8f0; }
-/* 목록 줄에도 작은 날씨 효과 */
+
 .wx-row-fx { position: absolute; inset: -20px; pointer-events: none; }
 .hm-row.wx-rain .wx-row-fx { background-image: repeating-linear-gradient(105deg, transparent 0 16px, rgba(186, 220, 255, 0.25) 16px 17px); animation: rainFall 0.5s linear infinite; }
 .hm-row.wx-heat .wx-row-fx { background: radial-gradient(circle at 90% 0%, rgba(255, 170, 40, 0.3), transparent 50%); }
 .hm-row.wx-dust .wx-row-fx { background: rgba(161, 140, 98, 0.18); }
-/* 날씨 연출 다듬기: 빗줄기 가늘고 불규칙하게, 먼지는 크기 섞기 */
+
 .hm-card.wx-rain .wx-fx {
     background-image:
         repeating-linear-gradient(105deg, transparent 0 31px, rgba(186, 220, 255, 0.32) 31px 32px),
@@ -5557,12 +2046,10 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     background-position: 0 0, 11px 7px, 30px 19px;
 }
 
-/* 설정 아이콘: 채워진 톱니바퀴 */
 .home-gear { color: #cbd5e1; }
 .home-gear svg { width: 22px; height: 22px; fill: currentColor; stroke: none; }
 .home-gear:hover { color: #ffffff; }
 
-/* 내 팀 카드: 투수 줄 (정보 없으면 숨김) */
 .hm-pitcher {
     position: relative;
     z-index: 1;
@@ -5587,7 +2074,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 }
 .hm-card.st-live .hm-pitcher-tag { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
 
-/* 다른 경기 줄: 위(팀·점수) / 아래(시간 또는 이닝 · 구장) */
 .hm-row {
     display: flex !important;
     flex-direction: column;
@@ -5633,9 +2119,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 }
 .hm-row { align-items: stretch !important; }
 
-/* ==========================================================================
-   리그 > 경기 일정: 홈과 같은 경기 줄 + 날짜 띠
-   ========================================================================== */
 #pane-schedule .schedule-sub-nav,
 #pane-records .schedule-sub-nav { margin-bottom: 16px; }
 .sc-month {
@@ -5735,7 +2218,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     color: var(--text-sub);
 }
 
-/* 경기 줄: 내 팀 강조 · 누르면 입장 */
 .hm-row.is-mine { border-color: rgba(16, 185, 129, 0.55); box-shadow: inset 3px 0 0 var(--accent-emerald); }
 .hm-row.is-tappable { cursor: pointer; transition: transform 0.1s ease, background 0.2s ease; }
 .hm-row.is-tappable:active { transform: scale(0.98); }
@@ -5749,7 +2231,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 }
 .hm-row.st-live .hm-row-go { color: #fca5a5; }
 
-/* 경기 없는 날 표시 */
 .sc-none {
     font-size: 0.56rem;
     font-weight: 700;
@@ -5759,7 +2240,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 }
 .sc-date.active .sc-none { color: rgba(255, 255, 255, 0.85); }
 
-/* 홈 '오늘의 다른 경기': 한 줄 요약 — 로비는 스크롤 없이 한 화면에 */
 #home-games-list.hm-list { gap: 6px; }
 .hm-row.is-compact {
     flex-direction: row !important;
@@ -5786,7 +2266,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .hm-row.is-compact .hm-row-chip svg { width: 12px; height: 12px; }
 .hm-row.is-compact .hm-row-where { font-size: 0.7rem; }
 
-/* 작은 휴대폰(아이폰 SE 등): 홈 카드를 살짝 줄여 스크롤 없이 한 화면에 */
 @media (max-height: 760px) {
     .home-top { padding: 8px 12px; margin-bottom: 8px; }
     .home-avatar { width: 38px; height: 38px; }
@@ -5801,7 +2280,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     .hm-enter { padding: 11px; font-size: 1rem; }
 }
 
-/* 실제 구단 로고: 배경 없이 크게 (로고 파일 자체에 흰 스티커 테두리 포함) */
 .team-logo-img {
     width: 100%;
     height: 100%;
@@ -5822,7 +2300,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     border-radius: 0 !important;
     overflow: visible;
 }
-/* 로고 크기 키우기 */
+
 .hm-logo:has(.team-logo-img) { width: 76px; height: 76px; }
 .hm-team.is-mine .hm-logo:has(.team-logo-img) { filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.55)); }
 .hm-row-logo:has(.team-logo-img) { width: 38px; height: 38px; }
@@ -5838,9 +2316,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     .hm-row.is-compact .hm-row-logo:has(.team-logo-img) { width: 30px; height: 26px; }
 }
 
-/* ==========================================================================
-   인게임 화면 (개편): 한 화면에 · 정보는 한 곳에만 · 앱과 같은 남색 카드 + 초록 포인트
-   ========================================================================== */
 #ingame-view.ig {
     padding: 12px 16px 14px !important;
     gap: 10px;
@@ -5849,7 +2324,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 }
 #ingame-view.active ~ .bottom-nav-bar:not(.never) { display: none !important; }
 
-/* 점수판 */
 .ig-top {
     display: grid;
     grid-template-columns: 36px 1fr auto;
@@ -5900,7 +2374,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     font-variant-numeric: tabular-nums;
 }
 
-/* 이닝 · B S O · 주자 */
 .ig-status {
     display: flex;
     align-items: center;
@@ -5932,7 +2405,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-mini-bases rect { fill: rgba(255, 255, 255, 0.12); stroke: rgba(255, 255, 255, 0.35); stroke-width: 1; transition: fill 0.2s; }
 .ig-mini-bases rect.on { fill: #facc15; stroke: #fde68a; }
 
-/* 투수 vs 타자 */
 .ig-duel {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -5950,7 +2422,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-sub { font-size: 0.72rem; font-weight: 700; color: #94a3b8; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ig-vs { font-size: 0.78rem; font-weight: 900; color: var(--text-sub); }
 
-/* 그라운드 */
 .ig-field {
     flex: 1 1 auto;
     min-height: 0;
@@ -5984,7 +2455,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-run-ring { fill: none; stroke: #facc15; stroke-width: 2; animation: igRunPulse 1.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes igRunPulse { 0% { opacity: 0.9; transform: scale(0.8); } 100% { opacity: 0; transform: scale(1.6); } }
 
-/* 이번 타석 투구 */
 .ig-last {
     display: flex;
     flex-direction: column;
@@ -6026,7 +2496,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 }
 .ig-pdots.small .ig-pdot { width: 18px; height: 18px; font-size: 0.6rem; }
 
-/* 하단 버튼 */
 .ig-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
 .ig-btn-log, .ig-btn-pitch {
     height: 50px;
@@ -6048,7 +2517,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-btn-pitch.busy { opacity: 0.7; }
 .ig-btn-pitch:disabled { opacity: 0.4; box-shadow: none; }
 
-/* 중계 기록 시트 */
 .ig-sheet-bg {
     position: absolute;
     inset: 0;
@@ -6143,7 +2611,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     .ig-btn-log, .ig-btn-pitch { height: 46px; }
 }
 
-/* 그라운드 + 투구 정보 겹치기 */
 .ig-stage {
     position: relative;
     flex: 1 1 auto;
@@ -6175,7 +2642,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     min-height: 0;
 }
 
-/* 위기 작전 · 작전 결과 팝업 (인게임과 같은 스타일) */
 .igm-card {
     width: min(340px, calc(100% - 32px));
     display: flex;
@@ -6234,50 +2700,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .igm-choice:active { transform: translateY(2px); }
 .igm-note { margin: 0; text-align: center; font-size: 0.72rem; color: var(--text-sub); }
 
-.igm-res-top { display: flex; align-items: center; gap: 14px; }
-.igm-res-score { display: flex; flex-direction: column; gap: 2px; }
-.igm-res-score span { font-size: 0.74rem; font-weight: 800; color: var(--text-sub); }
-.igm-res-score strong { font-size: 1.7rem; font-weight: 900; font-variant-numeric: tabular-nums; }
-.igm-res-score .delta-plus { color: #34d399; }
-.igm-res-score .delta-minus { color: #f87171; }
-.igm-res-score .delta-zero { color: #cbd5e1; }
-.igm-cmp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.igm-cmp > div {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    padding: 10px 4px;
-    border-radius: 14px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-}
-.igm-cmp span { font-size: 0.7rem; font-weight: 800; color: var(--text-sub); white-space: nowrap; }
-.igm-cmp strong { font-size: 0.98rem; font-weight: 900; color: var(--text-main); white-space: nowrap; }
-.igm-comment {
-    margin: 0;
-    padding: 10px;
-    border-radius: 12px;
-    text-align: center;
-    font-size: 0.88rem;
-    font-weight: 800;
-    background: rgba(148, 163, 184, 0.12);
-    color: #cbd5e1;
-}
-.igm-comment.good { background: rgba(16, 185, 129, 0.14); color: #34d399; }
-.igm-comment.bad { background: rgba(239, 68, 68, 0.14); color: #f87171; }
-.igm-close {
-    height: 48px;
-    border-radius: 14px;
-    border: none;
-    background: linear-gradient(135deg, #10b981 0%, #047857 100%);
-    color: #ffffff;
-    font-size: 1rem;
-    font-weight: 900;
-    cursor: pointer;
-}
-
-/* 투구 동그라미: 진한 색으로 또렷하게 (2스트라이크 전 파울은 노랑, 그 뒤 파울은 회색) */
 .ig-pdot { width: 24px; height: 24px; font-size: 0.74rem; border: none; }
 .ig-pdot.b { background: #22c55e; color: #052e16; }
 .ig-pdot.s { background: #facc15; color: #422006; }
@@ -6287,12 +2709,10 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-pdot.etc { background: #64748b; color: #ffffff; }
 .ig-pdots.small .ig-pdot { width: 20px; height: 20px; font-size: 0.64rem; }
 
-/* 타석에 선 타자 */
 .ig-bat circle:nth-child(2) { stroke: #ffffff; stroke-width: 2; }
 .ig-bat-ring { fill: none; stroke: #facc15; stroke-width: 2; opacity: 0.9; }
 .ig-fname.ig-bat-name { fill: #fde68a; }
 
-/* 타석 결과 큰 글씨 (떴다 사라짐) */
 .ig-banner {
     position: absolute;
     left: 50%;
@@ -6350,11 +2770,9 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-fname.ig-run-name { fill: #fde68a; }
 .ig-banner.sac strong { color: #c4b5fd; }
 
-/* 그라운드를 투구 정보 아래 남은 공간의 가운데에, 선수 이름은 모두 같은 크기 */
 .ig-stage .ig-field { align-items: center; padding: 74px 0 8px; }
 .ig-fname { font-size: 11.5px; }
 
-/* 작전 공개 카드 · 채점 대기 표시 · 작전 결과 줄 */
 .ig-reveal {
     position: absolute;
     left: 50%;
@@ -6423,7 +2841,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-reveal-row i.skip { color: var(--text-sub); }
 .ig-banner-tactic.skip { background: rgba(100, 116, 139, 0.92); color: #ffffff; }
 
-/* 작전 성공/실패: 크게, 또렷하게 */
 .ig-banner-tactic {
     display: inline-flex;
     align-items: center;
@@ -6441,7 +2858,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-banner-tactic.skip { background: #475569; color: #ffffff; }
 .ig-reveal p { white-space: normal; text-align: center; line-height: 1.45; }
 
-/* 위기 팝업: 마운드 투수 / 타석 타자 */
 .igm-matchup { display: flex; flex-direction: column; gap: 6px; }
 .igm-pitcher small {
     padding: 2px 7px;
@@ -6457,9 +2873,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .igm-batter strong { color: #fde68a; }
 .igm-batter em { color: #cbd5e1; font-size: 0.8rem; }
 
-/* ==========================================================================
-   경기 후 성적표
-   ========================================================================== */
 #postgame-view.pg { padding: 14px 16px 16px !important; gap: 10px; }
 #postgame-view.active ~ .bottom-nav-bar:not(.never) { display: none !important; }
 .pg-score {
@@ -6588,8 +3001,8 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .pg-log-empty { padding: 16px; text-align: center; font-size: 0.82rem; color: var(--text-sub); }
 
 .pg-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.pg-btn-share, .pg-btn-lobby { height: 50px; border-radius: 16px; font-size: 0.98rem; font-weight: 900; cursor: pointer; white-space: nowrap; }
-.pg-btn-share { border: none; background: #fee500; color: #191919; }
+ .pg-btn-lobby { height: 50px; border-radius: 16px; font-size: 0.98rem; font-weight: 900; cursor: pointer; white-space: nowrap; }
+
 .pg-btn-lobby { border: none; color: #ffffff; background: linear-gradient(135deg, #10b981 0%, #047857 100%); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3); }
 #postgame-view.pg { overflow: hidden !important; }
 .pg-verdict p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -6600,7 +3013,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     .pg-logo { width: 38px; height: 34px; }
     .pg-verdict { padding: 10px 14px; }
     .pg-stat { padding: 7px 4px; }
-    .pg-btn-share, .pg-btn-lobby { height: 46px; }
+     .pg-btn-lobby { height: 46px; }
 }
 
 @media (max-height: 700px) {
@@ -6610,7 +3023,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     .pg-log { padding: 8px 12px; }
 }
 
-/* 인게임 시트: 라인업 / 중계 기록 */
 .ig-seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); }
 .ig-seg-btn { padding: 7px 14px; border: none; border-radius: 9px; background: transparent; color: var(--text-sub); font-size: 0.86rem; font-weight: 900; cursor: pointer; }
 .ig-seg-btn.active { background: linear-gradient(135deg, #10b981 0%, #047857 100%); color: #ffffff; }
@@ -6638,7 +3050,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .ig-lu-line.now { border-color: #facc15; background: rgba(250, 204, 21, 0.1); }
 .ig-lu-line.now b { color: #fde68a; }
 
-/* 공격 작전(대타) 팝업 */
 .igm-card.igm-attack { border-color: rgba(56, 189, 248, 0.5); }
 .igm-badge.attack { background: rgba(56, 189, 248, 0.18); color: #7dd3fc; }
 .igm-reveal {
@@ -6660,9 +3071,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .igm-choice strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pg-actions.one { grid-template-columns: 1fr; }
 
-/* ==========================================================================
-   내 기록: 요약 + 경기별 기록 (누르면 자세히)
-   ========================================================================== */
 .mr-summary {
     display: flex;
     flex-direction: column;
@@ -6743,7 +3151,6 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .mr-d-points strong.down { color: #f87171; }
 .mr-d-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; max-height: 40vh; }
 
-/* ================= 미니게임 (3x3) ================= */
 .mg { padding: 4px 0 8px; }
 .mg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .mg-head-text h3 { margin: 0; font-size: 20px; font-weight: 900; color: #f8fafc; letter-spacing: -0.4px; }
@@ -6777,12 +3184,9 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .mg-card.done.ok { opacity: 1; }
 .mg-card.done.ok .mg-chip { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
 
-/* ================= 감독 등급 D (초짜 감독) ================= */
 .grade-d { background: #64748b; color: #fff; }
-.pg-grade.grade-d, .result-badge.grade-d { background: linear-gradient(135deg, #64748b, #475569); color: #fff; }
-.history-item-grade.grade-d { background: rgba(100, 116, 139, 0.25); color: #cbd5e1; }
+.pg-grade.grade-d{ background: linear-gradient(135deg, #64748b, #475569); color: #fff; }
 
-/* ================= 랭킹 · 친구 ================= */
 .rk { padding: 4px 0 8px; }
 .rk-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .rk-head-text h3 { margin: 0; font-size: 20px; font-weight: 900; color: #f8fafc; letter-spacing: -0.4px; }
@@ -6801,7 +3205,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .rk-me-rank { margin-left: auto; text-align: right; }
 .rk-me-rank span { display: block; font-size: 11px; color: var(--text-sub); font-weight: 700; }
 .rk-me-rank b { font-size: 14px; font-weight: 900; color: #e2e8f0; white-space: nowrap; }
-/* 등급 사다리 (위로 올라가는 랭킹) */
+
 .rk-ladder { position: relative; display: flex; flex-direction: column; margin-top: 4px; }
 .rk-l-rail { position: absolute; left: 11px; top: 17px; bottom: 17px; width: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); }
 .rk-l-rail i { position: absolute; left: 0; right: 0; bottom: 0; border-radius: inherit; background: linear-gradient(0deg, #047857, #34d399); transition: height 0.6s ease; }
@@ -6861,11 +3265,18 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .rk-sheet .rk-row { background: rgba(255, 255, 255, 0.03); }
 .rk-sent-wrap h4 { margin: 4px 2px 8px; font-size: 13px; font-weight: 800; color: var(--text-sub); }
 .rk-sent-wrap[hidden] { display: none; }
-/* 하단 바 랭킹: 받은 친구 요청 표시 */
-.bottom-nav-item .nav-dot { position: absolute; top: 4px; left: calc(50% + 12px); width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 2px #0b1424; }
+
+/* 랭킹 위 '친구 요청 N' 말풍선 */
+.bottom-nav-item .nav-dot {
+    position: absolute; top: -20px; left: 50%; transform: translateX(-50%); z-index: 2;
+    padding: 2px 7px; border-radius: 999px; background: #ef4444; color: #fff;
+    font-size: 10px; font-weight: 900; line-height: 1.4; white-space: nowrap; letter-spacing: -0.3px;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5); animation: nav-dot-pop 0.3s ease-out;
+}
+.bottom-nav-item .nav-dot::after { content: ''; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%); border: 4px solid transparent; border-top-color: #ef4444; border-bottom: 0; }
+@keyframes nav-dot-pop { from { transform: translateX(-50%) scale(0.6); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
 .bottom-nav-item .nav-dot[hidden] { display: none; }
 
-/* ================= 미니게임 1: 볼보이의 야구공 피하기 ================= */
 .dg {
     position: absolute; inset: 0; z-index: 9500; display: none; flex-direction: column;
     background: #060b16; color: #e2e8f0; user-select: none; -webkit-user-select: none; touch-action: manipulation;
@@ -6884,32 +3295,32 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; margin: 0 10px; border-radius: 18px; background: #0b1630; }
 .dg-stage.shake { animation: dg-shake 0.35s; }
 @keyframes dg-shake { 20% { transform: translateX(-8px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
-/* 배경: 밤 야구장 */
+
 .dg-sky { position: absolute; left: 0; right: 0; top: 0; height: 30%; background: linear-gradient(180deg, #050a1c, #10224a); }
 .dg-sky i { position: absolute; top: 8%; width: 60px; height: 14px; border-radius: 4px; background: #fffbe6; box-shadow: 0 0 30px 12px rgba(255, 248, 200, 0.35); }
 .dg-sky i:nth-child(1) { left: 8%; } .dg-sky i:nth-child(2) { left: 44%; top: 4%; } .dg-sky i:nth-child(3) { right: 8%; }
 .dg-stands { position: absolute; left: 0; right: 0; top: 14%; height: 14%; background: repeating-linear-gradient(180deg, #22345f 0 5px, #1b2a4f 5px 10px); border-bottom: 4px solid #0f5132; overflow: hidden; }
-/* 관중 (점점이) */
+
 .dg-stands i, .dg-lstands i { position: absolute; inset: 0; background-image: radial-gradient(circle, #f87171 0 1.4px, transparent 1.6px), radial-gradient(circle, #fde68a 0 1.4px, transparent 1.6px), radial-gradient(circle, #93c5fd 0 1.4px, transparent 1.6px); background-size: 13px 10px, 17px 10px, 11px 10px; background-position: 0 2px, 6px 7px, 3px 4px; opacity: 0.75; }
 .dg-grass { position: absolute; left: 0; right: 0; top: 28%; bottom: 0; background: repeating-linear-gradient(180deg, #17803f 0 9%, #1b9149 9% 18%); }
 .dg-dirt { position: absolute; left: 50%; top: 24.5%; width: 30%; height: 7%; transform: translateX(-50%); border-radius: 50%; background: #b9773f; }
-/* 내야: 파울라인 오른쪽(페어)에만 — 3루 둘레 흙 · 내야 잔디 */
+
 .dg-infield { position: absolute; inset: 0;
     background:
         radial-gradient(ellipse 20% 6% at 77% 38%, #1b9149 96%, transparent 100%),
         radial-gradient(ellipse 42% 19% at 78% 41%, #b9773f 98%, transparent 100%);
     clip-path: polygon(50% 27.5%, 100% 27.5%, 100% 100%, 84% 100%); }
-/* 펜스 앞 흙길 (볼보이가 앉는 곳) */
+
 .dg-track { position: absolute; inset: 0; background: #a86a36; opacity: 0.9; clip-path: polygon(42% 27.5%, 47% 27.5%, 36% 100%, 4% 100%); }
-/* 홈플레이트 */
+
 .dg-plate { position: absolute; left: 50%; top: 27.2%; width: 14px; height: 6px; transform: translateX(-50%); background: #f8fafc; clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 100%, 0 50%); }
-/* 3루 베이스: 볼보이 오른쪽 앞, 파울라인 위 */
+
 .dg-3b { position: absolute; z-index: 1; left: 62.9%; top: 55%; width: 26px; height: 26px; transform: translate(-50%, -50%) scaleY(0.42) rotate(45deg); background: #fff; box-shadow: 0 3px 0 #cbd5e1; }
-/* 볼보이 왼쪽: 3루 쪽 관중석 (홈 쪽으로 갈수록 멀어짐) */
+
 .dg-lstands { position: absolute; left: 0; top: 27%; bottom: 0; width: 46%; background: repeating-linear-gradient(170deg, #22345f 0 7px, #1b2a4f 7px 14px); clip-path: polygon(0 0, 92% 0, 10% 100%, 0 100%); overflow: hidden; }
-/* 관중석 앞 펜스 */
+
 .dg-wall { position: absolute; left: 0; top: 27%; bottom: 0; width: 46%; background: #0f5132; clip-path: polygon(92% 0, 96% 0, 16% 100%, 10% 100%); }
-/* 3루 파울라인: 홈에서 오른쪽 아래로 → 오른쪽이 페어(마운드·3루), 볼보이는 왼쪽 파울 지역 */
+
 .dg-foul { position: absolute; z-index: 1; inset: 0; background: rgba(255,255,255,0.92); clip-path: polygon(49.8% 27.5%, 50.3% 27.5%, 84.9% 100%, 83.3% 100%); }
 .dg-batter { position: absolute; left: 50%; top: 18.5%; width: 24px; height: 36px; transform: translateX(-50%); }
 .dg-batter svg { width: 100%; height: 100%; overflow: visible; }
@@ -6921,7 +3332,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-crack.hard { color: #fb7185; font-size: 20px; text-shadow: 0 2px 0 #7f1d1d; }
 .dg-crack.soft { color: #e2e8f0; font-size: 13px; text-shadow: none; }
 @keyframes dg-crack { 0% { opacity: 0; transform: translate(10px, 6px) scale(0.6); } 25% { opacity: 1; transform: translate(14px, 0) scale(1.15); } 100% { opacity: 0; transform: translate(20px, -10px) scale(1); } }
-/* 공 · 그림자 · 경고 표시 */
+
 .dg-ball, .dg-bshadow, .dg-ring { position: absolute; left: 0; top: 0; pointer-events: none; }
 .dg-ball { z-index: 5; border-radius: 50%; opacity: 0; will-change: transform;
     background: radial-gradient(circle at 35% 30%, #ffffff 0 30%, #e5e7eb 60%, #9ca3af 100%);
@@ -6938,23 +3349,22 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-flash.good { animation: dg-flash 0.35s; background: radial-gradient(circle at 50% 75%, rgba(52, 211, 153, 0.35), transparent 60%); }
 .dg-flash.bad { animation: dg-flash 0.45s; background: radial-gradient(circle at 50% 75%, rgba(239, 68, 68, 0.5), transparent 65%); }
 @keyframes dg-flash { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
-/* 볼보이 + 자세 */
+
 .dg-boy { position: absolute; z-index: 3; left: 50%; bottom: 2%; width: min(48%, 215px); transform: translateX(-50%); }
 .dg-boy .bb { width: 100%; height: auto; display: block; overflow: visible; }
 .dg-boy .bb-body { transform-box: view-box; transform-origin: 100px 270px; transition: transform 0.12s ease-out; }
-.dg-boy .bb-legs-stand, .dg-boy .bb-legs-jump, .dg-boy .bb-arms-catch, .dg-boy .bb-arms-up, .dg-boy .bb-stool-hold, .dg-boy .bb-face-alert, .dg-boy .bb-face-hit,
+.dg-boy .bb-legs-stand, .dg-boy .bb-legs-jump, .dg-boy .bb-arms-catch, .dg-boy .bb-arms-up, .dg-boy .bb-stool-hold,
 .dg-boy .bb-stars, .dg-boy .bb-bang { display: none; }
-.dg-boy.st-alert .bb-face-normal, .dg-boy.st-jump .bb-face-normal, .dg-boy.st-left .bb-face-normal, .dg-boy.st-right .bb-face-normal { display: none; }
-.dg-boy.st-alert .bb-face-alert, .dg-boy.st-jump .bb-face-alert, .dg-boy.st-left .bb-face-alert, .dg-boy.st-right .bb-face-alert { display: inline; }
+
 .dg-boy.st-alert .bb-bang { display: inline; }
 .dg-boy.st-alert .bb-body { transform: translateY(-8px); }
 .dg-boy.st-jump .bb-arms-rest, .dg-boy.st-left .bb-arms-rest, .dg-boy.st-right .bb-arms-rest { display: none; }
 .dg-boy.st-jump .bb-arms-up, .dg-boy.st-left .bb-arms-up, .dg-boy.st-right .bb-arms-up { display: inline; }
 .dg-boy.st-jump .bb-body { animation: bb-jump 0.7s ease-out; }
-/* 다리 벌려 점프 */
+
 .dg-boy.st-jump .bb-legs-sit { display: none; }
 .dg-boy.st-jump .bb-legs-jump { display: inline; }
-/* 잡기: 앉은 채로 글러브를 몸 앞으로 */
+
 .dg-boy.st-catch .bb-arms-rest { display: none; }
 .dg-boy.st-catch .bb-arms-catch { display: inline; }
 .dg-boy.st-catch .bb-body { transform: translateY(-6px); }
@@ -6963,7 +3373,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 @keyframes bb-shadow { 40%, 70% { transform: scale(0.6); opacity: 0.5; } }
 .dg-boy.st-left .bb-legs-sit, .dg-boy.st-right .bb-legs-sit { display: none; }
 .dg-boy.st-left .bb-legs-stand, .dg-boy.st-right .bb-legs-stand { display: inline; }
-/* 점프·피하기: 의자를 머리 위로 들고 같이 움직임 */
+
 .dg-boy.st-jump .bb-stool-sit, .dg-boy.st-left .bb-stool-sit, .dg-boy.st-right .bb-stool-sit { display: none; }
 .dg-boy .bb-stool-hold { transform-box: view-box; transform-origin: 100px 270px; }
 .dg-boy.st-jump .bb-stool-hold, .dg-boy.st-left .bb-stool-hold, .dg-boy.st-right .bb-stool-hold { display: inline; }
@@ -6972,10 +3382,10 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-boy.st-right .bb-stool-hold { transform: translateX(62px) rotate(12deg); }
 .dg-boy.st-left .bb-body { transform: translateX(-62px) rotate(-12deg); }
 .dg-boy.st-right .bb-body { transform: translateX(62px) rotate(12deg); }
-.dg-boy.st-hit .bb-face-normal { display: none; }
-.dg-boy.st-hit .bb-face-hit, .dg-boy.st-hit .bb-stars { display: inline; }
+
+ .dg-boy.st-hit .bb-stars { display: inline; }
 .dg-boy.st-hit .bb-body { transform: rotate(-12deg) translateY(4px); }
-/* 조작 버튼 */
+
 .dg-pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px 10px 14px; }
 .dg-btn {
     height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
@@ -6986,7 +3396,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 .dg-btn.press, .dg-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #0a1120; background: linear-gradient(180deg, #10b981, #047857); color: #fff; border-color: #10b981; }
 .dg-jump, .dg-catch { color: #6ee7b7; }
-/* 안내 · 결과 카드 */
+
 .dg-panel { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; padding: 14px; background: rgba(3, 7, 18, 0.55); }
 .dg-panel.show { display: flex; }
 .dg-card { width: 100%; max-width: 330px; padding: 18px 16px 16px; border-radius: 20px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center; }
@@ -7008,7 +3418,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-result span { color: #94a3b8; font-size: 14px; } .dg-result b { font-size: 30px; font-weight: 900; color: #fbbf24; }
 .dg-gain { font-size: 24px; font-weight: 900; color: #94a3b8; margin-bottom: 10px; }
 .dg-gain.up { color: #34d399; }
-/* 투수 · 마운드 */
+
 .dg-mound { position: absolute; left: 78%; top: 28.5%; width: 18%; height: 4.5%; transform: translateX(-50%); border-radius: 50%; background: #b9773f; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15); }
 .dg-pitcher { position: absolute; left: 78%; top: 23%; width: 22px; height: 33px; transform: translateX(-50%) scaleX(-1); }
 .dg-pitcher svg { width: 100%; height: 100%; overflow: visible; }
@@ -7018,7 +3428,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 @keyframes dg-p-body { 0% { transform: rotate(0); } 40% { transform: rotate(-14deg); } 75% { transform: rotate(16deg); } 100% { transform: rotate(0); } }
 @keyframes dg-p-arm { 0% { transform: rotate(0); } 40% { transform: rotate(-160deg); } 72% { transform: rotate(40deg); } 100% { transform: rotate(0); } }
 .dg-sub { width: 100%; margin-top: 8px; padding: 11px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); background: transparent; color: #cbd5e1; font-size: 14px; font-weight: 800; cursor: pointer; }
-/* 공이 오는 방향 알림 (화면 위에 크게) */
+
 .dg-call {
     position: absolute; left: 50%; top: 4%; z-index: 8; transform: translate(-50%, -6px) scale(0.9);
     padding: 9px 18px; border-radius: 14px; white-space: nowrap; pointer-events: none; opacity: 0;
@@ -7039,41 +3449,35 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 
 .dg-call.c-speed { border-color: #fb923c; color: #ffedd5; }
 
-/* 경기장 그림 좌우 반전: 3루 쪽 파울 지역에서 홈을 보면 경기장이 왼쪽, 관중석이 오른쪽 */
 .dg-scene { position: absolute; inset: 0; transform: scaleX(-1); }
 
-/* ---- 경기장 다시 그림: 관중(캔버스) · 펜스 · 흙길 · 홈 주변 ---- */
 .dg-crowd { position: absolute; inset: 0; width: 100%; height: 100%; }
 .dg-track { clip-path: polygon(45% 28%, 48.5% 28%, 62% 100%, 4% 100%) !important; }
 .dg-wall { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #0f5132; clip-path: polygon(44.6% 28%, 45.4% 28%, 5.5% 100%, 2.5% 100%) !important; }
 .dg-dirt { z-index: 1; top: 24% !important; width: 34% !important; height: 8.5% !important; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12); }
 .dg-plate { z-index: 2; top: 27.4% !important; width: 18px !important; height: 8px !important; }
 .dg-box { position: absolute; z-index: 2; top: 26.2%; width: 12px; height: 12px; border: 1.5px solid rgba(255,255,255,0.85); transform: translateX(-50%) scaleY(0.6); }
-.dg-box.l { left: calc(50% - 15px); } .dg-box.r { left: calc(50% + 15px); }
+ .dg-box.r { left: calc(50% + 15px); }
 .dg-1bline { position: absolute; z-index: 1; inset: 0; background: rgba(255,255,255,0.85); clip-path: polygon(50% 27.4%, 100% 28.6%, 100% 29%, 50% 27.8%); }
 .dg-foul { z-index: 2 !important; }
 .dg-catcher { position: absolute; z-index: 2; left: 50%; top: 22.6%; width: 16px; height: 16px; transform: translateX(-50%); }
 .dg-ump { position: absolute; z-index: 1; left: 50%; top: 19.6%; width: 18px; height: 22px; transform: translateX(-50%); }
 .dg-catcher svg, .dg-ump svg { width: 100%; height: 100%; display: block; }
 .dg-mound, .dg-pitcher, .dg-3b { z-index: 2; }
-/* 뒷모습 볼보이: 의자 등받이는 앉아 있을 때만 */
+
 .dg-boy.st-jump .bb-stool-back, .dg-boy.st-left .bb-stool-back, .dg-boy.st-right .bb-stool-back { display: none; }
 
-/* 마운드·투수: 홈~2루 가운데 선 위 (반전 전 좌표 76% → 화면 24%) */
 .dg-mound { left: 76% !important; top: 35.3% !important; width: 16% !important; height: 4.4% !important; }
 
-/* 관중석이 홈 뒤에서 꺾이므로 잔디는 그 아래부터, 펜스·흙길은 모서리에서 시작 */
 .dg-grass { top: 24% !important; }
 .dg-track { clip-path: polygon(44% 24.8%, 47.5% 24.8%, 62% 100%, 4% 100%) !important; }
 .dg-wall { clip-path: polygon(43.7% 24.8%, 44.5% 24.8%, 5.5% 100%, 2.5% 100%) !important; }
 .dg-stands { display: none; }
 
-/* 점프해도 위가 잘리지 않게: 화면 높이에 맞춰 볼보이 크기 제한, 점프 높이 낮춤 */
 .dg-stage { container-type: size; }
 .dg-boy { width: min(48%, 215px, 31cqh) !important; }
 @keyframes bb-jump { 0% { transform: translateY(0); } 25% { transform: translateY(-82px); } 75% { transform: translateY(-78px); } 100% { transform: translateY(0); } }
 
-/* ---- 3D 투영 야구장: 캔버스 하나 + 사람 그림 (좌우 반전 없음) ---- */
 .dg-scene { transform: none !important; }
 .dg-field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .dg-scene .dg-sky { background: none !important; height: 20%; }
@@ -7081,29 +3485,24 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-fig svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .dg-crack { z-index: 4; }
 
-/* 잡기 글러브: 잡기 자세에서만 (머리 위 가운데) */
 .dg-boy .bb-catch-glove { display: none; }
 .dg-boy.st-catch .bb-catch-glove { display: inline; }
 
-/* 볼보이 그림 틀을 넓힘(피하기·점프해도 안 잘리게): 몸통 크기는 예전과 같게 */
 .dg-boy { width: min(91.2%, 408px, 58.9cqh) !important; bottom: 2% !important; }
 
-/* 버튼 아래: 언제 누르는지 */
 .dg-btn { height: 78px !important; gap: 2px !important; }
 .dg-when { font-size: 10px; font-weight: 800; color: #fbbf24; letter-spacing: -0.4px; white-space: nowrap; line-height: 1.1; }
 .dg-btn.press .dg-when, .dg-btn:active .dg-when { color: #fef3c7; }
 
-/* 동작 중에는 다른 버튼을 흐리게 (한 번에 하나만) */
 .dg-pad.locked .dg-btn:not(.press) { opacity: 0.4; }
 
-/* ================= 미니게임 2: 지옥의 펑고 ================= */
 .fg .dg-pad { grid-template-columns: repeat(3, 1fr); }
 .fg-boy { position: absolute; z-index: 3; }
 .fg-boy .bb { width: 100%; height: 100%; display: block; overflow: visible; }
 .fg-boy .fb-body { transform-box: view-box; transform-origin: 100px 270px; transition: transform 0.12s ease-out; }
 .fg-boy .fa { display: none; }
-.fg-boy.st-ready .fa-ready, .fg-boy.st-left .fa-left, .fg-boy.st-right .fa-right, .fg-boy.st-center .fa-center,
-.fg-boy.st-throw .fa-throw, .fg-boy.st-release .fa-release { display: inline; }
+.fg-boy.st-ready .fa-ready, .fg-boy.st-center .fa-center,
+.fg-boy.st-throw .fa-throw{ display: inline; }
 .fg-boy.st-left .fb-body { transform: translateX(-60px) rotate(-10deg); }
 .fg-boy.st-right .fb-body { transform: translateX(60px) rotate(10deg); }
 .fg-boy.st-center .fb-body { transform: translateY(10px); }
@@ -7113,30 +3512,28 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .fg-coach .dg-bat { transform-origin: 24px 22px; transform: rotate(-60deg); }
 .fg-hint { top: 15%; }
 .dg-call.c-err { border-color: #ef4444; color: #fee2e2; }
-/* 실책 표시 (E 3칸) */
+
 .fg-errs { display: flex; gap: 5px; }
 .fg-errs i { width: 20px; height: 20px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 11px; font-weight: 900; background: #1e293b; color: #475569; }
 .fg-errs i.on { background: #ef4444; color: #fff; }
-/* 송구 게이지 */
+
 .fg-gauge { position: absolute; z-index: 9; left: 50%; top: 17%; width: 52%; transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 .fg-gauge.show { display: flex; }
 .fg-bar { position: relative; width: 100%; height: 22px; border-radius: 11px; background: linear-gradient(90deg, #334155, #64748b 50%, #334155); border: 2px solid rgba(255,255,255,0.85); box-shadow: 0 6px 18px rgba(0,0,0,0.5); overflow: hidden; }
 .fg-red { position: absolute; top: 0; bottom: 0; background: #ef4444; box-shadow: 0 0 12px rgba(239,68,68,0.9); }
 .fg-needle { position: absolute; top: -3px; bottom: -3px; width: 5px; margin-left: -2.5px; border-radius: 3px; background: #fde047; box-shadow: 0 0 8px #fde047; }
 .fg-gauge span { font-size: 13px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
-/* 펑고: 다이빙 (왼쪽·오른쪽) — 몸을 날려 옆으로 눕고, 두 팔을 쭉 뻗어 글러브로 */
+
 .fg-boy .fb-legs-dive, .fg-boy .fb-dust { display: none; }
 .fg-boy.st-left .fb-legs-ready, .fg-boy.st-right .fb-legs-ready { display: none; }
 .fg-boy.st-left .fb-legs-dive, .fg-boy.st-right .fb-legs-dive,
 .fg-boy.st-left .fa-dive, .fg-boy.st-right .fa-dive { display: inline; }
 .fg-boy.st-left .fb-body { }
 .fg-boy.st-right .fb-body { }
-@keyframes fb-dive-l { 0% { transform: rotate(0); } 45% { transform: translate(-30px, -50px) rotate(-55deg); } 100% { transform: translateY(18px) rotate(-78deg); } }
-@keyframes fb-dive-r { 0% { transform: rotate(0); } 45% { transform: translate(30px, -50px) rotate(55deg); } 100% { transform: translateY(18px) rotate(78deg); } }
+
 .fg-boy.st-left .fb-dust-l, .fg-boy.st-right .fb-dust-r { display: inline; transform-box: fill-box; transform-origin: center; animation: fb-dust 0.6s ease-out forwards; }
 @keyframes fb-dust { 0%, 40% { opacity: 0; transform: scale(0.4); } 60% { opacity: 0.9; } 100% { opacity: 0; transform: scale(1.4); } }
 
-/* 펑고 다이빙 캐치 (실제 동작): 낮게 밀어내며 점프 → 공중에서 수평 → 가슴으로 착지하며 미끄러짐 */
 .fg-boy .fb-dive-wrap { display: none; }
 .fg-boy.st-left .fb-body, .fg-boy.st-right .fb-body { display: none; }
 .fg-boy.st-left .fb-dive-wrap, .fg-boy.st-right .fb-dive-wrap { display: inline; }
@@ -7148,23 +3545,22 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
     70%  { transform: translate(0, 4px) rotate(0); }
     100% { transform: translateX(-14px); }
 }
-/* 오른쪽 다이빙은 그림을 좌우 반전하므로 등번호만 다시 바로 */
+
 .fg-boy .fb-num-r { display: none; }
 .fg-boy.st-right .fb-num-l { display: none; }
 .fg-boy.st-right .fb-num-r { display: inline; }
 
-/* 펑고 송구: 1루 쪽(왼쪽)으로 몸을 돌리며 던짐 */
 .fg-boy.st-throw .fb-body { transform: rotate(-4deg) scaleX(0.9); }
 .fg-boy .fb-tarm { transform-box: view-box; transform-origin: 140px 132px; }
 .fg-boy.st-throw.throwing .fb-body { transform: translateX(-16px) rotate(-14deg) scaleX(0.82); transition: transform 0.22s ease-out; }
 .fg-boy.st-throw.throwing .fb-tarm { animation: fb-throw 0.32s ease-in forwards; }
 @keyframes fb-throw {
     0%   { transform: rotate(0deg); opacity: 1; }
-    45%  { transform: rotate(-70deg); opacity: 1; }    /* 팔이 머리 위로 */
-    70%  { transform: rotate(-115deg); opacity: 1; }   /* 1루 쪽으로 내려오며 공을 놓음 */
-    100% { transform: rotate(-140deg); opacity: 0; }   /* 팔이 몸 앞으로 넘어가 뒤에서는 안 보임 */
+    45%  { transform: rotate(-70deg); opacity: 1; }    
+    70%  { transform: rotate(-115deg); opacity: 1; }   
+    100% { transform: rotate(-140deg); opacity: 0; }   
 }
-/* 글러브 팔도 던지면서 가슴 쪽으로 당겨 몸 앞으로 (뒤에서는 안 보임) */
+
 .fg-boy .fb-garm { transform-box: view-box; transform-origin: 60px 132px; }
 .fg-boy.st-throw.throwing .fb-garm { animation: fb-garm 0.32s ease-in forwards; }
 @keyframes fb-garm {
@@ -7175,16 +3571,17 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .fg-boy.st-throw.throwing .fb-tarm circle[fill="#ffffff"] { animation: fb-ball-off 0.32s forwards; }
 @keyframes fb-ball-off { 0%, 55% { opacity: 1; } 60%, 100% { opacity: 0; } }
 
-/* 게이지 바 더 얇게 */
 .fg-bar { height: 13px !important; border-width: 1.5px !important; }
 .fg-needle { top: -4px !important; bottom: -4px !important; width: 4px !important; margin-left: -2px !important; }
 
-/* ---- 누르면 바로 반응: 두 번 탭 확대 대기 없애기 + 누르는 순간 눌림 표시 ---- */
 html, body { touch-action: manipulation; }
 button, [role="button"], .hm-row, .mg-card, .mr-row, .rk-row, .sc-date { -webkit-tap-highlight-color: transparent; }
 button:active:not(:disabled), .mg-card:active, .mr-row:active, .sc-date:active { filter: brightness(0.82); }
-/* 경기장 입장 중 (서버 답을 받는 동안) */
+
 #ingame-view.ig-loading::after {
     content: '경기장 입장 중...'; position: absolute; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
     background: rgba(6, 11, 22, 0.88); color: #e2e8f0; font-size: 16px; font-weight: 800;
 }
+
+/* 보낸 친구 요청 취소 (빨간 버튼) */
+.rk-btn.cancel { background: #ef4444; border-color: #ef4444; color: #fff; }

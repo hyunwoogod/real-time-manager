@@ -12,7 +12,7 @@
     <link rel="preload" as="image" href="/brand/hero.jpg?v=8" fetchpriority="high">
     <link rel="preload" as="image" href="/brand/mascot-head.png?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261013_33">
+    <link rel="stylesheet" href="style.css?v=20261014_3">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -554,95 +554,6 @@
         </section>
 
 
-        <!-- ========================================== -->
-        <!-- AUTH MODAL 1: LOGIN POPUP MODAL -->
-        <!-- ========================================== -->
-        <div id="login-modal" class="modal-overlay">
-            <div class="modal-card auth-modal-card">
-                <div class="modal-header">
-                    <h3>방구석 감독 로그인</h3>
-                    <button type="button" class="btn-close-modal" onclick="closeLoginModal()">✕</button>
-                </div>
-                <form onsubmit="event.preventDefault(); submitLogin();" class="auth-form">
-                    <div class="form-group">
-                        <label for="login-username">아이디 (ID)</label>
-                        <input type="text" id="login-username" placeholder="아이디 입력" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="login-password">비밀번호 (Password)</label>
-                        <input type="password" id="login-password" placeholder="비밀번호 입력" required>
-                    </div>
-
-                    <button type="submit" class="btn-primary-glow btn-auth-submit">
-                        로그인
-                    </button>
-                    <button type="button" class="btn-modal-cancel" onclick="closeLoginModal()">
-                        닫기 / 취소
-                    </button>
-                </form>
-            </div>
-        </div>
-
-
-        <!-- ========================================== -->
-        <!-- AUTH MODAL 2: REGISTER POPUP MODAL -->
-        <!-- ========================================== -->
-        <div id="register-modal" class="modal-overlay">
-            <div class="modal-card auth-modal-card">
-                <div class="modal-header">
-                    <h3>일반 회원가입</h3>
-                    <button type="button" class="btn-close-modal" onclick="closeRegisterModal()">✕</button>
-                </div>
-                <form onsubmit="event.preventDefault(); submitRegister();" class="auth-form">
-                    <div class="form-group">
-                        <label for="reg-username">아이디 (ID)</label>
-                        <input type="text" id="reg-username" placeholder="영문/숫자 4자 이상" required minlength="4">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="reg-password">비밀번호 (Password)</label>
-                        <input type="password" id="reg-password" placeholder="비밀번호 6자 이상" required minlength="6">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="reg-email">이메일 (Email)</label>
-                        <input type="email" id="reg-email" placeholder="example@zipgamdok.com" required>
-                    </div>
-
-                    <!-- Identity Verification Panel -->
-                    <div class="form-group identity-box">
-                        <label>본인인증 (간편 인증)</label>
-                        <div class="verify-status-wrapper">
-                            <button type="button" id="btn-do-verify" class="btn-verify"
-                                onclick="triggerIdentityVerify()">
-                                PASS / 통신사 간편 본인인증
-                            </button>
-                            <div id="verify-badge" class="verify-badge hidden">
-                                <span class="check-icon">✓</span> 본인인증 완료 (010-****-5678)
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Marketing Agreement Checkbox -->
-                    <div class="form-group checkbox-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="reg-marketing">
-                            <span class="checkbox-custom"></span>
-                            [선택] KBO 주요 경기 라이브 알림 및 마케팅 정보 수신 동의
-                        </label>
-                    </div>
-
-                    <button type="submit" class="btn-primary-glow btn-auth-submit">
-                        회원가입 완료 & 닉네임/구단 설정 이동
-                    </button>
-                    <button type="button" class="btn-modal-cancel" onclick="closeRegisterModal()">
-                        닫기 / 취소
-                    </button>
-                </form>
-            </div>
-        </div>
-
 
         <!-- ========================================== -->
         <!-- SETTINGS POPUP MODAL (환경설정 및 로그아웃) -->
@@ -780,46 +691,6 @@
         </div>
 
 
-        <!-- ========================================== -->
-        <!-- IN-GAME MODAL 2: KAKAO SHARE MODAL -->
-        <!-- ========================================== -->
-        <div id="share-modal" class="modal-overlay">
-            <div class="modal-card share-card">
-                <h3>💬 카카오톡 명장 공유하기</h3>
-                <p>친구들과 실시간 감독 점수와 명장 등급을 겨뤄보세요!</p>
-                <div class="share-preview-box">
-                    <span class="preview-title">⚾ 방구석 감독 성적 리포트</span>
-                    <p class="preview-body">오늘 나의 감독 점수: 2,000P (D급 초짜 감독)! 당신의 선택은?</p>
-                </div>
-                <div class="share-modal-btns">
-                    <button class="btn-primary-glow" onclick="copyShareLink()">📋 공유 링크 복사</button>
-                    <button class="btn-secondary" onclick="closeShareModal()">닫기</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- IN-GAME MODAL 3: TACTIC RESULT FEEDBACK MODAL -->
-        <!-- ========================================== -->
-        <div id="tactic-result-modal" class="modal-overlay">
-            <div class="igm-card igm-result">
-                <div class="igm-res-top">
-                    <span id="res-grade-badge" class="result-badge grade-d">D</span>
-                    <div class="igm-res-score">
-                        <span>감독 점수</span>
-                        <strong id="res-score-delta" class="delta-zero">0</strong>
-                    </div>
-                </div>
-                <div class="igm-cmp">
-                    <div><span>내 선택</span><strong id="res-my-choice">-</strong></div>
-                    <div><span>실제 감독</span><strong id="res-actual-choice">-</strong></div>
-                    <div><span>타석 결과</span><strong id="res-atbat-result">-</strong></div>
-                </div>
-                <p id="res-commentary" class="igm-comment"></p>
-                <button class="igm-close" onclick="closeTacticResultModal()">계속 보기</button>
-            </div>
-        </div>
-
         <!-- BOTTOM FIXED NAVIGATION BAR (Pinned to bottom of app container) -->
         <nav id="bottom-nav-bar" class="bottom-nav-bar {% if username %}visible{% else %}hidden{% endif %}" {% if not username %}style="display: none !important;"{% endif %}>
             <button class="bottom-nav-item active" onclick="switchLobbyTab('home', this)" aria-label="홈">
@@ -863,7 +734,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261013_4"></script>
+    <script src="app.js?v=20261014_3"></script>
     <script src="mg-dodge.js?v=20261013_35"></script>
     <script src="mg-fungo.js?v=20261013_16"></script>
 </body>

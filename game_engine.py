@@ -670,12 +670,6 @@ class GameEngine:
     def get_current_defense_team(self):
         return self.home_team_name if self.is_top else self.away_team_name
 
-    def _throws_of(self, team, name):
-        r = TEAMS.get(team, {}).get("roster") or {}
-        for p in r.get("rotation", []) + r.get("bullpen", []):
-            if p["name"] == name:
-                return p.get("throws", "우투")
-        return "우투"
 
     def lineup_names(self, team):
         lu = (getattr(self, 'lineups', None) or {}).get(team)
