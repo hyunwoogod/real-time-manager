@@ -7095,3 +7095,86 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 
 /* 동작 중에는 다른 버튼을 흐리게 (한 번에 하나만) */
 .dg-pad.locked .dg-btn:not(.press) { opacity: 0.4; }
+
+/* ================= 미니게임 2: 지옥의 펑고 ================= */
+.fg .dg-pad { grid-template-columns: repeat(3, 1fr); }
+.fg-boy { position: absolute; z-index: 3; }
+.fg-boy .bb { width: 100%; height: 100%; display: block; overflow: visible; }
+.fg-boy .fb-body { transform-box: view-box; transform-origin: 100px 270px; transition: transform 0.12s ease-out; }
+.fg-boy .fa { display: none; }
+.fg-boy.st-ready .fa-ready, .fg-boy.st-left .fa-left, .fg-boy.st-right .fa-right, .fg-boy.st-center .fa-center,
+.fg-boy.st-throw .fa-throw, .fg-boy.st-release .fa-release { display: inline; }
+.fg-boy.st-left .fb-body { transform: translateX(-60px) rotate(-10deg); }
+.fg-boy.st-right .fb-body { transform: translateX(60px) rotate(10deg); }
+.fg-boy.st-center .fb-body { transform: translateY(10px); }
+.fg-boy.st-throw .fb-body { transform: rotate(-6deg); }
+.fg-boy.st-release .fb-body { transform: rotate(-12deg) translateX(-8px); }
+.fg-coach.swing .dg-bat { animation: dg-swing 0.3s ease-out; }
+.fg-coach .dg-bat { transform-origin: 24px 22px; transform: rotate(-60deg); }
+.fg-hint { top: 15%; }
+.dg-call.c-err { border-color: #ef4444; color: #fee2e2; }
+/* 실책 표시 (E 3칸) */
+.fg-errs { display: flex; gap: 5px; }
+.fg-errs i { width: 20px; height: 20px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 11px; font-weight: 900; background: #1e293b; color: #475569; }
+.fg-errs i.on { background: #ef4444; color: #fff; }
+/* 송구 게이지 */
+.fg-gauge { position: absolute; z-index: 9; left: 50%; top: 17%; width: 52%; transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.fg-gauge.show { display: flex; }
+.fg-bar { position: relative; width: 100%; height: 22px; border-radius: 11px; background: linear-gradient(90deg, #334155, #64748b 50%, #334155); border: 2px solid rgba(255,255,255,0.85); box-shadow: 0 6px 18px rgba(0,0,0,0.5); overflow: hidden; }
+.fg-red { position: absolute; top: 0; bottom: 0; background: #ef4444; box-shadow: 0 0 12px rgba(239,68,68,0.9); }
+.fg-needle { position: absolute; top: -3px; bottom: -3px; width: 5px; margin-left: -2.5px; border-radius: 3px; background: #fde047; box-shadow: 0 0 8px #fde047; }
+.fg-gauge span { font-size: 13px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+/* 펑고: 다이빙 (왼쪽·오른쪽) — 몸을 날려 옆으로 눕고, 두 팔을 쭉 뻗어 글러브로 */
+.fg-boy .fb-legs-dive, .fg-boy .fb-dust { display: none; }
+.fg-boy.st-left .fb-legs-ready, .fg-boy.st-right .fb-legs-ready { display: none; }
+.fg-boy.st-left .fb-legs-dive, .fg-boy.st-right .fb-legs-dive,
+.fg-boy.st-left .fa-dive, .fg-boy.st-right .fa-dive { display: inline; }
+.fg-boy.st-left .fb-body { }
+.fg-boy.st-right .fb-body { }
+@keyframes fb-dive-l { 0% { transform: rotate(0); } 45% { transform: translate(-30px, -50px) rotate(-55deg); } 100% { transform: translateY(18px) rotate(-78deg); } }
+@keyframes fb-dive-r { 0% { transform: rotate(0); } 45% { transform: translate(30px, -50px) rotate(55deg); } 100% { transform: translateY(18px) rotate(78deg); } }
+.fg-boy.st-left .fb-dust-l, .fg-boy.st-right .fb-dust-r { display: inline; transform-box: fill-box; transform-origin: center; animation: fb-dust 0.6s ease-out forwards; }
+@keyframes fb-dust { 0%, 40% { opacity: 0; transform: scale(0.4); } 60% { opacity: 0.9; } 100% { opacity: 0; transform: scale(1.4); } }
+
+/* 펑고 다이빙 캐치 (실제 동작): 낮게 밀어내며 점프 → 공중에서 수평 → 가슴으로 착지하며 미끄러짐 */
+.fg-boy .fb-dive-wrap { display: none; }
+.fg-boy.st-left .fb-body, .fg-boy.st-right .fb-body { display: none; }
+.fg-boy.st-left .fb-dive-wrap, .fg-boy.st-right .fb-dive-wrap { display: inline; }
+.fg-boy.st-right .fb-dive-wrap { transform-box: view-box; transform-origin: 100px 0; transform: scaleX(-1); }
+.fg-boy .fb-dive { transform-box: view-box; transform-origin: 100px 240px; transform: translateX(-14px); animation: fb-dive 0.42s cubic-bezier(.2,.7,.3,1); }
+@keyframes fb-dive {
+    0%   { transform: translate(80px, -30px) rotate(-38deg) scale(0.9); }
+    35%  { transform: translate(30px, -58px) rotate(-8deg); }
+    70%  { transform: translate(0, 4px) rotate(0); }
+    100% { transform: translateX(-14px); }
+}
+/* 오른쪽 다이빙은 그림을 좌우 반전하므로 등번호만 다시 바로 */
+.fg-boy .fb-num-r { display: none; }
+.fg-boy.st-right .fb-num-l { display: none; }
+.fg-boy.st-right .fb-num-r { display: inline; }
+
+/* 펑고 송구: 1루 쪽(왼쪽)으로 몸을 돌리며 던짐 */
+.fg-boy.st-throw .fb-body { transform: rotate(-4deg) scaleX(0.9); }
+.fg-boy .fb-tarm { transform-box: view-box; transform-origin: 140px 132px; }
+.fg-boy.st-throw.throwing .fb-body { transform: translateX(-16px) rotate(-14deg) scaleX(0.82); transition: transform 0.22s ease-out; }
+.fg-boy.st-throw.throwing .fb-tarm { animation: fb-throw 0.32s ease-in forwards; }
+@keyframes fb-throw {
+    0%   { transform: rotate(0deg); opacity: 1; }
+    45%  { transform: rotate(-70deg); opacity: 1; }    /* 팔이 머리 위로 */
+    70%  { transform: rotate(-115deg); opacity: 1; }   /* 1루 쪽으로 내려오며 공을 놓음 */
+    100% { transform: rotate(-140deg); opacity: 0; }   /* 팔이 몸 앞으로 넘어가 뒤에서는 안 보임 */
+}
+/* 글러브 팔도 던지면서 가슴 쪽으로 당겨 몸 앞으로 (뒤에서는 안 보임) */
+.fg-boy .fb-garm { transform-box: view-box; transform-origin: 60px 132px; }
+.fg-boy.st-throw.throwing .fb-garm { animation: fb-garm 0.32s ease-in forwards; }
+@keyframes fb-garm {
+    0%   { transform: none; opacity: 1; }
+    60%  { transform: rotate(-20deg) scaleX(0.6); opacity: 1; }
+    100% { transform: rotate(-30deg) scaleX(0.2); opacity: 0; }
+}
+.fg-boy.st-throw.throwing .fb-tarm circle[fill="#ffffff"] { animation: fb-ball-off 0.32s forwards; }
+@keyframes fb-ball-off { 0%, 55% { opacity: 1; } 60%, 100% { opacity: 0; } }
+
+/* 게이지 바 더 얇게 */
+.fg-bar { height: 13px !important; border-width: 1.5px !important; }
+.fg-needle { top: -4px !important; bottom: -4px !important; width: 4px !important; margin-left: -2px !important; }

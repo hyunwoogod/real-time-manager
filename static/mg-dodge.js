@@ -144,14 +144,22 @@ const FIELD = {
     figScale: 1.8,         // 선수 그림은 잘 보이게 실제보다 조금 크게
 };
 
-function makeCamera(W, H) {
+// 카메라: cam = { C: 카메라 위치, look: 바라보는 땅 위의 점, lookY: 그 점이 화면 위에서 보일 높이(0~1), vfov }
+// cam이 없으면 볼보이 게임 카메라 (3루 지난 파울 지역 볼보이 뒤)
+function ballboyCam() {
     const u3 = { x: -Math.SQRT1_2, y: Math.SQRT1_2 }, n3 = { x: -Math.SQRT1_2, y: -Math.SQRT1_2 };
     const B = { x: u3.x * FIELD.boyS + n3.x * FIELD.boyOff, y: u3.y * FIELD.boyS + n3.y * FIELD.boyOff };
     const dl = Math.hypot(B.x, B.y), d = { x: -B.x / dl, y: -B.y / dl };   // 볼보이 → 홈
-    const C = { x: B.x - d.x * FIELD.camBack, y: B.y - d.y * FIELD.camBack, z: FIELD.camH };
-    const f = H / (2 * Math.tan(FIELD.vfov * Math.PI / 360));
-    const dist = Math.hypot(C.x, C.y);
-    const th = Math.atan2(C.z, dist) + Math.atan(((0.5 - FIELD.homeY) * H) / f); // 홈이 화면 위 27% 높이에 오게
+    return { C: { x: B.x - d.x * FIELD.camBack, y: B.y - d.y * FIELD.camBack, z: FIELD.camH }, look: { x: 0, y: 0 }, lookY: FIELD.homeY, vfov: FIELD.vfov };
+}
+
+function makeCamera(W, H, cam) {
+    cam = cam || ballboyCam();
+    const C = cam.C;
+    const dx0 = cam.look.x - C.x, dy0 = cam.look.y - C.y, dist = Math.hypot(dx0, dy0);
+    const d = { x: dx0 / dist, y: dy0 / dist };
+    const f = H / (2 * Math.tan(cam.vfov * Math.PI / 360));
+    const th = Math.atan2(C.z, dist) + Math.atan(((0.5 - cam.lookY) * H) / f); // 바라보는 점이 화면의 lookY 높이에 오게
     const F = { x: d.x * Math.cos(th), y: d.y * Math.cos(th), z: -Math.sin(th) };
     const R = { x: d.y, y: -d.x, z: 0 };
     const U = { x: R.y * F.z - R.z * F.y, y: R.z * F.x - R.x * F.z, z: R.x * F.y - R.y * F.x };
@@ -160,17 +168,17 @@ function makeCamera(W, H) {
         const zc = vx * F.x + vy * F.y + vz * F.z;
         return { x: W / 2 + f * (vx * R.x + vy * R.y) / zc, y: H / 2 - f * (vx * U.x + vy * U.y + vz * U.z) / zc, z: zc };
     };
-    return { proj, f, horizon: H / 2 - f * Math.tan(th) };
+    return { proj, f, horizon: H / 2 - f * Math.tan(th), R, C };
 }
 
-function drawStadium(cv) {
+function drawStadium(cv, opts = {}) {
     if (!cv) return null;
     const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
     if (!r.width) return null;
     cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
     const W = r.width, H = r.height, c = cv.getContext('2d');
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const { proj, f, horizon } = makeCamera(W, H);
+    const { proj, f, horizon } = makeCamera(W, H, opts.cam);
     const NEAR = 0.6;
     let seed = 11;
     const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -269,8 +277,8 @@ function drawStadium(cv) {
                 poly([Q(s, o0, h0), Q(e, o0, h0), Q(e, o1, h0), Q(s, o1, h0)], tread);
                 poly([Q(s, o1, h0), Q(e, o1, h0), Q(e, o1, h1), Q(s, o1, h1)], '#16244a', -0.01);
             }
-            // 관중: 0.55m 간격
-            for (let s = -o0 + 0.3; s < sMax; s += 0.55) {
+            // 관중: 0.55m 간격 (연습 장면이면 빈 관중석)
+            for (let s = -o0 + 0.3; opts.crowd !== false && s < sMax; s += 0.55) {
                 if (rnd() < 0.12) continue;
                 const o = o0 + 0.45, wx = u.x * s + n.x * o, wy = u.y * s + n.y * o;
                 const p = proj(wx, wy, h0);
@@ -312,7 +320,7 @@ function drawStadium(cv) {
     // 사람 그림(투수·타자·포수·심판) 위치와 크기, 공이 지나가는 점
     const at = (x, y, z, hM) => { const p = proj(x, y, z); return { x: p.x, y: p.y, h: hM * FIELD.figScale * f / p.z }; };
     return {
-        W, H,
+        W, H, proj, f,
         plate0: proj(0, 0, 0),
         contact: proj(-0.2, 0.5, 0.9),
         release: proj(0.3, FIELD.mound - 0.8, 2.1),
@@ -331,6 +339,7 @@ const DodgeGame = {
         if (!this.el) this.build();
         this.showIntro();
         this.el.classList.add('active');
+        this.layoutField();
         requestAnimationFrame(() => this.layoutField());
     },
 

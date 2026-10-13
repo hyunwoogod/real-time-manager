@@ -170,6 +170,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try { startLiveClock(); } catch(e) {}
     try { setupSmartAutoScroll(); } catch(e) {}
     try { syncTodayTabLabel(currentSystemDate); } catch(e) {}
+    // 진행 중이던 경기: 입장 버튼을 누르기 전까지는 멈춰 둠 (나갔던 그 상황에서 이어서 시작)
+    window._holdUntilEnter = !!(window.INITIAL_TODAY_SCHEDULE && window.INITIAL_TODAY_SCHEDULE.in_progress);
     try { renderHome(window.INITIAL_TODAY_SCHEDULE, window.INITIAL_TODAY_GAMES); } catch(e) { console.warn('renderHome error:', e); }
     // 테스트 시즌: 지난번에 경기를 시작하고 나갔다면 다음 날로 넘어왔다고 안내
     if (window.INITIAL_TODAY_SCHEDULE && window.INITIAL_TODAY_SCHEDULE.day_advanced) {
@@ -389,11 +391,11 @@ function dismissSplash() {
     if (fill) fill.style.width = '100%';
     
     showInitialLandingScreen();
-    // 경기 도중 새로고침하거나 나갔다 왔으면: 그 시점부터 경기를 이어서
+    // 경기 도중 새로고침하거나 나갔다 왔으면: 바로 들어가지 않고, '실시간 경기 입장'을 누르면 그 시점부터 이어서
     const sch = window.INITIAL_TODAY_SCHEDULE;
     if (sch && sch.in_progress && !window._resumedOnce) {
         window._resumedOnce = true;
-        setTimeout(() => { showToast('진행 중이던 경기를 이어서 해요'); enterLiveMatch(); }, 700);
+        setTimeout(() => showToast('진행 중인 경기가 있어요 · 입장하면 이어서 해요'), 700);
     }
 }
 
@@ -768,7 +770,7 @@ function gameState(m) {
     const status = m.status_text || '경기전';
     const hasScore = m.away_score != null && m.home_score != null;
     if (status === '경기중') {
-        return { cls: 'live', chip: m.inning_text || 'LIVE', center: hasScore ? `${m.away_score} : ${m.home_score}` : 'VS', canEnter: true, label: '실시간 경기 입장' };
+        return { cls: 'live', chip: m.inning_text || 'LIVE', center: hasScore ? `${m.away_score} : ${m.home_score}` : 'VS', canEnter: true, label: window._holdUntilEnter ? '실시간 경기 입장 · 이어서' : '실시간 경기 입장' };
     }
     if (status === '경기종료') {
         return { cls: 'final', chip: '종료', center: hasScore ? `${m.away_score} : ${m.home_score}` : 'VS', canEnter: false, label: '경기 종료' };
@@ -778,7 +780,7 @@ function gameState(m) {
         const wx = WX_KEY[reason] || 'ground';
         return { cls: `cancel wx-${wx}`, wx, chip: `${reason}취소`, center: 'VS', canEnter: false, label: `${reason} 취소`, reason };
     }
-    return { cls: 'ready', chip: m.start_time || '경기 전', center: 'VS', canEnter: true, label: '실시간 경기 입장' };
+    return { cls: 'ready', chip: m.start_time || '경기 전', center: 'VS', canEnter: true, label: window._holdUntilEnter ? '실시간 경기 입장 · 이어서' : '실시간 경기 입장' };
 }
 
 function teamCol(team, side, myTeam) {
@@ -961,6 +963,7 @@ function forceLiveMatchStart() {
 }
 
 function enterLiveMatch() {
+    window._holdUntilEnter = false;
     clearInterval(matchCountdownInterval);
     isMatchLive = true;
     const modal = document.getElementById('crisis-modal');
@@ -2049,7 +2052,9 @@ function gameHasStarted(s) {
 function triggerStep() {
     // 로비에 있을 때는 이미 시작된 경기만 뒤에서 계속 진행 (입장 전 경기는 타순을 짜고 시작)
     const ingameNow = document.getElementById('ingame-view');
-    if (!(ingameNow && ingameNow.classList.contains('active')) && !gameHasStarted(currentGameState)) return;
+    const inGame = !!(ingameNow && ingameNow.classList.contains('active'));
+    if (!inGame && window._holdUntilEnter) return; // 새로고침·재접속 뒤 입장 전에는 진행하지 않음
+    if (!inGame && !gameHasStarted(currentGameState)) return;
     if (currentGameState && currentGameState.game_over) {
         stopAutoPitchTimer();
         renderPostGameSummary(currentGameState);
