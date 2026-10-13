@@ -179,10 +179,10 @@ const DodgeGame = {
                 <div class="dg-stands"><i></i></div>
                 <div class="dg-grass"></div>
                 <div class="dg-infield"></div>
+                <div class="dg-track"></div>
                 <div class="dg-dirt"></div>
                 <div class="dg-plate"></div>
                 <div class="dg-foul"></div>
-                <div class="dg-3b-dirt"></div>
                 <div class="dg-3b"></div>
                 <div class="dg-lstands"><i></i></div>
                 <div class="dg-wall"></div>
@@ -360,7 +360,7 @@ const DodgeGame = {
             left: { x: cx - w * 0.46, y: T + h * 0.42 },
             right: { x: cx + w * 0.46, y: T + h * 0.42 },
         };
-        const mound = { x: W * 0.74 - 6, y: H * 0.255 };   // 투수 손 (와인드업 뒤 공을 놓는 위치)
+        const mound = { x: W * 0.78 - 6, y: H * 0.255 };   // 투수 손 (와인드업 뒤 공을 놓는 위치)
         const plate = { x: vp.x + 4, y: vp.y - H * 0.035 }; // 타자가 공을 맞히는 위치
         return { W, H, vp, gy, bx: cx, s, targets, mound, plate };
     },
