@@ -111,7 +111,7 @@ def _get_pg_pool():
     global _pg_pool
     if _pg_pool is None:
         _pg_pool = psycopg2.pool.ThreadedConnectionPool(
-            1, 5, DATABASE_URL,
+            1, 10, DATABASE_URL,   # 동시 요청(스레드 8개)보다 넉넉하게
             connect_timeout=10, keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3
         )
     return _pg_pool
@@ -873,6 +873,7 @@ def reset_play_data():
     # 'test_'로 시작하는 키 (LIKE의 % 기호 없이: SQLite·PostgreSQL 공통)
     cursor.execute("DELETE FROM app_settings WHERE key >= 'test_' AND key < 'test`'")
     cursor.execute("DELETE FROM app_settings WHERE key >= 'engine:' AND key < 'engine;'")  # 저장된 진행 중 경기
+    clear_settings_cache()
     conn.commit()
     conn.close()
 
@@ -1275,13 +1276,33 @@ DEFAULT_STANDINGS_BASE = [
 DEFAULT_STANDINGS_AS_OF = '2026-10-10'
 
 
+# 설정값 메모리 캐시: 서버 프로세스가 1개(gunicorn workers=1)라 모든 쓰기가 여기를 거침 →
+# 한 번 읽은 값은 기억해 두고, 쓸 때 함께 갱신 (원격 DB에 같은 값을 반복해서 묻지 않게)
+import threading as _threading
+_settings_cache = {}
+_settings_lock = _threading.Lock()
+_MISSING = object()
+
+
+def clear_settings_cache():
+    with _settings_lock:
+        _settings_cache.clear()
+
+
 def get_setting(key, default=''):
+    with _settings_lock:
+        v = _settings_cache.get(key, _MISSING)
+    if v is not _MISSING:
+        return default if v is None else v
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT value FROM app_settings WHERE key = ?", (key,))
     row = cursor.fetchone()
     conn.close()
-    return row['value'] if row else default
+    val = row['value'] if row else None
+    with _settings_lock:
+        _settings_cache[key] = val
+    return default if val is None else val
 
 
 def set_setting(key, value, cursor=None):
@@ -1294,6 +1315,11 @@ def set_setting(key, value, cursor=None):
     if own:
         conn.commit()
         conn.close()
+        with _settings_lock:
+            _settings_cache[key] = value
+    else:
+        with _settings_lock:  # 바깥 트랜잭션이 끝나기 전이므로 다음에 다시 읽게
+            _settings_cache.pop(key, None)
 
 
 def seed_standings_base():

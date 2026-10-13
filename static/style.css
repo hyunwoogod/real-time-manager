@@ -7178,3 +7178,13 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 /* 게이지 바 더 얇게 */
 .fg-bar { height: 13px !important; border-width: 1.5px !important; }
 .fg-needle { top: -4px !important; bottom: -4px !important; width: 4px !important; margin-left: -2px !important; }
+
+/* ---- 누르면 바로 반응: 두 번 탭 확대 대기 없애기 + 누르는 순간 눌림 표시 ---- */
+html, body { touch-action: manipulation; }
+button, [role="button"], .hm-row, .mg-card, .mr-row, .rk-row, .sc-date { -webkit-tap-highlight-color: transparent; }
+button:active:not(:disabled), .mg-card:active, .mr-row:active, .sc-date:active { filter: brightness(0.82); }
+/* 경기장 입장 중 (서버 답을 받는 동안) */
+#ingame-view.ig-loading::after {
+    content: '경기장 입장 중...'; position: absolute; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+    background: rgba(6, 11, 22, 0.88); color: #e2e8f0; font-size: 16px; font-weight: 800;
+}

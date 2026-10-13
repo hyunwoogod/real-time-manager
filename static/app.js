@@ -970,6 +970,11 @@ function enterLiveMatch() {
     if (modal) modal.classList.remove('active');
 
     window._igLastPlayKey = undefined;
+    // 누르는 즉시 경기 화면으로 전환 (같은 경기의 저장된 상태가 있으면 바로 그림, 없으면 '입장 중' 표시)
+    const cached = currentGameState && currentGameState.home_team === currentHomeTeam && currentGameState.away_team === currentAwayTeam && !currentGameState.game_over ? currentGameState : null;
+    const ig = document.getElementById('ingame-view');
+    if (!cached && ig) ig.classList.add('ig-loading');
+    switchView('ingame-view', cached || 'skip');
     // 요청 한 번으로 입장: 같은 경기가 진행 중이면 이어 보고, 아니면 새로 시작 (서버가 판단)
     fetch('/api/reset', {
         method: 'POST',
@@ -984,17 +989,21 @@ function enterLiveMatch() {
     })
     .then(r => r.json())
     .then(data => {
+        if (ig) ig.classList.remove('ig-loading');
         if (data && data.state) {
             currentGameState = data.state;
             saveGameStateToStorage(data.state);
+            updateScoreboardUI(data.state);
+            drawBaseballField(data.state);
+            renderNaverSportsLiveFeed(data.state);
+            if (data.state.crisis_active && data.state.current_crisis) openCrisisModal(data.state.current_crisis);
         }
-        switchView('ingame-view', data && data.state);
         if (data && !data.resumed) {
             setTimeout(() => igShowPlayBall(), 300);
             igFirstPitchCountdown(5);
         }
     })
-    .catch(() => switchView('ingame-view'));
+    .catch(() => { if (ig) ig.classList.remove('ig-loading'); showToast('연결이 불안정해요. 다시 시도해 주세요.'); });
 }
 
 // 하단 네비게이션 바 노출/숨김 제어 함수: 로그인 완료 후 메인 로비 화면이나 게임 화면 진입 시에만 노출
@@ -1059,8 +1068,8 @@ function switchView(viewId, preloadedState) {
     }
 
     if (viewId === 'ingame-view') {
-        // 방금 받은 상태가 있으면 바로 그림 (서버에 한 번 더 묻지 않음)
-        (preloadedState ? Promise.resolve(preloadedState) : fetch('/api/state').then(r => r.json()))
+        // 방금 받은 상태가 있으면 바로 그림 (서버에 한 번 더 묻지 않음). 'skip'이면 곧 올 응답이 채움
+        (preloadedState === 'skip' ? new Promise(() => {}) : preloadedState ? Promise.resolve(preloadedState) : fetch('/api/state').then(r => r.json()))
             .then(state => {
                 currentGameState = state;
                 saveGameStateToStorage(state);
@@ -2325,10 +2334,11 @@ function resetMatchAndLobby() {
     }
     // 테스트 시즌: 경기가 끝났으면 다음 날로 넘어가 새 상대와 경기
     if (window._testDay && currentGameState && currentGameState.game_over) {
+        switchView('pregame-view');
         fetch('/api/test/next_day', { method: 'POST' })
             .then(r => r.json())
-            .then(res => { showToast(`테스트 ${res.test_day}일차로 넘어왔어요`); switchView('pregame-view'); })
-            .catch(() => switchView('pregame-view'));
+            .then(res => { showToast(`테스트 ${res.test_day}일차로 넘어왔어요`); loadLobbyData(); })
+            .catch(() => {});
         return;
     }
     // 지금 보던 경기의 두 팀 그대로 초기화 (기본값 삼성·한화로 바뀌지 않도록)
@@ -2336,7 +2346,8 @@ function resetMatchAndLobby() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ home_team: currentHomeTeam, away_team: currentAwayTeam, home_pitcher: currentHomePitcher, away_pitcher: currentAwayPitcher })
-    }).then(() => switchView('pregame-view'));
+    }).catch(() => {});
+    switchView('pregame-view');
 }
 
 function openShareModal() {

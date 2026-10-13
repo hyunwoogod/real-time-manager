@@ -1,5 +1,5 @@
 from markupsafe import Markup
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, make_response, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, make_response, send_from_directory, g
 from functools import wraps
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
@@ -178,6 +178,15 @@ def load_engine_snapshot(uid):
     return eng
 
 
+def verify_user_cached(user_id, username):
+    """로그인 사용자 확인: 한 요청 안에서는 한 번만 DB에 물음 (가드와 데코레이터가 같은 확인을 반복하지 않게)"""
+    key = (user_id, username)
+    cache = g.setdefault('_verified_users', {})
+    if key not in cache:
+        cache[key] = database.verify_session_user(user_id, username)
+    return cache[key]
+
+
 def get_engine():
     """현재 로그인한 사용자의 게임 엔진 (메모리에 없으면 저장된 경기를 불러오고, 그것도 없으면 새로 만듦)"""
     uid = session.get('user_id')
@@ -227,7 +236,7 @@ def login_required(f):
             return resp
 
         # 2. SQLite users 테이블에 실제 존재하는 유효 사용자인지 실시간 대조
-        db_user = database.verify_session_user(user_id, username)
+        db_user = verify_user_cached(user_id, username)
         if not db_user:
             session.clear()
             session.modified = True
@@ -336,7 +345,7 @@ def authentication_guard():
     if path in GAME_API_PATHS:
         db_user = cached_verify_user(user_id, username)
     else:
-        db_user = database.verify_session_user(user_id, username)
+        db_user = verify_user_cached(user_id, username)
     if not db_user:
         # 데이터베이스에 존재하지 않는 무효 사용자: 세션 완전 파기 및 쿠키 만료
         session.clear()
@@ -379,7 +388,7 @@ def cached_verify_user(user_id, username):
     now = time.time()
     if hit and now - hit[0] < VERIFY_CACHE_SECONDS:
         return hit[1]
-    user = database.verify_session_user(user_id, username)
+    user = verify_user_cached(user_id, username)
     if user:
         if len(_verify_cache) > 2000:
             _verify_cache.clear()
@@ -389,19 +398,33 @@ def cached_verify_user(user_id, username):
     return user
 
 
+_gzip_cache = {}
+_GZIP_TYPES = ('application/json', 'text/html', 'text/css', 'application/javascript', 'text/javascript')
+
+
 @app.after_request
 def gzip_json_response(response):
-    """경기 상태(JSON)는 크기가 커서(수십 KB) 압축해 보냄 → 휴대폰에서 받는 시간 단축"""
+    """JSON·페이지(HTML)·스타일(css)·스크립트(js)를 압축해 보냄 → 처음 열 때 하얀 화면 시간 단축.
+    css/js는 같은 파일을 매번 다시 압축하지 않도록 압축본을 기억해 둠"""
     try:
-        if (response.status_code == 200 and response.mimetype == 'application/json'
+        if (response.status_code == 200 and response.mimetype in _GZIP_TYPES
                 and 'gzip' in request.headers.get('Accept-Encoding', '').lower()
-                and not response.direct_passthrough and 'Content-Encoding' not in response.headers):
+                and 'Content-Encoding' not in response.headers):
+            is_static = response.mimetype in ('text/css', 'application/javascript', 'text/javascript')
+            if response.direct_passthrough:
+                response.direct_passthrough = False
             data = response.get_data()
             if len(data) > 1024:
                 import gzip
-                response.set_data(gzip.compress(data, compresslevel=5))
+                key = (request.path, request.args.get('v'), len(data)) if is_static else None
+                comp = _gzip_cache.get(key) if key else None
+                if comp is None:
+                    comp = gzip.compress(data, compresslevel=6 if is_static else 5)
+                    if key:
+                        _gzip_cache[key] = comp
+                response.set_data(comp)
                 response.headers['Content-Encoding'] = 'gzip'
-                response.headers['Content-Length'] = str(len(response.get_data()))
+                response.headers['Content-Length'] = str(len(comp))
                 response.headers.add('Vary', 'Accept-Encoding')
     except Exception:
         pass
@@ -524,7 +547,7 @@ def login():
 
     # GET 요청: 이미 로그인되어 있다면 DB 대조 후 메인으로 이동
     if session.get('user_id') and session.get('username'):
-        if database.verify_session_user(session.get('user_id'), session.get('username')):
+        if verify_user_cached(session.get('user_id'), session.get('username')):
             return redirect(url_for('index'))
         else:
             session.clear()
@@ -824,7 +847,7 @@ def api_session():
     user_id = session.get('user_id')
     db_user = None
     if username and user_id:
-        db_user = database.verify_session_user(user_id, username)
+        db_user = verify_user_cached(user_id, username)
         if not db_user:
             session.clear()
             session.modified = True

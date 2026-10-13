@@ -245,6 +245,7 @@ const FungoGame = {
     begin() {
         const go = this.$.panel.querySelector('.dg-go');
         if (go) { go.disabled = true; go.textContent = '준비 중...'; }
+        if (mgFree()) { mgStartChallenge(this.slot); this.panel(''); this.countdown(3); return; } // 무료 연습: 바로 시작
         mgStartChallenge(this.slot).then(ok => {
             if (!ok) { this.close(true); return; }
             this.panel(''); this.countdown(3);
