@@ -872,6 +872,7 @@ def reset_play_data():
     cursor.execute("DELETE FROM tactics_history")
     # 'test_'로 시작하는 키 (LIKE의 % 기호 없이: SQLite·PostgreSQL 공통)
     cursor.execute("DELETE FROM app_settings WHERE key >= 'test_' AND key < 'test`'")
+    cursor.execute("DELETE FROM app_settings WHERE key >= 'engine:' AND key < 'engine;'")  # 저장된 진행 중 경기
     conn.commit()
     conn.close()
 

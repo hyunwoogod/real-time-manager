@@ -389,6 +389,12 @@ function dismissSplash() {
     if (fill) fill.style.width = '100%';
     
     showInitialLandingScreen();
+    // 경기 도중 새로고침하거나 나갔다 왔으면: 그 시점부터 경기를 이어서
+    const sch = window.INITIAL_TODAY_SCHEDULE;
+    if (sch && sch.in_progress && !window._resumedOnce) {
+        window._resumedOnce = true;
+        setTimeout(() => { showToast('진행 중이던 경기를 이어서 해요'); enterLiveMatch(); }, 700);
+    }
 }
 
 // Phase 1-1: Splash Loader & Initial Landing/Login Screen Entry (Max 1.2s Timeout / Skip on Click)

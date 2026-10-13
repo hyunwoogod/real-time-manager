@@ -144,12 +144,50 @@ _engines_lock = threading.Lock()
 MAX_ENGINES = 500  # 오래 안 쓴 경기부터 정리 (메모리 보호)
 
 
+import pickle
+import base64
+_snapshot_at = {}
+
+
+def save_engine_snapshot(eng, force=False):
+    """진행 중인 경기를 DB에 저장 (새로고침·재접속·서버 재시작 뒤에도 그 시점부터 이어서). 5초에 한 번 정도만"""
+    uid = getattr(eng, 'user_id', None)
+    if not uid:
+        return
+    now = time.time()
+    if not force and now - _snapshot_at.get(uid, 0) < 5:
+        return
+    _snapshot_at[uid] = now
+    try:
+        database.set_setting(f"engine:{uid}", base64.b64encode(pickle.dumps(eng)).decode('ascii'))
+    except Exception as e:
+        print(f"[engine snapshot] 저장 실패: {e}")
+
+
+def load_engine_snapshot(uid):
+    """저장된 경기 불러오기 (오늘 일차의 경기만)"""
+    raw = database.get_setting(f"engine:{uid}", "")
+    if not raw:
+        return None
+    try:
+        eng = pickle.loads(base64.b64decode(raw))
+    except Exception:
+        return None
+    if TEST_SEASON and getattr(eng, 'test_day', None) != test_day():
+        return None
+    return eng
+
+
 def get_engine():
-    """현재 로그인한 사용자의 게임 엔진 (없으면 새로 만듦)"""
+    """현재 로그인한 사용자의 게임 엔진 (메모리에 없으면 저장된 경기를 불러오고, 그것도 없으면 새로 만듦)"""
     uid = session.get('user_id')
     key = uid if uid else 'guest'
     with _engines_lock:
         eng = _engines.get(key)
+        if eng is None and uid:
+            eng = load_engine_snapshot(uid)
+            if eng is not None:
+                _engines[key] = eng
         if eng is None:
             eng = GameEngine("한화", "롯데", user_id=uid)
             _engines[key] = eng
@@ -411,6 +449,7 @@ def index():
     day_advanced = settle_left_test_day()   # 지난번에 경기를 시작하고 나갔다면 다음 날로
     today_schedule_info, today_games = today_schedule_and_games(today_str, favorite_team)
     today_schedule_info["day_advanced"] = day_advanced
+    today_schedule_info["in_progress"] = game_in_progress()
     match_data = today_schedule_info.get('match')
     is_rest_day = today_schedule_info.get('is_rest_day', False)
 
@@ -958,6 +997,7 @@ def api_tactic():
     res = engine.apply_tactic(tactic_id)
     if res.get('status') == 'success' and user_id:
         database.update_user_score(engine.manager_score, engine.manager_grade, user_id)
+    save_engine_snapshot(engine, force=True)
     return jsonify(res)
 
 
@@ -989,6 +1029,7 @@ def api_reset():
     engine._test_result_saved = False
     engine._history_saved = False
     mark_test_day_started()
+    save_engine_snapshot(engine, force=True)
     return jsonify({"status": "success", "message": "경기 초기화 완료", "state": engine.get_state()})
 
 
@@ -1019,6 +1060,7 @@ def advance_test_day():
             save_game_history(eng, 'left')
         database.set_setting(f"test_day:{uid}", str(nxt))
         database.set_setting(f"test_started:{uid}", "")
+        database.set_setting(f"engine:{uid}", "")
         with _engines_lock:
             _engines.pop(uid, None)
     return nxt
@@ -1032,14 +1074,27 @@ def mark_test_day_started():
 
 
 def settle_left_test_day():
-    """앱을 다시 열었을 때: 오늘 경기를 시작한 뒤 나갔다면(끝까지 했든 중간에 나갔든) 다음 날로"""
+    """앱을 다시 열었을 때: 오늘 경기가 끝난 상태로 나갔다면 다음 날로.
+    경기 도중에 나갔거나 새로고침했으면 넘기지 않고, 그 시점부터 이어서 진행"""
     uid = session.get('user_id')
     if not (uid and TEST_SEASON):
         return False
-    if database.get_setting(f"test_started:{uid}", "") == str(test_day()):
+    if database.get_setting(f"test_started:{uid}", "") != str(test_day()):
+        return False
+    eng = get_engine()
+    if getattr(eng, 'test_day', None) == test_day() and getattr(eng, 'game_over', False):
         advance_test_day()
         return True
     return False
+
+
+def game_in_progress():
+    """오늘 경기를 시작했고 아직 끝나지 않았는지 (다시 들어오면 이어하기)"""
+    uid = session.get('user_id')
+    if not (uid and TEST_SEASON) or database.get_setting(f"test_started:{uid}", "") != str(test_day()):
+        return False
+    eng = get_engine()
+    return getattr(eng, 'test_day', None) == test_day() and not getattr(eng, 'game_over', False)
 
 
 def today_schedule_and_games(today_str, team):
@@ -1343,6 +1398,7 @@ def api_step():
     engine = get_engine()
     state = engine.step_pitch()
     record_game_end(engine)
+    save_engine_snapshot(engine, force=engine.game_over)
     return jsonify(state)
 
 
