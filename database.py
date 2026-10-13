@@ -288,6 +288,18 @@ def init_db():
         )
     '''))
 
+    # 예전 '친구 추가'(상대 동의 없이 한쪽만 저장)로 남은 기록 → 보낸 친구 요청으로 전환
+    cursor.execute("""
+        INSERT INTO friend_requests (from_id, to_id)
+        SELECT f.user_id, f.friend_id FROM user_friends f
+        WHERE NOT EXISTS (SELECT 1 FROM user_friends r WHERE r.user_id = f.friend_id AND r.friend_id = f.user_id)
+          AND NOT EXISTS (SELECT 1 FROM friend_requests q WHERE q.from_id = f.user_id AND q.to_id = f.friend_id)
+    """)
+    cursor.execute("""
+        DELETE FROM user_friends
+        WHERE NOT EXISTS (SELECT 1 FROM user_friends r WHERE r.user_id = user_friends.friend_id AND r.friend_id = user_friends.user_id)
+    """)
+
     # 기존 유저 랭킹 테이블 (하위 호환성 유지)
     cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS user_rankings (
@@ -634,7 +646,12 @@ def _friend_status_map(cursor, user_id):
     cursor.execute("SELECT from_id FROM friend_requests WHERE to_id = ?", (user_id,))
     for r in cursor.fetchall():
         status[r['from_id']] = 'received'
-    cursor.execute("SELECT friend_id FROM user_friends WHERE user_id = ?", (user_id,))
+    # 친구는 서로(양방향) 저장돼 있을 때만 = 상대가 수락했을 때만
+    cursor.execute("""
+        SELECT f.friend_id FROM user_friends f
+        JOIN user_friends r ON r.user_id = f.friend_id AND r.friend_id = f.user_id
+        WHERE f.user_id = ?
+    """, (user_id,))
     for r in cursor.fetchall():
         status[r['friend_id']] = 'friend'
     return status
@@ -760,6 +777,7 @@ def get_user_friends_ranking(user_id=1):
     cursor.execute('''
         SELECT u.id, u.nickname as name, COALESCE(u.favorite_team, u.team) as team, COALESCE(u.favorite_team, u.team) as favorite_team, u.avatar, u.score, u.grade
         FROM user_friends f
+        JOIN user_friends back ON back.user_id = f.friend_id AND back.friend_id = f.user_id
         JOIN users u ON f.friend_id = u.id
         WHERE f.user_id = ?
     ''', (me['id'],))
