@@ -993,6 +993,16 @@ def api_friend_respond():
     return jsonify(database.respond_friend_request(uid, target, bool(data.get('accept'))))
 
 
+@app.route('/api/friends/remove', methods=['POST'])
+def api_friend_remove():
+    """친구 삭제 (양쪽 모두)"""
+    uid = session.get('user_id')
+    if not uid:
+        return jsonify({"status": "error", "message": "로그인이 필요해요."}), 401
+    target, _ = _friend_target()
+    return jsonify(database.remove_friend(uid, target))
+
+
 @app.route('/api/friends/cancel', methods=['POST'])
 def api_friend_cancel():
     """보낸 요청 취소"""

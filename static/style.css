@@ -3585,3 +3585,15 @@ button:active:not(:disabled), .mg-card:active, .mr-row:active, .sc-date:active {
 
 /* 보낸 친구 요청 취소 (빨간 버튼) */
 .rk-btn.cancel { background: #ef4444; border-color: #ef4444; color: #fff; }
+
+/* 친구 삭제 (작고 눈에 덜 띄게) */
+.rk-btn.rk-del { padding: 6px 10px; background: transparent; border-color: rgba(239, 68, 68, 0.5); color: #fca5a5; }
+
+/* 앱 안 확인 창 (브라우저 기본 창 대신) */
+.app-confirm { z-index: 20000; }
+.ac-card { width: min(320px, calc(100% - 40px)); gap: 18px; padding: 22px 18px 16px; }
+.ac-msg { margin: 0; font-size: 16px; font-weight: 800; color: #f1f5f9; line-height: 1.5; text-align: center; word-break: keep-all; }
+.ac-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ac-btn { padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #cbd5e1; font-size: 15px; font-weight: 800; cursor: pointer; }
+.ac-btn.ac-yes { background: #10b981; border-color: #10b981; color: #fff; }
+.ac-btn.ac-yes.danger { background: #ef4444; border-color: #ef4444; }

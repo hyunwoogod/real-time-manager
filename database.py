@@ -729,6 +729,19 @@ def respond_friend_request(user_id, from_id, accept):
         conn.close()
 
 
+def remove_friend(user_id, friend_id):
+    """친구 삭제: 양쪽 모두에서 끊고, 남아 있는 요청도 정리"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM user_friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
+                   (user_id, friend_id, friend_id, user_id))
+    cursor.execute("DELETE FROM friend_requests WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)",
+                   (user_id, friend_id, friend_id, user_id))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "친구에서 삭제했어요."}
+
+
 def cancel_friend_request(user_id, to_id):
     conn = get_db()
     cursor = conn.cursor()

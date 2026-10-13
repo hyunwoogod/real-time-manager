@@ -707,11 +707,15 @@ const DodgeGame = {
 
     close(force) {
         if (this.running && !force) {
-            if (!confirm('지금 나가면 이번 도전이 여기서 끝나요. 나갈까요?')) return;
-            this.running = false;
-            cancelAnimationFrame(this._raf);
-            const reward = dodgeReward(this.n);
-            finishMinigame(this.slot, reward > 0, reward);
+            this.running = false; clearTimeout(this._nextT); // 묻는 동안 다음 공은 멈춤
+            appConfirm('지금 나가면 이번 도전이 여기서 끝나요. 나갈까요?', { ok: '나가기', danger: true }).then(ok => {
+                if (!ok) { this.running = true; if (!this.ballObj) this.scheduleNext(600); return; }
+                cancelAnimationFrame(this._raf);
+                const reward = dodgeReward(this.n);
+                finishMinigame(this.slot, reward > 0, reward);
+                this.close(true);
+            });
+            return;
         }
         this.reset();
         this.panel('');

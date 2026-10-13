@@ -494,10 +494,14 @@ const FungoGame = {
 
     close(force) {
         if (this.running && !force) {
-            if (!confirm('지금 나가면 이번 도전이 여기서 끝나요. 나갈까요?')) return;
-            this.running = false;
-            const reward = fungoReward(this.outs);
-            finishMinigame(this.slot, reward > 0, reward);
+            this.running = false; clearTimeout(this._t1); // 묻는 동안 다음 펑고는 멈춤
+            appConfirm('지금 나가면 이번 도전이 여기서 끝나요. 나갈까요?', { ok: '나가기', danger: true }).then(ok => {
+                if (!ok) { this.running = true; if (this.state === 'idle') this.schedule(600); return; }
+                const reward = fungoReward(this.outs);
+                finishMinigame(this.slot, reward > 0, reward);
+                this.close(true);
+            });
+            return;
         }
         this.reset();
         this.panel('');

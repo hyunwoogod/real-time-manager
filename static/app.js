@@ -1402,7 +1402,8 @@ function renderFriendRankings(rankings) {
         const nick = u.is_me ? (u.nickname || userNickname) : u.name;
         return `<div class="rk-row ${u.is_me ? 'me' : ''}">
             <span class="rk-num ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</span>
-            ${rkUserRow({ ...u, nickname: nick }, u.is_me ? '<span class="rk-tag">나</span>' : '')}
+            ${rkUserRow({ ...u, nickname: nick }, u.is_me ? '<span class="rk-tag">나</span>'
+                : `<button class="rk-btn rk-del" onclick="removeFriend(${u.id}, this)">삭제</button>`)}
         </div>`;
     }).join('');
     const hint = rankings.length <= 1
@@ -1536,6 +1537,42 @@ function respondFriend(id, accept) {
         if (q && q.value.trim() && document.getElementById('friend-sheet').classList.contains('active')) executeFriendSearch();
     });
 }
+// 앱 안 확인 창 (브라우저 기본 창 대신). 확인이면 true
+function appConfirm(message, opts = {}) {
+    let m = document.getElementById('app-confirm');
+    if (!m) {
+        m = document.createElement('div');
+        m.id = 'app-confirm';
+        m.className = 'modal-overlay app-confirm';
+        m.innerHTML = `<div class="igm-card ac-card"><p class="ac-msg"></p><div class="ac-btns">
+            <button type="button" class="ac-btn ac-no">취소</button><button type="button" class="ac-btn ac-yes">확인</button></div></div>`;
+        document.body.appendChild(m);
+    }
+    m.querySelector('.ac-msg').textContent = message;
+    const yes = m.querySelector('.ac-yes'), no = m.querySelector('.ac-no');
+    yes.textContent = opts.ok || '확인';
+    no.textContent = opts.cancel || '취소';
+    yes.classList.toggle('danger', !!opts.danger);
+    m.classList.add('active');
+    return new Promise(resolve => {
+        const done = v => { m.classList.remove('active'); yes.onclick = no.onclick = m.onclick = null; resolve(v); };
+        yes.onclick = () => done(true);
+        no.onclick = () => done(false);
+        m.onclick = e => { if (e.target === m) done(false); };
+    });
+}
+
+// 친구 삭제: 앱 안 확인 창으로 한 번 묻고, 바로 목록에서 빼고, 서버는 뒤에서 처리
+async function removeFriend(id, btn) {
+    const row = btn && btn.closest('.rk-row');
+    const name = row ? (row.querySelector('.rk-who b')?.textContent || '') : '';
+    if (!(await appConfirm(`${name} 님을 친구에서 삭제할까요?`, { ok: '삭제', danger: true }))) return;
+    if (row) row.remove();
+    return friendPost('/api/friends/remove', { user_id: id }, true).then(res => {
+        if (res.status === 'success') showToast('친구에서 삭제했어요.');
+    });
+}
+
 function cancelFriendRequest(id, btn) {
     // 검색 결과의 버튼은 바로 '요청'으로, 보낸 요청 목록의 줄은 바로 사라지게
     const row = btn && btn.closest('#rk-sent .rk-row');
