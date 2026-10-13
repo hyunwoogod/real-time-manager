@@ -32,9 +32,14 @@ const BALLBOY_SVG = `
     <ellipse class="bb-shadow" cx="100" cy="279" rx="62" ry="9" fill="rgba(0,0,0,0.35)" stroke="none"/>
     <!-- 간이의자 (앉아 있을 때) -->
     <g class="bb-stool-sit">
-      <path d="M70 212 L130 274 M130 212 L70 274" stroke="#9aa6b8" stroke-width="7"/>
-      <rect x="34" y="198" width="132" height="17" rx="7" fill="#1f7a55"/>
-      <path d="M40 206 h120" stroke="#2fa673" stroke-width="3"/>
+      <!-- 접이식 의자 (정면): 등받이 · 쇠다리 · 쿠션 -->
+      <path d="M50 100 L50 274 M150 100 L150 274" stroke="#8b95a8" stroke-width="7"/>
+      <path d="M58 236 L142 236" stroke="#8b95a8" stroke-width="5"/>
+      <rect x="40" y="96" width="120" height="50" rx="12" fill="#1d2230"/>
+      <path d="M50 104 q50 -8 100 0" fill="none" stroke="#3a4256" stroke-width="3"/>
+      <path d="M44 210 L36 276 M156 210 L164 276" stroke="#8b95a8" stroke-width="7"/>
+      <rect x="36" y="196" width="128" height="18" rx="7" fill="#1d2230"/>
+      <path d="M44 202 h112" stroke="#3a4256" stroke-width="3"/>
     </g>
     <g class="bb-body">
       <!-- 다리: 앉은 자세 / 선 자세 -->
@@ -72,8 +77,8 @@ const BALLBOY_SVG = `
         <use href="#bb-glove" x="62" y="110" width="76" height="76"/>
       </g>
       <g class="bb-arms-up">
-        <path d="M62 136 q-30 -30 -26 -100" fill="none" stroke="#24346e" stroke-width="17"/>
-        <path d="M138 136 q30 -30 26 -100" fill="none" stroke="#24346e" stroke-width="17"/>
+        <path d="M62 136 q-34 -40 -24 -150" fill="none" stroke="#24346e" stroke-width="17"/>
+        <path d="M138 136 q34 -40 22 -150" fill="none" stroke="#24346e" stroke-width="17"/>
       </g>
       <!-- 머리 -->
       <g class="bb-head">
@@ -113,11 +118,14 @@ const BALLBOY_SVG = `
     </g>
     <!-- 머리 위로 든 간이의자 (점프 · 피하기) -->
     <g class="bb-stool-hold">
-      <path d="M58 -34 L142 14 M142 -34 L58 14" stroke="#9aa6b8" stroke-width="6"/>
-      <rect x="22" y="8" width="156" height="16" rx="7" fill="#1f7a55"/>
-      <path d="M28 16 h144" stroke="#2fa673" stroke-width="3"/>
-      <circle cx="36" cy="28" r="11" fill="#f6c39b"/>
-      <use href="#bb-glove" x="146" y="10" width="36" height="36"/>
+      <!-- 머리 위로 번쩍 든 접이식 의자 (옆모습: 등받이 · 앉는 판 · 교차 다리) -->
+      <path d="M62 -18 L130 16 M138 -18 L70 16" stroke="#8b95a8" stroke-width="6"/>
+      <path d="M134 -24 L144 -78" stroke="#8b95a8" stroke-width="6"/>
+      <path d="M124 -84 q14 -8 30 2 l-6 40 q-14 -6 -30 -2z" fill="#1d2230"/>
+      <path d="M44 -30 q56 -10 116 4 l-2 12 q-58 -10 -114 -4z" fill="#1d2230"/>
+      <path d="M62 16 h14 M124 16 h14" stroke="#8b95a8" stroke-width="5"/>
+      <circle cx="42" cy="-16" r="11" fill="#f6c39b"/>
+      <use href="#bb-glove" x="140" y="-36" width="36" height="36"/>
     </g>
     <!-- 맞았을 때 별 -->
     <g class="bb-stars" fill="#fde047" stroke-width="2.5">

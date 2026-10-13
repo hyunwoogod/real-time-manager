@@ -6921,7 +6921,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-flash.bad { animation: dg-flash 0.45s; background: radial-gradient(circle at 50% 75%, rgba(239, 68, 68, 0.5), transparent 65%); }
 @keyframes dg-flash { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
 /* 볼보이 + 자세 */
-.dg-boy { position: absolute; z-index: 3; left: 50%; bottom: 2%; width: min(52%, 230px); transform: translateX(-50%); }
+.dg-boy { position: absolute; z-index: 3; left: 50%; bottom: 2%; width: min(48%, 215px); transform: translateX(-50%); }
 .dg-boy .bb { width: 100%; height: auto; display: block; overflow: visible; }
 .dg-boy .bb-body { transform-box: view-box; transform-origin: 100px 270px; transition: transform 0.12s ease-out; }
 .dg-boy .bb-legs-stand, .dg-boy .bb-legs-jump, .dg-boy .bb-arms-catch, .dg-boy .bb-arms-up, .dg-boy .bb-stool-hold, .dg-boy .bb-face-alert, .dg-boy .bb-face-hit,
@@ -6950,10 +6950,10 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-boy .bb-stool-hold { transform-box: view-box; transform-origin: 100px 270px; }
 .dg-boy.st-jump .bb-stool-hold, .dg-boy.st-left .bb-stool-hold, .dg-boy.st-right .bb-stool-hold { display: inline; }
 .dg-boy.st-jump .bb-stool-hold { animation: bb-jump 0.7s ease-out; }
-.dg-boy.st-left .bb-stool-hold { transform: translateX(-85px) rotate(-12deg); }
-.dg-boy.st-right .bb-stool-hold { transform: translateX(85px) rotate(12deg); }
-.dg-boy.st-left .bb-body { transform: translateX(-85px) rotate(-12deg); }
-.dg-boy.st-right .bb-body { transform: translateX(85px) rotate(12deg); }
+.dg-boy.st-left .bb-stool-hold { transform: translateX(-62px) rotate(-12deg); }
+.dg-boy.st-right .bb-stool-hold { transform: translateX(62px) rotate(12deg); }
+.dg-boy.st-left .bb-body { transform: translateX(-62px) rotate(-12deg); }
+.dg-boy.st-right .bb-body { transform: translateX(62px) rotate(12deg); }
 .dg-boy.st-hit .bb-face-normal { display: none; }
 .dg-boy.st-hit .bb-face-hit, .dg-boy.st-hit .bb-stars { display: inline; }
 .dg-boy.st-hit .bb-body { transform: rotate(-12deg) translateY(4px); }
