@@ -1,6 +1,6 @@
 // ================= 미니게임 1: 볼보이의 야구공 피하기 =================
 // 파울라인 옆 간이의자에 앉은 볼보이에게 강습 타구가 정면으로 날아옴.
-// 볼보이는 의자를 들고 피함: 땅볼 → 점프 / 몸쪽 → 아무 옆으로 / 왼쪽·오른쪽 → 반대쪽으로. 목숨 3개.
+// 볼보이는 글러브를 끼고 있음: 땅볼 → 다리 벌려 점프 / 몸쪽 → 글러브로 잡기 / 왼쪽·오른쪽 → 반대쪽으로 피하기 (의자 들고). 목숨 3개.
 // 투수 템포는 일정하고, 타구 속도는 공마다 무작위 (강습 ~ 느린 타구)
 // 보상: 피한 공 5개 +10P, 10개 +15P, 15개 이상 +20P (5개 미만 실패)
 
@@ -18,6 +18,11 @@ function dodgeReward(n) {
 const BALLBOY_SVG = `
 <svg class="bb" viewBox="0 0 200 290" aria-hidden="true">
   <defs>
+    <symbol id="bb-glove" viewBox="0 0 40 40">
+      <path d="M8 30 C3 22 4 12 8 8 C10 4 14 4 16 7 L18 4 C20 1 24 1 26 4 L28 7 C31 4 36 6 35 11 L35 24 C35 33 28 38 20 38 C14 38 10 35 8 30Z" fill="#dd7a2c" stroke="#17183b" stroke-width="3" stroke-linejoin="round"/>
+      <ellipse cx="21" cy="25" rx="9" ry="8" fill="#f2a865"/>
+      <path d="M14 11 L14 21 M21 8 L21 18 M28 10 L28 20" stroke="#6b2f0e" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
     <pattern id="bb-stripe" width="9" height="10" patternUnits="userSpaceOnUse">
       <rect width="9" height="10" fill="#d42a3c"/><rect x="6.5" width="1.6" height="10" fill="#7f1d2d"/>
     </pattern>
@@ -39,6 +44,11 @@ const BALLBOY_SVG = `
         <path d="M48 252 h34 q6 0 6 8 v6 h-42 v-6 q0 -8 2 -8z M118 252 h34 q2 0 2 8 v6 h-42 v-6 q0 -8 6 -8z" fill="#1c1d33"/>
         <path d="M46 266 h42 M112 266 h42" stroke="#e7ecf5" stroke-width="4"/>
       </g>
+      <g class="bb-legs-jump">
+        <path d="M64 188 h72 v14 q0 9 -9 11 h-54 q-9 -2 -9 -11z" fill="#24346e"/>
+        <path d="M78 206 L30 228 M122 206 L170 228" stroke="#24346e" stroke-width="22"/>
+        <path d="M10 222 q2 -8 12 -8 h10 l2 14 h-22z M190 222 q-2 -8 -12 -8 h-10 l-2 14 h22z" fill="#1c1d33"/>
+      </g>
       <g class="bb-legs-stand">
         <path d="M66 188 h68 l-4 70 h-24 l-6 -48 l-6 48 h-24z" fill="#24346e"/>
         <path d="M56 254 h36 q6 0 6 8 v6 h-44 v-6 q0 -8 2 -8z M108 254 h36 q2 0 2 8 v6 h-44 v-6 q0 -8 6 -8z" fill="#1c1d33"/>
@@ -51,7 +61,15 @@ const BALLBOY_SVG = `
       <g class="bb-arms-rest">
         <path d="M62 134 q-16 14 -12 60" fill="none" stroke="#24346e" stroke-width="17"/>
         <path d="M138 134 q16 14 12 60" fill="none" stroke="#24346e" stroke-width="17"/>
-        <circle cx="52" cy="200" r="11" fill="#f6c39b"/><circle cx="148" cy="200" r="11" fill="#f6c39b"/>
+        <circle cx="52" cy="200" r="11" fill="#f6c39b"/>
+        <use href="#bb-glove" x="128" y="180" width="40" height="40"/>
+      </g>
+      <!-- 잡기: 글러브를 몸 앞 가운데로 -->
+      <g class="bb-arms-catch">
+        <path d="M62 134 q-16 14 -12 60" fill="none" stroke="#24346e" stroke-width="17"/>
+        <circle cx="52" cy="200" r="11" fill="#f6c39b"/>
+        <path d="M138 134 q16 20 -14 28" fill="none" stroke="#24346e" stroke-width="17"/>
+        <use href="#bb-glove" x="62" y="110" width="76" height="76"/>
       </g>
       <g class="bb-arms-up">
         <path d="M62 136 q-30 -30 -26 -100" fill="none" stroke="#24346e" stroke-width="17"/>
@@ -98,7 +116,8 @@ const BALLBOY_SVG = `
       <path d="M58 -34 L142 14 M142 -34 L58 14" stroke="#9aa6b8" stroke-width="6"/>
       <rect x="22" y="8" width="156" height="16" rx="7" fill="#1f7a55"/>
       <path d="M28 16 h144" stroke="#2fa673" stroke-width="3"/>
-      <circle cx="36" cy="28" r="11" fill="#f6c39b"/><circle cx="164" cy="28" r="11" fill="#f6c39b"/>
+      <circle cx="36" cy="28" r="11" fill="#f6c39b"/>
+      <use href="#bb-glove" x="146" y="10" width="36" height="36"/>
     </g>
     <!-- 맞았을 때 별 -->
     <g class="bb-stars" fill="#fde047" stroke-width="2.5">
@@ -116,12 +135,13 @@ const BALLBOY_SVG = `
 const DODGE_ACTIONS = {
     left: { label: '피하기', icon: '<path d="M15 5l-7 7 7 7"/>', ms: 600 },
     jump: { label: '점프', icon: '<path d="M12 19V6M6 11l6-6 6 6"/>', ms: 700 },
+    catch: { label: '잡기', icon: '<path d="M7 13V8a2 2 0 014 0v3M11 10V6a2 2 0 014 0v5M15 9a2 2 0 014 0v4a7 7 0 01-7 7h-1a6 6 0 01-6-6v-1a2 2 0 014 0"/>', ms: 650 },
     right: { label: '피하기', icon: '<path d="M9 5l7 7-7 7"/>', ms: 600 },
 };
 // 공 종류 → 살아남는 동작
 const DODGE_BALLS = {
     ground: { need: ['jump'], hint: '점프!', call: '땅볼이 옵니다!' },
-    chest: { need: ['left', 'right'], hint: '옆으로 피하기!', call: '몸쪽으로 공이 옵니다!' },
+    chest: { need: ['catch'], hint: '글러브로 잡기!', call: '몸쪽으로 공이 옵니다!' },
     left: { need: ['right'], hint: '오른쪽으로 피하기!', call: '왼쪽으로 공이 옵니다!' },
     right: { need: ['left'], hint: '왼쪽으로 피하기!', call: '오른쪽으로 공이 옵니다!' },
 };
@@ -183,7 +203,7 @@ const DodgeGame = {
         });
         this._key = e => {
             if (!this.el.classList.contains('active')) return;
-            const k = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'jump', ' ': 'jump' }[e.key];
+            const k = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'jump', ArrowDown: 'catch', ' ': 'catch' }[e.key];
             if (k) { e.preventDefault(); this.act(k); }
         };
         document.addEventListener('keydown', this._key);
@@ -199,11 +219,11 @@ const DodgeGame = {
         this.panel(`
             <div class="dg-card">
                 <h3>볼보이의 야구공 피하기</h3>
-                <p>파울라인 밖 볼보이에게 타구가 날아와요.<br>강습도, 느린 공도 있어요. 의자를 들고 피하세요!</p>
+                <p>파울라인 밖 볼보이에게 타구가 날아와요.<br>강습도, 느린 공도 있어요. 피하고, 뛰고, 잡으세요!</p>
                 <ul class="dg-rules">
-                    <li><b>땅볼</b><span>점프</span></li>
+                    <li><b>땅볼</b><span>다리 벌려 점프</span></li>
+                    <li><b>몸쪽 공</b><span>글러브로 잡기</span></li>
                     <li><b>왼쪽 · 오른쪽 공</b><span>반대쪽으로 피하기</span></li>
-                    <li><b>몸쪽 공</b><span>아무 옆으로나 피하기</span></li>
                 </ul>
                 <div class="dg-reward">
                     <div><span>5개</span><b>+10P</b></div><div><span>10개</span><b>+15P</b></div><div><span>15개</span><b>+20P</b></div>
@@ -316,7 +336,7 @@ const DodgeGame = {
         const cx = L + w / 2, gy = T + h * 0.96, s = w / 170;
         const targets = {
             ground: { x: cx + 4 * s, y: T + h * 0.88 },
-            chest: { x: cx, y: T + h * 0.56 },
+            chest: { x: cx, y: T + h * 0.52 },
             left: { x: cx - w * 0.46, y: T + h * 0.42 },
             right: { x: cx + w * 0.46, y: T + h * 0.42 },
         };
@@ -356,10 +376,12 @@ const DodgeGame = {
             let y = g.plate.y + (tg.y - g.plate.y) * e;
             const shY = g.vp.y + 6 + (g.gy - g.vp.y) * e;
             if (b.type === 'ground') y -= Math.abs(Math.sin(t * Math.PI * 3.2)) * 26 * g.s * (0.3 + e);
-            if (b.result === 'hit' && t > 1) {
+            if (b.result === 'caught' && t > 1) { // 글러브 속에 멈춤
+                x = tg.x; y = tg.y;
+            } else if (b.result === 'hit' && t > 1) {
                 const k = t - 1; x += k * 160 * g.s * (b.dir || 1); y += k * k * 500 * g.s - k * 180 * g.s;
             }
-            const size = (6 + 40 * e) * g.s;
+            const size = b.result === 'caught' && t > 1 ? 32 * g.s : (6 + 40 * e) * g.s;
             const bs = this.$.ball.style;
             bs.width = bs.height = `${size}px`;
             bs.transform = `translate(${x - size / 2}px, ${y - size / 2}px) rotate(${t * 900}deg)`;
@@ -403,7 +425,11 @@ const DodgeGame = {
             && x.start >= impact - DODGE_ACTIONS[x.a].ms && x.start <= impact + DODGE_GRACE);
         if (ok) {
             this.n += 1;
-            b.result = 'pass';
+            b.result = b.type === 'chest' ? 'caught' : 'pass';
+            if (b.type === 'chest') {
+                this.$.call.textContent = '나이스 캐치!'; this.$.call.className = 'dg-call show c-catch';
+                clearTimeout(this._callT); this._callT = setTimeout(() => { this.$.call.className = 'dg-call'; }, 600);
+            }
             this.flash('good');
         } else {
             b.result = 'hit'; b.dir = b.type === 'right' ? 1 : -1;

@@ -6924,7 +6924,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-boy { position: absolute; z-index: 3; left: 50%; bottom: 2%; width: min(52%, 230px); transform: translateX(-50%); }
 .dg-boy .bb { width: 100%; height: auto; display: block; overflow: visible; }
 .dg-boy .bb-body { transform-box: view-box; transform-origin: 100px 270px; transition: transform 0.12s ease-out; }
-.dg-boy .bb-legs-stand, .dg-boy .bb-arms-up, .dg-boy .bb-stool-hold, .dg-boy .bb-face-alert, .dg-boy .bb-face-hit,
+.dg-boy .bb-legs-stand, .dg-boy .bb-legs-jump, .dg-boy .bb-arms-catch, .dg-boy .bb-arms-up, .dg-boy .bb-stool-hold, .dg-boy .bb-face-alert, .dg-boy .bb-face-hit,
 .dg-boy .bb-stars, .dg-boy .bb-bang { display: none; }
 .dg-boy.st-alert .bb-face-normal, .dg-boy.st-jump .bb-face-normal, .dg-boy.st-left .bb-face-normal, .dg-boy.st-right .bb-face-normal { display: none; }
 .dg-boy.st-alert .bb-face-alert, .dg-boy.st-jump .bb-face-alert, .dg-boy.st-left .bb-face-alert, .dg-boy.st-right .bb-face-alert { display: inline; }
@@ -6933,6 +6933,13 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-boy.st-jump .bb-arms-rest, .dg-boy.st-left .bb-arms-rest, .dg-boy.st-right .bb-arms-rest { display: none; }
 .dg-boy.st-jump .bb-arms-up, .dg-boy.st-left .bb-arms-up, .dg-boy.st-right .bb-arms-up { display: inline; }
 .dg-boy.st-jump .bb-body { animation: bb-jump 0.7s ease-out; }
+/* 다리 벌려 점프 */
+.dg-boy.st-jump .bb-legs-sit { display: none; }
+.dg-boy.st-jump .bb-legs-jump { display: inline; }
+/* 잡기: 앉은 채로 글러브를 몸 앞으로 */
+.dg-boy.st-catch .bb-arms-rest { display: none; }
+.dg-boy.st-catch .bb-arms-catch { display: inline; }
+.dg-boy.st-catch .bb-body { transform: translateY(-6px); }
 .dg-boy.st-jump .bb-shadow { animation: bb-shadow 0.7s ease-out; transform-box: fill-box; transform-origin: center; }
 @keyframes bb-jump { 0% { transform: translateY(0); } 25% { transform: translateY(-120px); } 75% { transform: translateY(-115px); } 100% { transform: translateY(0); } }
 @keyframes bb-shadow { 40%, 70% { transform: scale(0.6); opacity: 0.5; } }
@@ -6951,7 +6958,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-boy.st-hit .bb-face-hit, .dg-boy.st-hit .bb-stars { display: inline; }
 .dg-boy.st-hit .bb-body { transform: rotate(-12deg) translateY(4px); }
 /* 조작 버튼 */
-.dg-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 10px 14px; }
+.dg-pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px 10px 14px; }
 .dg-btn {
     height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: linear-gradient(180deg, #1e293b, #111a2e);
@@ -6960,7 +6967,7 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 }
 .dg-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 .dg-btn.press, .dg-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #0a1120; background: linear-gradient(180deg, #10b981, #047857); color: #fff; border-color: #10b981; }
-.dg-jump { color: #6ee7b7; }
+.dg-jump, .dg-catch { color: #6ee7b7; }
 /* 안내 · 결과 카드 */
 .dg-panel { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; padding: 14px; background: rgba(3, 7, 18, 0.55); }
 .dg-panel.show { display: flex; }
@@ -7009,3 +7016,5 @@ button, a, input, select, .btn-landing-primary, .btn-landing-secondary, .btn-gue
 .dg-call.c-chest { border-color: #f87171; color: #fee2e2; }
 .dg-call.c-left::before { content: '◀ '; color: #38bdf8; }
 .dg-call.c-right::after { content: ' ▶'; color: #f472b6; }
+
+.dg-call.c-catch { border-color: #34d399; color: #d1fae5; }
