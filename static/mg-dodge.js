@@ -176,10 +176,16 @@ const DodgeGame = {
             <div class="dg-hud"><span>피한 공 <b class="dg-count">0</b></span><span class="dg-next"></span></div>
             <div class="dg-stage">
                 <div class="dg-sky"><i></i><i></i><i></i></div>
-                <div class="dg-stands"></div>
+                <div class="dg-stands"><i></i></div>
                 <div class="dg-grass"></div>
+                <div class="dg-infield"></div>
                 <div class="dg-dirt"></div>
+                <div class="dg-plate"></div>
                 <div class="dg-foul"></div>
+                <div class="dg-3b-dirt"></div>
+                <div class="dg-3b"></div>
+                <div class="dg-lstands"><i></i></div>
+                <div class="dg-wall"></div>
                 <div class="dg-mound"></div>
                 <div class="dg-pitcher"><svg viewBox="0 0 40 60"><g fill="#0b1224"><circle cx="20" cy="10" r="6"/><path d="M13 18h14l2 20h-5l-2 20h-4l-2-20-2 20h-4l-2-20h-3z"/></g><path class="dg-parm" d="M27 21 L36 12" stroke="#0b1224" stroke-width="4.5" stroke-linecap="round"/><path class="dg-glove" d="M13 21 L6 28" stroke="#0b1224" stroke-width="4.5" stroke-linecap="round"/></svg></div>
                 <div class="dg-batter"><svg viewBox="0 0 40 60"><g fill="#0b1224" stroke="none"><circle cx="20" cy="10" r="6"/><path d="M13 18h14l2 20h-5l-2 20h-4l-2-20-2 20h-4l-2-20h-3z"/></g><path class="dg-bat" d="M24 22 L38 6" stroke="#c08a52" stroke-width="3.5" stroke-linecap="round"/></svg></div>
@@ -262,7 +268,7 @@ const DodgeGame = {
         cancelAnimationFrame(this._raf);
         clearTimeout(this._actT); clearTimeout(this._nextT); clearTimeout(this._poseT);
         this.running = false; this.over = false;
-        this.n = 0; this.lives = 3; this.ballObj = null; this.acts = []; this.action = null; this.actionUntil = 0;
+        this.n = 0; this.lives = 3; this.ballObj = null; this.acts = []; this._speedUpAt = 0; this.action = null; this.actionUntil = 0;
         this.setPose('sit');
         this.$.ball.style.opacity = 0; this.$.shadow.style.opacity = 0; this.$.ring.className = 'dg-ring';
         this.$.hint.className = 'dg-hint';
@@ -296,10 +302,16 @@ const DodgeGame = {
         const n = this.n;
         const type = n < 4 ? ['ground', 'chest', 'left', 'right'][n] : ['ground', 'chest', 'left', 'right'][Math.floor(Math.random() * 4)];
         // 타구 속도: 공마다 무작위 (강습 ~ 느린 타구). 갈수록 강습이 섞일 확률이 높아짐
-        const slow = Math.max(1050, 1750 - n * 30), fast = Math.max(520, 880 - n * 18);
-        const dur = Math.round(fast + (slow - fast) * Math.pow(Math.random(), 1 + n * 0.06));
+        // 갈수록 빨라짐: 피한 공이 늘수록 전체 속도가 올라가고, 그 안에서 강습·느린 공은 무작위
+        const slow = Math.max(650, 1700 - n * 50), fast = Math.max(420, 950 - n * 28);
+        const dur = Math.round(fast + (slow - fast) * Math.random());
         const pdur = 480; // 투구 템포는 항상 같음
         this.ballObj = { type, dur, pdur, phase: 'windup', judged: false };
+        if (n > 0 && n % 5 === 0 && this._speedUpAt !== n) {
+            this._speedUpAt = n;
+            this.$.call.textContent = '공이 더 빨라집니다!'; this.$.call.className = 'dg-call show c-speed';
+            clearTimeout(this._callT); this._callT = setTimeout(() => { if (this.$.call.classList.contains('c-speed')) this.$.call.className = 'dg-call'; }, 900);
+        }
         this.$.pitcher.classList.remove('throw'); void this.$.pitcher.offsetWidth; this.$.pitcher.classList.add('throw');
         // 와인드업 뒤 공을 놓음
         this._nextT = setTimeout(() => {
@@ -348,7 +360,7 @@ const DodgeGame = {
             left: { x: cx - w * 0.46, y: T + h * 0.42 },
             right: { x: cx + w * 0.46, y: T + h * 0.42 },
         };
-        const mound = { x: W * 0.24 + 6, y: H * 0.255 };   // 투수 손 (와인드업 뒤 공을 놓는 위치)
+        const mound = { x: W * 0.74 - 6, y: H * 0.255 };   // 투수 손 (와인드업 뒤 공을 놓는 위치)
         const plate = { x: vp.x + 4, y: vp.y - H * 0.035 }; // 타자가 공을 맞히는 위치
         return { W, H, vp, gy, bx: cx, s, targets, mound, plate };
     },
