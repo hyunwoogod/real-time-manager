@@ -1,5 +1,5 @@
 /* ==========================================================================
-   방구석 감독 - Client Application Script (Master User Flow & Auth / Friend Hub)
+   작전타임 - Client Application Script (Master User Flow & Auth / Friend Hub)
    ========================================================================== */
 
 let sseSource = null;

@@ -379,7 +379,7 @@ body {
 .form-hint.msg-error { color: #f87171; }
 .form-hint.msg-info { color: #94a3b8; }
 
-/* 방구석 감독 로고 (로그인·가입 화면) */
+/* 작전타임 로고 (로그인·가입 화면) */
 .auth-logo-emblem {
     display: inline-block;
     animation: none !important;
