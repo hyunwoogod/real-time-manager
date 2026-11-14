@@ -431,3 +431,16 @@ body {
 .auth-card-header { font-family: 'Black Han Sans', 'Noto Sans KR', sans-serif; font-weight: 400 !important; font-size: 1.3rem !important; }
 /* 로그인 카드 제목: 읽기 편한 본문체 */
 .auth-card-header { font-family: 'Noto Sans KR', sans-serif !important; font-weight: 800 !important; font-size: 1.2rem !important; }
+
+/* 아이디·비밀번호 로그인 (데모 계정 등) */
+.id-login-form { display: flex; flex-direction: column; gap: 8px; }
+.id-login-form input {
+    width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; font-size: 16px;
+    background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); color: #f1f5f9; outline: none;
+}
+.id-login-form input:focus { border-color: rgba(16, 185, 129, 0.7); }
+.btn-id-login {
+    width: 100%; padding: 13px; border: none; border-radius: 12px; cursor: pointer;
+    background: linear-gradient(135deg, #10b981, #047857); color: #fff; font-size: 0.95rem; font-weight: 800;
+}
+.btn-id-login:active { filter: brightness(0.9); }

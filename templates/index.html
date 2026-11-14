@@ -12,7 +12,7 @@
     <link rel="preload" as="image" href="/brand/hero.webp?v=1" fetchpriority="high">
     <link rel="preload" as="image" href="/brand/mascot-head.png?v=6">
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261014_5">
+    <link rel="stylesheet" href="style.css?v=20261104_3">
     <!-- Google Fonts for Professional Sports Platform -->
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Noto+Sans+KR:wght@400;600;700;900&display=swap"
@@ -398,8 +398,8 @@
                         </div>
                         <div class="mr-stats">
                             <div><span>경기</span><strong id="mr-games">0</strong></div>
-                            <div><span>적중률</span><strong id="mr-rate">-</strong></div>
-                            <div><span>적중 / 실패</span><strong id="mr-hitmiss">0 / 0</strong></div>
+                            <div><span>좋은 판단 비율</span><strong id="mr-rate">-</strong></div>
+                            <div><span>좋은 / 아쉬운</span><strong id="mr-hitmiss">0 / 0</strong></div>
                             <div><span>내 팀</span><strong id="mr-wl">0승 0패</strong></div>
                         </div>
                     </div>
@@ -482,6 +482,7 @@
             <!-- 하단 버튼 -->
             <div class="ig-actions">
                 <button class="ig-btn-log" onclick="openIngameLog()">라인업 · 기록</button>
+                <button class="ig-btn-tactic" id="ig-tactic-btn" onclick="pressTactic()" hidden></button>
                 <button class="ig-btn-pitch" id="btn-pitch-step" onclick="handleNextPitch()">다음 투구</button>
             </div>
 
@@ -526,10 +527,10 @@
 
             <!-- 작전 성적 -->
             <div class="pg-stats">
-                <div class="pg-stat good"><span>적중</span><strong id="pg-hit">0</strong></div>
-                <div class="pg-stat bad"><span>실패</span><strong id="pg-miss">0</strong></div>
-                <div class="pg-stat skip"><span>자리 비움</span><strong id="pg-skip">0</strong></div>
-                <div class="pg-stat"><span>적중률</span><strong id="pg-rate">-</strong></div>
+                <div class="pg-stat good"><span>좋은 판단</span><strong id="pg-hit">0</strong></div>
+                <div class="pg-stat bad"><span>아쉬운 판단</span><strong id="pg-miss">0</strong></div>
+                <div class="pg-stat skip"><span>막상막하</span><strong id="pg-skip">0</strong></div>
+                <div class="pg-stat"><span>감독과 대결</span><strong id="pg-rate" class="small">-</strong></div>
             </div>
 
             <!-- 감독 점수 -->
@@ -655,42 +656,6 @@
             </div>
         </div>
 
-        <div id="crisis-modal" class="modal-overlay">
-            <div class="igm-card igm-crisis">
-                <div class="igm-head">
-                    <span class="igm-badge" id="crisis-badge">위기 상황</span>
-                    <strong id="crisis-timer-sec" class="igm-timer">15초</strong>
-                </div>
-                <div class="igm-bar"><div id="crisis-timer-gauge"></div></div>
-                <h3 class="igm-title" id="crisis-title">투수를 바꿀까요?</h3>
-                <p class="igm-desc" id="crisis-desc">득점권 위기</p>
-                <div class="igm-reveal" id="crisis-reveal" hidden></div>
-                <div class="igm-matchup">
-                    <div class="igm-pitcher">
-                        <span>마운드</span>
-                        <strong id="crisis-pitcher-name">-</strong>
-                        <small id="crisis-pitcher-hand"></small>
-                        <em id="crisis-pitch-count">0구</em>
-                    </div>
-                    <div class="igm-pitcher igm-batter">
-                        <span>타석</span>
-                        <strong id="crisis-batter-name">-</strong>
-                        <small id="crisis-batter-hand"></small>
-                        <em id="crisis-batter-info"></em>
-                    </div>
-                    <div class="igm-pitcher igm-ph" id="crisis-ph-row" hidden>
-                        <span>대타</span>
-                        <strong id="crisis-ph-name">-</strong>
-                        <small id="crisis-ph-hand"></small>
-                        <em id="crisis-ph-info"></em>
-                    </div>
-                </div>
-                <div class="igm-choices" id="crisis-choices"></div>
-                <p class="igm-note">시간 안에 고르지 않으면 자리 비움 (점수 변동 없음)</p>
-            </div>
-        </div>
-
-
         <!-- BOTTOM FIXED NAVIGATION BAR (Pinned to bottom of app container) -->
         <nav id="bottom-nav-bar" class="bottom-nav-bar {% if username %}visible{% else %}hidden{% endif %}" {% if not username %}style="display: none !important;"{% endif %}>
             <button class="bottom-nav-item active" onclick="switchLobbyTab('home', this)" aria-label="홈">
@@ -734,7 +699,7 @@
         <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <script src="app.js?v=20261014_5"></script>
+    <script src="app.js?v=20261104_2"></script>
     <script src="mg-dodge.js?v=20261014_1"></script>
     <script src="mg-fungo.js?v=20261014_1"></script>
 </body>

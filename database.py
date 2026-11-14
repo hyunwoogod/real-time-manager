@@ -482,6 +482,39 @@ def get_social_user(provider, provider_user_id):
     conn.close()
     return _public_user(row)
 
+def ensure_password_user(username, password_hash, nickname, team):
+    """아이디·비밀번호 계정(데모 등)이 없으면 만들고, 있으면 비밀번호·닉네임을 맞춤"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, nickname FROM users WHERE username = ?", (username,))
+    row = cursor.fetchone()
+    if row and row['nickname'] != nickname:
+        # 같은 아이디를 다른 사람이 이미 쓰고 있으면 절대 덮어쓰지 않음
+        print(f"⚠️ [데모 계정] 아이디 '{username}'을 다른 회원이 쓰고 있어 건너뜀")
+        conn.close()
+        return
+    if row:
+        cursor.execute("UPDATE users SET password = ?, auth_provider = 'email' WHERE id = ?",
+                       (password_hash, row['id']))
+    else:
+        cursor.execute('''
+            INSERT INTO users (username, password, email, nickname, team, favorite_team, avatar, score, grade, marketing_agreed, auth_provider, provider_user_id)
+            VALUES (?, ?, '', ?, ?, ?, '👑', 2000, 'D', 0, 'email', '')
+        ''', (username, password_hash, nickname, team, team))
+    conn.commit()
+    conn.close()
+
+
+def get_password_user(username):
+    """아이디 로그인용: 비밀번호(암호화 값)가 있는 계정만"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE username = ? AND password <> ''", ((username or '').strip(),))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 def create_social_user(provider, provider_user_id, email, nickname, team):
     """소셜 계정 첫 로그인 시 닉네임/구단을 받아 회원 생성 (비밀번호 없음)"""
     if provider not in SOCIAL_PROVIDERS or not provider_user_id:

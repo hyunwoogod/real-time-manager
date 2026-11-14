@@ -30,6 +30,13 @@
         <div class="notice-alert">🔧 로그인 기능을 준비하고 있어요. 잠시 후 다시 접속해 주세요.</div>
         {% endif %}
 
+        <div class="social-divider">아이디로 로그인</div>
+        <form method="post" action="/login" class="id-login-form" autocomplete="on">
+            <input type="text" name="username" placeholder="아이디" value="{{ login_id or '' }}" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+            <input type="password" name="password" placeholder="비밀번호" autocomplete="current-password" required>
+            <button type="submit" class="btn-id-login">로그인</button>
+        </form>
+
         <div class="legal-links"><a href="/terms">이용약관</a> · <a href="/privacy">개인정보처리방침</a></div>
     </div>
 </body>

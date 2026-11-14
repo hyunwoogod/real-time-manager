@@ -128,6 +128,15 @@ def sync_session_from_user(user):
 # DB 초기화
 database.init_db()
 
+# 체험용 데모 계정 (아이디 demo · 닉네임 DEMO). 코드에는 비밀번호의 암호화 값만 둠.
+# 비밀번호를 바꾸려면 Render 환경변수 DEMO_PASSWORD_HASH에 새 암호화 값을 넣으면 됨
+DEMO_USERNAME = "demo"
+DEMO_PASSWORD_HASH = os.environ.get('DEMO_PASSWORD_HASH', "pbkdf2:sha256:1000000$QjK24IMiaSkza88B$e315d1e091f0d2733721de09b2c142e818b896ff3d7e7034c4a76ecd7a3c21af")
+try:
+    database.ensure_password_user(DEMO_USERNAME, DEMO_PASSWORD_HASH, "DEMO", "한화")
+except Exception as e:
+    print(f"⚠️ [데모 계정] 준비 실패: {e}")
+
 # 게임 기록 1회 초기화 (2026-10-12 요청: 모두 테스트 1일차·감독 점수 2000점부터). 한 번 실행되면 다시 안 함
 PLAY_RESET_VERSION = "2026-10-12"
 if database.get_setting("play_reset_version", "") != PLAY_RESET_VERSION:
@@ -377,7 +386,7 @@ def authentication_guard():
     return None
 
 
-GAME_API_PATHS = {'/api/step', '/api/state', '/api/tactic'}
+GAME_API_PATHS = {'/api/step', '/api/state', '/api/tactic/press'}
 _verify_cache = {}
 VERIFY_CACHE_SECONDS = 30
 
@@ -526,7 +535,15 @@ def api_check_nickname():
     return jsonify({"status": "success", "message": "사용 가능한 닉네임입니다.", "available": True})
 
 
-SOCIAL_ONLY_MSG = "작전타임은 카카오·네이버·구글 계정으로만 로그인할 수 있어요."
+SOCIAL_ONLY_MSG = "작전타임은 카카오·구글 계정이나 아이디로 로그인할 수 있어요."
+_login_fails = {}   # IP별 아이디 로그인 실패 기록 (비밀번호 무작위 대입 막기)
+
+
+def _login_blocked(ip):
+    now = time.time()
+    fails = [t for t in _login_fails.get(ip, []) if now - t < 600]
+    _login_fails[ip] = fails
+    return len(fails) >= 10
 
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -539,11 +556,37 @@ def signup():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """로그인 화면: 카카오·네이버·구글 버튼만 제공 (처음이면 자동 가입)"""
+    """로그인 화면: 카카오·구글 버튼(처음이면 자동 가입) + 아이디·비밀번호 로그인(데모 계정 등)"""
     if request.method == 'POST':
-        if request.is_json:
-            return jsonify({"status": "error", "message": SOCIAL_ONLY_MSG}), 400
-        return render_template('login.html', error=SOCIAL_ONLY_MSG)
+        from werkzeug.security import check_password_hash
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
+        ip = client_ip()
+        if _login_blocked(ip):
+            return render_template('login.html', error="로그인 시도가 너무 많아요. 10분 뒤에 다시 시도해 주세요.", login_id=username)
+        user = database.get_password_user(username) if username and password else None
+        ok = False
+        if user:
+            try:
+                ok = check_password_hash(user['password'], password)
+            except Exception:
+                ok = False
+        if not ok:
+            _login_fails.setdefault(ip, []).append(time.time())
+            try:
+                database.log_login(username or '-', False, 'wrong_password' if user else 'no_user',
+                                   user['id'] if user else None, ip)
+            except Exception:
+                pass
+            return render_template('login.html', error="아이디 또는 비밀번호가 맞지 않아요.", login_id=username)
+        session.clear()
+        session.permanent = True
+        sync_session_from_user(database.get_user_by_id(user['id']))
+        try:
+            database.log_login(session['account_label'], True, 'ok', user['id'], ip)
+        except Exception:
+            pass
+        return redirect(url_for('index'))
 
     # GET 요청: 이미 로그인되어 있다면 DB 대조 후 메인으로 이동
     if session.get('user_id') and session.get('username'):
@@ -1019,17 +1062,14 @@ def api_password_auth_disabled():
     return jsonify({"status": "error", "message": SOCIAL_ONLY_MSG, "redirect": url_for('login')}), 410
 
 
-@app.route('/api/tactic', methods=['POST'])
-def api_tactic():
+@app.route('/api/tactic/press', methods=['POST'])
+def api_tactic_press():
+    """상시 작전 버튼 (투수 교체 / 대타): 다음 타자부터 적용"""
     data = request.get_json(silent=True) or {}
-    tactic_id = data.get('tactic_id')
-    # 점수는 항상 로그인한 본인 계정에만 저장 (요청에 담긴 user_id는 믿지 않음)
-    user_id = session.get('user_id')
     engine = get_engine()
-    res = engine.apply_tactic(tactic_id)
-    if res.get('status') == 'success' and user_id:
-        database.update_user_score(engine.manager_score, engine.manager_grade, user_id)
-    save_engine_snapshot(engine, force=True)
+    res = engine.press_tactic(data.get('kind'))
+    if res.get('status') == 'success':
+        save_engine_snapshot(engine, force=True)
     return jsonify(res)
 
 
@@ -1195,7 +1235,7 @@ def save_game_history(engine, status):
     log = list(getattr(engine, 'tactic_log', []) or [])
     hit = sum(1 for t in log if t.get('score_delta', 0) > 0)
     miss = sum(1 for t in log if t.get('score_delta', 0) < 0)
-    skip = sum(1 for t in log if t.get('my_choice') == 'SKIP')
+    skip = sum(1 for t in log if t.get('score_delta', 0) == 0)
     mine_home = team == engine.home_team_name
     my_runs = engine.score_home if mine_home else engine.score_away
     opp_runs = engine.score_away if mine_home else engine.score_home

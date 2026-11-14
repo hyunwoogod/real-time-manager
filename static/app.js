@@ -4,8 +4,6 @@
 
 let sseSource = null;
 let currentGameState = null;
-let crisisTimerInterval = null;
-let crisisTimeLeft = 15;
 
 let currentUserId = 1;
 // 응원 구단은 서버 세션(DB) 값만 사용 (기본 구단 없음)
@@ -770,9 +768,6 @@ function enterLiveMatch() {
     window._holdUntilEnter = false;
     clearInterval(matchCountdownInterval);
     isMatchLive = true;
-    const modal = document.getElementById('crisis-modal');
-    if (modal) modal.classList.remove('active');
-
     window._igLastPlayKey = undefined;
     // 누르는 즉시 경기 화면으로 전환 (같은 경기의 저장된 상태가 있으면 바로 그림, 없으면 '입장 중' 표시)
     const cached = currentGameState && currentGameState.home_team === currentHomeTeam && currentGameState.away_team === currentAwayTeam && !currentGameState.game_over ? currentGameState : null;
@@ -800,7 +795,6 @@ function enterLiveMatch() {
             updateScoreboardUI(data.state);
             drawBaseballField(data.state);
             renderNaverSportsLiveFeed(data.state);
-            if (data.state.crisis_active && data.state.current_crisis) openCrisisModal(data.state.current_crisis);
         }
         if (data && !data.resumed) {
             setTimeout(() => igShowPlayBall(), 300);
@@ -872,18 +866,12 @@ function switchView(viewId, preloadedState) {
                 updateScoreboardUI(state);
                 drawBaseballField(state);
                 renderNaverSportsLiveFeed(state);
-                if (state.crisis_active && state.current_crisis) {
-                    openCrisisModal(state.current_crisis);
-                }
             })
             .catch(() => {
                 if (currentGameState) {
                     updateScoreboardUI(currentGameState);
                     drawBaseballField(currentGameState);
                     renderNaverSportsLiveFeed(currentGameState);
-                    if (currentGameState.crisis_active && currentGameState.current_crisis) {
-                        openCrisisModal(currentGameState.current_crisis);
-                    }
                 }
             });
         try { updateBottomNavVisibility(); } catch(e) {}
@@ -1114,26 +1102,15 @@ function openMyGameDetail(i) {
     document.getElementById('mr-d-points').innerHTML = `<span>감독 점수</span>
         <b>${Number(g.start_score).toLocaleString()}</b><i>→</i><b>${Number(g.end_score).toLocaleString()}</b>
         <strong class="${dl > 0 ? 'up' : dl < 0 ? 'down' : ''}">${dl > 0 ? '+' : dl < 0 ? '' : '±'}${dl}P</strong>`;
-    const rate = g.hit + g.miss ? `${Math.round(g.hit / (g.hit + g.miss) * 100)}%` : '-';
-    document.getElementById('mr-d-stats').innerHTML = `
-        <div><span>적중</span><strong class="up">${g.hit}</strong></div>
-        <div><span>실패</span><strong class="down">${g.miss}</strong></div>
-        <div><span>자리 비움</span><strong>${g.skip}</strong></div>
-        <div><span>적중률</span><strong>${rate}</strong></div>`;
-    const label = (c, ph) => c === 'CHANGE' ? (ph ? '대타' : '교체') : c === 'KEEP' ? (ph ? '그대로' : '유지') : '자리 비움';
     const tl = g.tactics || [];
-    document.getElementById('mr-d-list').innerHTML = tl.length ? tl.map(t => {
-        const ph = t.kind === 'PH';
-        const who = ph ? `대타 · ${t.pitcher}${t.new_pitcher && t.new_pitcher !== t.pitcher ? ' → ' + t.new_pitcher : ''}` : `${t.pitcher} vs ${t.batter}`;
-        const d2 = t.score_delta || 0;
-        return `<div class="pg-log-row">
-            <span class="pg-log-inn">${t.inning_str}</span>
-            <span class="pg-log-who">${who}</span>
-            <span class="pg-log-choice">나 ${label(t.my_choice, ph)} · 감독 ${label(t.manager_choice, ph)}</span>
-            <span class="pg-log-res ${t.result === 'OUT' ? 'out' : 'on'}">${t.result === 'OUT' ? '아웃' : '출루'}</span>
-            <b class="pg-log-delta ${d2 > 0 ? 'up' : d2 < 0 ? 'down' : ''}">${d2 > 0 ? '+' : d2 < 0 ? '' : '±'}${d2}</b>
-        </div>`;
-    }).join('') : '<div class="pg-log-empty">이 경기는 작전이 없었어요</div>';
+    const vs = tl.filter(t => t.grade_label && !t.same);
+    const w = vs.filter(t => t.score_delta > 0).length, l = vs.filter(t => t.score_delta < 0).length;
+    document.getElementById('mr-d-stats').innerHTML = `
+        <div><span>좋은 판단</span><strong class="up">${g.hit}</strong></div>
+        <div><span>아쉬운 판단</span><strong class="down">${g.miss}</strong></div>
+        <div><span>막상막하</span><strong>${g.skip}</strong></div>
+        <div><span>감독과 대결</span><strong>${vs.length ? `${w}승 ${vs.length - w - l}무 ${l}패` : '-'}</strong></div>`;
+    document.getElementById('mr-d-list').innerHTML = tl.length ? tl.map(tacticLogRow).join('') : '<div class="pg-log-empty">이 경기는 작전이 없었어요</div>';
     modal.classList.add('active');
 }
 
@@ -1607,128 +1584,14 @@ function updateScoreboardUI(s) {
     }
 
     // 작전 결과는 타석 결과 큰 글씨 아래에 함께 표시 (igCheckPlayResult)
-
-    if (s && s.crisis_active && s.current_crisis) {
-        openCrisisModal(s.current_crisis);
-    }
 }
 
 let clientPitchSeq = 0;
 
 
 
-function openCrisisModal(crisis) {
-    const modal = document.getElementById('crisis-modal');
-    if (!modal || !crisis) return;
-    if (modal.classList.contains('active')) return;
-    // 타석 결과·작전 채점 글씨가 떠 있는 동안은 다 본 뒤에 띄움
-    const wait = (window._igBannerUntil || 0) - Date.now();
-    if (wait > 0) {
-        clearTimeout(window._igCrisisDelay);
-        window._igCrisisDelay = setTimeout(() => {
-            if (currentGameState && currentGameState.crisis_active) openCrisisModal(currentGameState.current_crisis || crisis);
-        }, wait + 50);
-        return;
-    }
 
-    const pName = crisis.pitcher_name || (currentGameState ? currentGameState.pitcher : '투수');
-    const pCount = crisis.pitch_count !== undefined ? crisis.pitch_count : (currentGameState ? currentGameState.totalPitcherCount : 0);
-    const inning = (currentGameState && currentGameState.inning_str) || '';
-    const isPH = crisis.id === 'PINCH_HIT';
-    const reason = isPH ? '' : crisis.condition_type === 'CONDITION_A' ? '4타자 연속 출루' : '득점권 주자 · 실점 위기';
 
-    const descEl = document.getElementById('crisis-desc');
-    if (descEl) descEl.textContent = isPH ? crisis.desc : [inning, reason].filter(Boolean).join(' · ');
-    // 작전 종류별 문구·버튼 (투수 교체 / 대타)
-    const badge = document.getElementById('crisis-badge');
-    if (badge) { badge.textContent = isPH ? '공격 작전' : '위기 상황'; badge.className = `igm-badge ${isPH ? 'attack' : ''}`; }
-    const titleEl = document.getElementById('crisis-title');
-    if (titleEl) titleEl.textContent = isPH ? '대타를 낼까요?' : '투수를 바꿀까요?';
-    const card = modal.querySelector('.igm-card');
-    if (card) card.classList.toggle('igm-attack', isPH);
-    const reveal = document.getElementById('crisis-reveal');
-    if (reveal) {
-        reveal.hidden = !(isPH && crisis.revealed);
-        reveal.innerHTML = isPH && crisis.revealed ? `실제 감독은 <b>대타 ${crisis.ph_name}</b> 기용!<br>당신도 바꾸실래요?` : '';
-    }
-    const phRow = document.getElementById('crisis-ph-row');
-    if (phRow) phRow.hidden = !isPH;
-    if (isPH) {
-        const set2 = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
-        set2('crisis-ph-name', crisis.ph_name || '-');
-        set2('crisis-ph-hand', crisis.ph_bats || '');
-        set2('crisis-ph-info', `타율 ${igAvg(crisis.ph_avg)}`);
-    }
-    const choices = document.getElementById('crisis-choices');
-    if (choices) {
-        choices.innerHTML = isPH
-            ? `<button class="igm-choice change" onclick="submitTactic('PINCH_HIT')"><strong>대타 ${crisis.ph_name}</strong><span>대타 기용</span></button>
-               <button class="igm-choice keep" onclick="submitTactic('KEEP_BATTER')"><strong>그대로 간다</strong><span>${crisis.batter_name} 타석</span></button>`
-            : `<button class="igm-choice change" onclick="submitTactic('PITCHER_CHANGE')"><strong>투수 교체</strong><span>불펜 투입</span></button>
-               <button class="igm-choice keep" onclick="submitTactic('KEEP_PITCHER')"><strong>그대로 간다</strong><span>지금 투수 유지</span></button>`;
-    }
-    const nameEl = document.getElementById('crisis-pitcher-name');
-    if (nameEl) nameEl.textContent = pName;
-    const countEl = document.getElementById('crisis-pitch-count');
-    if (countEl) countEl.textContent = `${pCount}구`;
-
-    // 이번에 상대할 타자 (투수 손 vs 타자 손도 함께)
-    const gs = currentGameState || {};
-    const sess = gs.batter_sessions && gs.batter_sessions[0];
-    const setText = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
-    setText('crisis-pitcher-hand', gs.pitcher_throws || '');
-    setText('crisis-batter-name', gs.batter || '-');
-    setText('crisis-batter-hand', gs.batter_bats || '');
-    const order = sess && sess.batter_order ? sess.batter_order.replace('타자', '') : '';
-    const avg = igAvg(sess ? (sess.batter_avg || (sess.batter_stats && sess.batter_stats.avg)) : '');
-    setText('crisis-batter-info', [order, avg].filter(Boolean).join(' · '));
-
-    modal.classList.add('active');
-    playWebAudioAlert('tactic_modal');
-
-    crisisTimeLeft = 15;
-    updateCrisisTimerGauge();
-
-    clearInterval(crisisTimerInterval);
-    crisisTimerInterval = setInterval(() => {
-        crisisTimeLeft--;
-        updateCrisisTimerGauge();
-
-        if (crisisTimeLeft <= 0) {
-            clearInterval(crisisTimerInterval);
-            submitTactic('SKIP');  // 시간 초과: 감독님 자리 비움 (점수 변동 없음)
-        }
-    }, 1000);
-}
-
-function updateCrisisTimerGauge() {
-    document.getElementById('crisis-timer-sec').innerText = `${crisisTimeLeft}초`;
-    const percent = (crisisTimeLeft / 15) * 100;
-    document.getElementById('crisis-timer-gauge').style.width = `${percent}%`;
-}
-
-function submitTactic(tacticId) {
-    clearInterval(crisisTimerInterval);
-    const modal = document.getElementById('crisis-modal');
-    if (modal) modal.classList.remove('active');
-
-    fetch('/api/tactic', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tactic_id: tacticId, user_id: currentUserId })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'success') {
-            if (res.state) {
-                currentGameState = res.state;
-                updateScoreboardUI(res.state);
-                drawBaseballField(res.state);
-            }
-            igShowTacticReveal(res);
-        }
-    });
-}
 
 
 
@@ -1796,13 +1659,6 @@ function triggerStep() {
                 updateScoreboardUI(state);
                 drawBaseballField(state);
                 renderNaverSportsLiveFeed(state);
-                if (state.crisis_active && state.current_crisis) {
-                    openCrisisModal(state.current_crisis);
-                }
-            } else {
-                if (state.crisis_active && state.current_crisis) {
-                    console.log("⚡ Background simulation crisis active:", state.current_crisis.reason);
-                }
             }
 
             if (state.game_over) {
@@ -1938,6 +1794,32 @@ function fastForwardMatch() {
 }
 
 // 경기 후 성적표: 최종 점수 · 한 줄 평(내 판단이었다면?) · 적중/실패 · 감독 점수 · 작전 기록
+// 작전 기록 한 줄 (경기 후 성적표 · 내 기록 공통). 예전 방식 기록도 그대로 보여 줌
+function tacticLogRow(t) {
+    const d = t.score_delta || 0;
+    const delta = `<b class="pg-log-delta ${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d > 0 ? '+' : d < 0 ? '' : '±'}${d}</b>`;
+    const ph = t.kind === 'PH';
+    if (t.grade_label) {
+        const who = ph ? `대타 · ${t.stay} → ${t.relief}` : `투수 교체 · ${t.stay} → ${t.relief}`;
+        return `<div class="pg-log-row duel">
+            <span class="pg-log-inn">${t.inning_str}</span>
+            <span class="pg-log-who">${who}</span>
+            <span class="pg-log-choice">${t.same ? '감독과 같은 판단' : '감독과 다른 판단'} · 승리 확률 ${t.delta_pct > 0 ? '+' : ''}${t.delta_pct}%</span>
+            <span class="pg-log-res ${d > 0 ? 'on' : d < 0 ? 'out' : ''}">${t.grade_label}</span>
+            ${delta}
+        </div>`;
+    }
+    const label = c => c === 'CHANGE' ? (ph ? '대타' : '교체') : c === 'KEEP' ? (ph ? '그대로' : '유지') : '자리 비움';
+    const who = ph ? `대타 · ${t.pitcher}${t.new_pitcher && t.new_pitcher !== t.pitcher ? ' → ' + t.new_pitcher : ''}` : `${t.pitcher} vs ${t.batter}`;
+    return `<div class="pg-log-row">
+        <span class="pg-log-inn">${t.inning_str}</span>
+        <span class="pg-log-who">${who}</span>
+        <span class="pg-log-choice">나 ${label(t.my_choice)} · 감독 ${label(t.manager_choice)}</span>
+        <span class="pg-log-res ${t.result === 'OUT' ? 'out' : 'on'}">${t.result === 'OUT' ? '아웃' : '출루'}</span>
+        ${delta}
+    </div>`;
+}
+
 function renderPostGameSummary(s) {
     if (!s) return;
     // 테스트 시즌이면 아래 버튼은 '다음 날 경기로'
@@ -1956,44 +1838,33 @@ function renderPostGameSummary(s) {
     const log = s.tactic_log || [];
     const hit = log.filter(t => t.score_delta > 0).length;
     const miss = log.filter(t => t.score_delta < 0).length;
-    const skip = log.filter(t => t.my_choice === 'SKIP').length;
     set('pg-hit', hit);
     set('pg-miss', miss);
-    set('pg-skip', skip);
-    set('pg-rate', hit + miss ? `${Math.round(hit / (hit + miss) * 100)}%` : '-');
+    set('pg-skip', log.length - hit - miss);
+    // 감독과 판단이 갈린 대결의 전적
+    const vs = log.filter(t => !t.same);
+    const w = vs.filter(t => t.score_delta > 0).length, l = vs.filter(t => t.score_delta < 0).length;
+    set('pg-rate', vs.length ? `${w}승 ${vs.length - w - l}무 ${l}패` : '-');
 
-    // 내 팀 기준으로 결과와 '내 판단이었다면' 계산
     const myTeam = normalizeTeamShort(selectedTeamCode);
     const inGame = myTeam === away || myTeam === home;
     const myScore = myTeam === home ? s.score_home : s.score_away;
     const oppScore = myTeam === home ? s.score_away : s.score_home;
-    // 실제 감독이 틀렸고 내 선택이 달랐던 타석(내가 맞힌 경우)에 내준 점수 = 내 판단이었다면 막을 수 있었던 점수
-    const savedFor = team => log.filter(t => t.def_team === team && (t.case_no === 4 || t.case_no === 6)).reduce((n, t) => n + (t.runs || 0), 0);
+    const gain = Math.round(log.reduce((n, t) => n + (t.delta_pct || 0), 0) * 10) / 10;
+    const gainLine = `내 판단의 승리 확률 합계 ${gain > 0 ? '+' : ''}${gain}% (예상)`;
 
     const resultEl = document.getElementById('pg-result');
-    let title = '', sub = '', tone = '';
-    const tacticLine = hit + miss ? `작전 ${hit + miss}번 중 ${hit}번 적중했어요`
-        : skip ? `위기 ${skip}번 모두 자리 비움이었어요` : '이번 경기는 위기 작전이 없었어요';
-    if (inGame) {
+    if (resultEl) {
         const margin = myScore - oppScore;
-        const saved = savedFor(myTeam);
-        if (resultEl) {
-            resultEl.textContent = `${myTeam} ${margin > 0 ? '승리' : margin < 0 ? '패배' : '무승부'}`;
-            resultEl.className = `pg-result ${margin > 0 ? 'win' : margin < 0 ? 'lose' : ''}`;
-        }
-        if (margin < 0 && saved > -margin) { title = '내 판단이었다면 이 경기 잡았다!'; sub = `감독이 내준 ${saved}점, 내 선택이었다면 막았어요`; tone = 'gold'; }
-        else if (margin < 0 && saved === -margin) { title = '내 판단이었다면 동점까지 갔다!'; sub = `감독이 내준 ${saved}점, 내 선택이었다면 막았어요`; tone = 'gold'; }
-        else if (margin < 0 && saved > 0) { title = '아쉬운 패배'; sub = `내 판단이었다면 ${saved}점은 막았어요`; tone = 'bad'; }
-        else if (margin < 0) { title = '아쉬운 패배'; sub = tacticLine; tone = 'bad'; }
-        else if (margin > 0) { title = hit > miss ? '승리! 감독 못지않은 눈' : '승리!'; sub = saved > 0 ? `내 판단이었다면 ${saved}점 더 막았어요` : tacticLine; tone = 'good'; }
-        else { title = '무승부'; sub = saved > 0 ? `내 판단이었다면 ${saved}점 막고 이겼어요` : tacticLine; tone = saved > 0 ? 'gold' : ''; }
-    } else {
-        if (resultEl) { resultEl.textContent = ''; resultEl.className = 'pg-result'; }
-        const rate = hit + miss ? Math.round(hit / (hit + miss) * 100) : 0;
-        if (!hit && !miss) { title = '이번 경기는 지켜보기만 했어요'; sub = skip ? `자리 비움 ${skip}번` : '위기 작전이 없었어요'; }
-        else if (rate >= 60) { title = '감독보다 날카로웠어요!'; sub = `작전 ${hit + miss}번 중 ${hit}번 적중`; tone = 'good'; }
-        else { title = '다음엔 더 잘할 수 있어요'; sub = `작전 ${hit + miss}번 중 ${hit}번 적중`; tone = 'bad'; }
+        resultEl.textContent = inGame ? `${myTeam} ${margin > 0 ? '승리' : margin < 0 ? '패배' : '무승부'}` : '';
+        resultEl.className = `pg-result ${inGame && margin > 0 ? 'win' : inGame && margin < 0 ? 'lose' : ''}`;
     }
+    let title, sub = gainLine, tone = '';
+    if (!log.length) { title = '이번 경기는 지켜보기만 했어요'; sub = '투수 교체와 대타 버튼으로 감독과 대결해 보세요'; }
+    else if (w > l) { title = '감독을 이겼습니다!'; tone = 'gold'; }
+    else if (w < l) { title = '이번엔 감독의 판단이 나았어요'; tone = 'bad'; }
+    else if (vs.length) { title = '감독과 무승부'; }
+    else { title = gain >= 0 ? '감독과 같은 생각, 좋은 판단!' : '감독과 같은 생각, 아쉬운 판단'; tone = gain >= 0 ? 'good' : 'bad'; }
     set('pg-verdict-title', title);
     set('pg-verdict-sub', sub);
     const verdict = document.getElementById('pg-verdict');
@@ -2013,20 +1884,7 @@ function renderPostGameSummary(s) {
     set('post-grade-title', titles[s.manager_grade] || '');
 
     const list = document.getElementById('pg-log-list');
-    if (list) {
-        const label = (c, ph) => c === 'CHANGE' ? (ph ? '대타' : '교체') : c === 'KEEP' ? (ph ? '그대로' : '유지') : '자리 비움';
-        list.innerHTML = log.length ? log.map(t => {
-            const ph = t.kind === 'PH';
-            const who = ph ? `대타 · ${t.pitcher}${t.new_pitcher && t.new_pitcher !== t.pitcher ? ' → ' + t.new_pitcher : ''}` : `${t.pitcher} vs ${t.batter}`;
-            return `<div class="pg-log-row">
-                <span class="pg-log-inn">${t.inning_str}</span>
-                <span class="pg-log-who">${who}</span>
-                <span class="pg-log-choice">나 ${label(t.my_choice, ph)} · 감독 ${label(t.manager_choice, ph)}</span>
-                <span class="pg-log-res ${t.result === 'OUT' ? 'out' : 'on'}">${t.result === 'OUT' ? '아웃' : '출루'}</span>
-                <b class="pg-log-delta ${t.score_delta > 0 ? 'up' : t.score_delta < 0 ? 'down' : ''}">${t.score_delta > 0 ? '+' : t.score_delta < 0 ? '' : '±'}${t.score_delta}</b>
-            </div>`;
-        }).join('') : '<div class="pg-log-empty">이번 경기는 작전이 없었어요</div>';
-    }
+    if (list) list.innerHTML = log.length ? log.map(tacticLogRow).join('') : '<div class="pg-log-empty">이번 경기는 작전이 없었어요</div>';
 }
 
 function resetMatchAndLobby() {
@@ -2154,7 +2012,7 @@ function renderIngame(s) {
     if (btn) btn.disabled = !!s.game_over;
 
     igCheckPlayResult(s);
-    igRenderTacticPill(s);
+    igRenderTactics(s);
 }
 
 // 그라운드 (위에서 내려다본 구장)
@@ -2266,19 +2124,21 @@ function igCheckPlayResult(s) {
     let tacticLine = '';
     if (t) {
         const d = t.score_delta || 0;
-        if (t.skipped) {
-            tacticLine = `<em class="ig-banner-tactic skip"><b>자리 비움</b><i>±0</i></em>`;
-        } else {
-            tacticLine = `<em class="ig-banner-tactic ${d > 0 ? 'good' : 'bad'}"><b>${d > 0 ? '작전 성공' : '작전 실패'}</b><i>${d > 0 ? '+' : ''}${d}</i></em>`;
-            igFlashPoints(d);
-        }
+        const tone = d > 0 ? 'good' : d < 0 ? 'bad' : 'skip';
+        tacticLine = `<div class="ig-duel-card ${tone}">
+            <div class="ig-duel-head"><b>${t.grade_label}</b><i>${d > 0 ? '+' : ''}${d}P</i></div>
+            <strong>${t.title}</strong>
+            <span>${t.actual_line}</span>
+            <span>${t.expect_line}</span>
+        </div>`;
+        if (d) igFlashPoints(d);
     }
-    stage.querySelectorAll('.ig-banner, .ig-reveal').forEach(el => el.remove());
+    stage.querySelectorAll('.ig-banner').forEach(el => el.remove());
     const el = document.createElement('div');
     el.className = `ig-banner ${b.cls} ${t ? 'with-tactic' : ''}`;
     el.innerHTML = `<strong>${b.big}</strong><span>${done.batter_name || ''} · ${sub}</span>${tacticLine}`;
     stage.appendChild(el);
-    const ms = t ? 2900 : 1900;
+    const ms = t ? 5000 : 1900;
     window._igBannerUntil = Date.now() + ms;
     setTimeout(() => el.remove(), ms);
 }
@@ -2321,6 +2181,69 @@ function igShowPlayBall() {
     setTimeout(() => el.remove(), 1900);
 }
 
+// 상시 작전 버튼: 내 수비면 투수 교체, 내 공격이면 대타. 대결이 진행 중이면 위쪽에 작게 표시
+function igRenderTactics(s) {
+    const info = (s && s.tactics) || {};
+    const btn = document.getElementById('ig-tactic-btn');
+    const b = info.button;
+    if (btn) {
+        btn.hidden = !b || !!s.game_over;
+        if (b) {
+            btn.innerHTML = `<b>${b.label}</b><small>${b.left}/${b.max}</small>`;
+            btn.disabled = !b.enabled;
+            btn.dataset.kind = b.kind;
+            btn.classList.toggle('ph', b.kind === 'PH');
+        }
+        const actions = btn.parentElement;
+        if (actions) actions.classList.toggle('with-tactic', !btn.hidden);
+    }
+    const stage = document.querySelector('#ingame-view .ig-stage');
+    if (!stage) return;
+    let pill = document.getElementById('ig-tactic-pill');
+    const duels = info.duels || [];
+    if (!duels.length) { if (pill) pill.remove(); return; }
+    if (!pill) {
+        pill = document.createElement('div');
+        pill.id = 'ig-tactic-pill';
+        pill.className = 'ig-tactic-pill';
+        stage.appendChild(pill);
+    }
+    const txt = duels.map(d => {
+        const mine = d.kind === 'PH' ? '대타' : '교체';
+        if (!d.active) return `${d.kind === 'PH' ? '대타' : '투수 교체'} 대기 · 다음 차례부터 적용`;
+        const mgr = d.same ? mine : (d.kind === 'PH' ? '그대로' : '유지');
+        const count = d.kind === 'PH' ? '이번 타석' : `타자 ${Math.min(d.k + 1, d.window)}/${d.window}`;
+        return `대결 중 · 나 ${mine} / 감독 ${mgr} (${count})`;
+    }).join('  ');
+    if (pill.textContent !== txt) pill.textContent = txt;
+}
+
+function pressTactic() {
+    const btn = document.getElementById('ig-tactic-btn');
+    if (!btn || btn.disabled) return;
+    const kind = btn.dataset.kind;
+    btn.disabled = true;   // 누르는 즉시 잠금
+    fetch('/api/tactic/press', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind })
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status !== 'success') {
+                showToast(res.message || '지금은 누를 수 없어요.');
+                if (currentGameState) igRenderTactics(currentGameState);
+                return;
+            }
+            currentGameState = res.state;
+            saveGameStateToStorage(res.state);
+            igRenderTactics(res.state);
+            showToast(kind === 'PH' ? '대타 작전! 다음 타자부터 적용돼요' : '투수 교체 작전! 다음 타자부터 적용돼요');
+        })
+        .catch(() => {
+            showToast('연결이 불안정해요. 다시 시도해 주세요.');
+            if (currentGameState) igRenderTactics(currentGameState);
+        });
+}
+
 // 감독 점수 칸을 잠깐 반짝 (+/-)
 function igFlashPoints(delta) {
     const el = document.getElementById('live-score-val');
@@ -2330,50 +2253,7 @@ function igFlashPoints(delta) {
     el.classList.add(delta > 0 ? 'flash-up' : 'flash-down');
 }
 
-// 작전 제출 직후: 내 선택과 실제 감독의 선택을 그라운드 가운데에 잠깐 공개
-function igShowTacticReveal(res) {
-    const stage = document.querySelector('#ingame-view .ig-stage');
-    if (!stage || !res) return;
-    const skipped = res.my_choice === 'SKIP';
-    const isPH = res.kind === 'PH';
-    const L = c => isPH ? (c === 'CHANGE' ? '대타' : '그대로') : (c === 'CHANGE' ? '교체' : '유지');
-    const mine = skipped ? '자리 비움' : L(res.my_choice);
-    const mgr = L(res.actual_manager_choice);
-    const same = mine === mgr;
-    const change = res.actual_manager_choice === 'CHANGE' && res.new_pitcher && res.new_pitcher !== res.old_pitcher
-        ? `<div class="ig-reveal-change">${res.old_pitcher} → <b>${res.new_pitcher}</b></div>` : '';
-    stage.querySelectorAll('.ig-reveal').forEach(el => el.remove());
-    const el = document.createElement('div');
-    el.className = 'ig-reveal';
-    el.innerHTML = `<div class="ig-reveal-row">
-            <div><span>나의 선택</span><strong>${mine}</strong></div>
-            <i class="${skipped ? 'skip' : same ? 'same' : 'diff'}">${skipped ? '·' : same ? '=' : '≠'}</i>
-            <div><span>실제 감독</span><strong>${mgr}</strong></div>
-        </div>${change}<p>${skipped ? '감독님 화장실 가셨나요?<br>이번 작전은 점수 변동 없음' : '다음 타석 결과로 채점돼요'}</p>`;
-    stage.appendChild(el);
-    window._igBannerUntil = Date.now() + 2600;
-    setTimeout(() => el.remove(), 2600);
-}
 
-// 채점 기다리는 동안 그라운드 아래 작은 표시
-function igRenderTacticPill(s) {
-    const stage = document.querySelector('#ingame-view .ig-stage');
-    if (!stage) return;
-    let pill = document.getElementById('ig-tactic-pill');
-    const pt = s && s.pending_tactic;
-    if (!pt) { if (pill) pill.remove(); return; }
-    if (!pill) {
-        pill = document.createElement('div');
-        pill.id = 'ig-tactic-pill';
-        pill.className = 'ig-tactic-pill';
-        stage.appendChild(pill);
-    }
-    const L = c => pt.kind === 'PH' ? (c === 'CHANGE' ? '대타' : '그대로') : (c === 'CHANGE' ? '교체' : '유지');
-    const txt = pt.my_choice === 'SKIP'
-        ? `자리 비움 · 감독 ${L(pt.actual_manager_choice)} (점수 변동 없음)`
-        : `작전 채점 중 · 나 ${L(pt.my_choice)} / 감독 ${L(pt.actual_manager_choice)}`;
-    if (pill.textContent !== txt) pill.textContent = txt;
-}
 
 // 이번 타석 투구 (없으면 직전 타석 결과)
 function renderIngameLast(s) {
