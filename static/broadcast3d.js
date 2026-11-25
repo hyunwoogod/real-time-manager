@@ -234,8 +234,7 @@ function buildPlayers() {
     batter = makePlayer(false); scene.add(batter.g);
     batPivot = new THREE.Group(); batPivot.position.set(0.05, 1.3, 0.05); batter.body.add(batPivot);
     const bat = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.018, 0.86, 10), new THREE.MeshStandardMaterial({ color: 0xd9b07a, roughness: 0.5 }));
-    bat.position.y = 0.48; bat.castShadow = true; batPivot.add(bat);
-    batter.lArm.rotation.set(-1.0, 0, 0.5); batter.rArm.rotation.set(-1.1, 0, -0.5);
+    bat.position.y = 0.40; bat.castShadow = true; batPivot.add(bat);
     for (let i = 0; i < 3; i++) { const r = makePlayer(false); r.g.visible = false; scene.add(r.g); runners.push(r); }
 
     ball = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.55 }));
@@ -255,14 +254,51 @@ function hideBall() { ball.visible = false; trail.visible = false; trailPts.leng
 // 타자 자세: 우타자는 3루 쪽(-x)에서 +x를 봄, 좌타자는 반대
 const Y = new THREE.Vector3(0, 1, 0);
 const qFrom = (x, y, z) => new THREE.Quaternion().setFromUnitVectors(Y, new THREE.Vector3(x, y, z).normalize());
+// 스윙 자세 (타자 몸 기준 좌표: +x 투수 쪽, +z 홈플레이트 쪽, 좌타자는 x를 뒤집음)
+// h: 배트 손잡이(손) 위치, d: 배트 방향, r: 몸통 회전
+const SW = {
+    stance:  { h: [-0.18, 1.32, 0.18], d: [-0.30, 0.92, -0.25], r: 0 },
+    load:    { h: [-0.28, 1.38, 0.12], d: [-0.45, 0.80, -0.35], r: -0.22 },
+    launch:  { h: [-0.20, 1.18, 0.26], d: [-0.55, 0.45, 0.35], r: 0.05 },
+    contact: { h: [-0.02, 1.02, 0.38], d: [-0.15, -0.10, 1.0], r: 0.4 },
+    ext:     { h: [0.14, 1.06, 0.30], d: [0.60, -0.02, 0.78], r: 0.7 },
+    follow:  { h: [0.04, 1.46, 0.04], d: [-0.35, 0.40, -0.85], r: 0.95 },
+};
+const DOWN = new THREE.Vector3(0, -1, 0);
+const kv = (a, m) => new THREE.Vector3(a[0] * m, a[1], a[2]);
+function aimArm(arm, target) {
+    const v = target.clone().sub(arm.position), len = v.length();
+    arm.quaternion.setFromUnitVectors(DOWN, v.normalize());
+    arm.scale.set(1, clamp(len / 0.6, 0.55, 1.2), 1);
+}
+function setBat(h, d) {
+    const m = batter.side === 'L' ? -1 : 1;
+    batPivot.position.copy(h); batPivot.quaternion.setFromUnitVectors(Y, d);
+    // 두 손으로 손잡이를 쥠: 투수 쪽 팔이 아래 손, 포수 쪽 팔이 위 손
+    const front = m > 0 ? batter.rArm : batter.lArm, back = m > 0 ? batter.lArm : batter.rArm;
+    aimArm(front, h.clone().addScaledVector(d, 0.04));
+    aimArm(back, h.clone().addScaledVector(d, 0.14));
+}
+function batPose(a, b, t) {
+    const m = batter.side === 'L' ? -1 : 1;
+    const h = kv(a.h, m).lerp(kv(b.h, m), t);
+    const d = kv(a.d, m).normalize().lerp(kv(b.d, m).normalize(), t).normalize();
+    setBat(h, d); batter.body.rotation.y = lerp(a.r, b.r, t) * m;
+}
+function stride(v) {   // 앞발을 투수 쪽으로 내딛음
+    const m = batter.side === 'L' ? -1 : 1, front = m > 0 ? batter.legs[1] : batter.legs[0];
+    front.rotation.z = 0.3 * v * m;
+}
+function freeArms() {  // 배트를 놓고 뛸 때
+    for (const a of [batter.lArm, batter.rArm]) { a.quaternion.identity(); a.scale.set(1, 1, 1); }
+}
 function setBatterSide(side) {
-    const L = side === 'L', m = L ? -1 : 1;
+    const L = side === 'L';
     batter.side = L ? 'L' : 'R';
     batter.spot = new THREE.Vector3(L ? 0.95 : -0.95, 0, 0.05);
     batter.g.position.copy(batter.spot); batter.g.rotation.set(0, L ? -Math.PI / 2 : Math.PI / 2, 0);
-    BAT = { stance: qFrom(-0.55 * m, 0.85, -0.15), contact: qFrom(0.05 * m, 0.05, 1), follow: qFrom(0.75 * m, 0.35, -0.4) };
-    batPivot.quaternion.copy(BAT.stance); batPivot.visible = true;
-    batter.body.rotation.set(0, 0, 0); batter.legs.forEach(l => l.rotation.x = 0);
+    batter.body.rotation.set(0, 0, 0); batter.legs.forEach(l => { l.rotation.x = 0; l.rotation.z = 0; });
+    batPivot.visible = true; batPose(SW.stance, SW.stance, 0);
     batter.g.visible = true;
 }
 
@@ -310,13 +346,22 @@ async function followThrough() {
         p.body.position.z = lerp(0.45, 0, e); p.rArm.rotation.x = lerp(1.0, 0, e); p.lArm.rotation.x = lerp(0.3, 0, e);
     });
 }
+// 투수가 공을 놓으면 타자는 몸을 꼬고 앞발을 들어 준비
+function batterLoad(dur) {
+    return tween(dur, t => { const e = ease(t); batPose(SW.stance, SW.load, e); stride(e); });
+}
+// 휘두르기: 꼬았던 몸을 풀며 배트가 낮게 나와 공을 지나 어깨 뒤로 감김 (contact까지 0.16초)
 async function swing() {
-    const dur = 0.42, c = 0.45, m = batter.side === 'L' ? -1 : 1;
-    await tween(dur, t => {
-        const q = t < c ? BAT.stance.clone().slerp(BAT.contact, ease(t / c)) : BAT.contact.clone().slerp(BAT.follow, ease((t - c) / (1 - c)));
-        batPivot.quaternion.copy(q); batter.body.rotation.y = -0.9 * m * Math.min(1, t / c);
-    });
-    await tween(0.45, t => { batPivot.quaternion.copy(BAT.follow.clone().slerp(BAT.stance, ease(t))); batter.body.rotation.y = lerp(-0.9 * m, 0, ease(t)); });
+    await tween(0.07, t => { batPose(SW.load, SW.launch, t); stride(lerp(1, 0.5, t)); });
+    await tween(0.09, t => { batPose(SW.launch, SW.contact, t); stride(lerp(0.5, 0.4, t)); });
+    await tween(0.07, t => batPose(SW.contact, SW.ext, t));
+    await tween(0.22, t => batPose(SW.ext, SW.follow, ease(t)));
+    await wait(0.3);
+    await tween(0.5, t => { batPose(SW.follow, SW.stance, ease(t)); stride(lerp(0.4, 0, ease(t))); });
+}
+// 안 치고 지켜봄
+function takePitch() {
+    return tween(0.4, t => { const e = ease(t); batPose(SW.load, SW.stance, e); stride(1 - e); });
 }
 
 // 투구 종류별 휘는 정도 (투수 쪽에서 본 방향은 우투 기준, 좌투면 좌우 반대)
@@ -403,7 +448,7 @@ function animateRunners(lp, dur, batterTarget) {
     if (batterTarget !== null && batterTarget !== undefined) {
         let to = batterTarget, out = false;
         if (to === 'auto') { to = where(lp.batter); if (!to) { if (play.kind === 'HOMERUN') to = 4; else { to = 1; out = true; } } }
-        batPivot.visible = false;
+        batPivot.visible = false; freeArms();
         moves.push({ fig: batter, from: 0, to, out, isBatter: true });
     }
     if (!moves.length) return Promise.resolve();
@@ -500,7 +545,9 @@ async function animatePitch(job) {
     const flight = (17.5 / (P.spd / 3.6)) * 1.5;
     ball.visible = true; trailPts.length = 0;
     followThrough();
-    if (swings) setTimeout(() => swing(), Math.max(0, (flight - 0.42 * 0.45) * 1000 / TS));
+    batterLoad(Math.min(0.45, flight * 0.6));
+    if (swings) setTimeout(() => swing(), Math.max(0, (flight - 0.16) * 1000 / TS));
+    else setTimeout(() => takePitch(), flight * 1000 / TS);
     await tween(flight, t => {
         const a = start.clone().lerp(ctrl, t), b = ctrl.clone().lerp(end, t), p = a.lerp(b, t);
         ball.position.copy(p); pushTrail(p);
@@ -754,3 +801,10 @@ function loop(now) { frame(now); requestAnimationFrame(loop); }
 
 // 이 파일이 늦게 불러와졌으면, 지금 경기 화면에 바로 3D를 켬
 try { if (typeof window.drawBaseballField === 'function') window.drawBaseballField(); } catch (e) { /* 무시 */ }
+
+// 점검용: 카메라를 원하는 곳에 두고 스윙만 돌려 보기 (화면에는 쓰이지 않음)
+B3D._debug = {
+    view(p, l, fov) { camMode = 'debug'; camera.position.set(...p); camera.fov = fov || 30; camera.updateProjectionMatrix(); camera.lookAt(...l); },
+    swing() { batterLoad(0.4).then(() => swing()); },
+    pose(k) { batPose(SW[k], SW[k], 0); },
+};

@@ -647,9 +647,22 @@ LEGAL_EFFECTIVE_DATE = '2026년 10월 10일'
 TERMS_REQUIRED_MSG = "이용약관 및 개인정보처리방침에 동의해 주세요."
 
 
+_keepalive_at = 0.0
+
+
 @app.route('/healthz')
 def healthz():
-    """깨우미(업타임 모니터)용 가벼운 상태 확인 주소: 무료 서버가 잠들지 않도록 주기적으로 호출"""
+    """깨우미(업타임 모니터)용 가벼운 상태 확인 주소: 무료 서버가 잠들지 않도록 주기적으로 호출.
+    데이터베이스(Supabase 무료)도 오래 안 쓰면 일시정지되므로, 1시간에 한 번은 DB에 시각을 적어 둠"""
+    global _keepalive_at
+    now = time.time()
+    if now - _keepalive_at > 3600:
+        try:
+            database.set_setting('keepalive_at', datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'))
+            _keepalive_at = now
+        except Exception as e:
+            print(f"⚠️ [keepalive] DB 확인 실패: {e}")
+            return Response('db error', status=503, mimetype='text/plain')
     return Response('ok', mimetype='text/plain')
 
 

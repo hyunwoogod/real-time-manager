@@ -1,0 +1,23 @@
+# 무료 서버(Render)와 무료 데이터베이스(Supabase)가 오래 안 쓰여서 멈추지 않도록
+# 사흘에 한 번 사이트의 /healthz 주소를 불러 DB를 살짝 사용하게 함
+name: keepalive
+
+on:
+  schedule:
+    - cron: "17 3 */3 * *"   # 사흘마다 (UTC 03:17 = 한국 12:17)
+  workflow_dispatch: {}       # GitHub 화면에서 직접 실행도 가능
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 사이트 깨우고 DB 사용
+        run: |
+          # 잠든 서버가 켜지는 데 1분쯤 걸려서 넉넉히 기다리고 여러 번 시도
+          for i in 1 2 3 4 5; do
+            if curl -fsS --max-time 120 https://real-time-manager.onrender.com/healthz; then
+              echo " → 성공"; exit 0
+            fi
+            echo "재시도 $i"; sleep 30
+          done
+          exit 1
