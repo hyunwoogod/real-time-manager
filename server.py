@@ -933,7 +933,8 @@ def api_stream():
 
 @app.route('/api/state')
 def api_state():
-    return jsonify(get_engine().get_state())
+    engine = get_engine()
+    return jsonify(with_crowd(engine, engine.get_state()))
 
 
 @app.route('/api/lobby')
@@ -1075,6 +1076,103 @@ def api_password_auth_disabled():
     return jsonify({"status": "error", "message": SOCIAL_ONLY_MSG, "redirect": url_for('login')}), 410
 
 
+
+# ---------------- 같은 경기를 보는 내 팀 감독들 (작전 버튼 누른 뒤에만 보여 줌) ----------------
+# 실제 서비스에서는 같은 팀 팬이 모두 같은 경기를 동시에 봄 → 같은 타석에서 몇 명이 눌렀는지 셈.
+# 테스트 기간에는 사람이 적어서, 팀별 '가상 감독'을 더해 실제와 비슷한 숫자를 보여 줌 (CROWD_VIRTUAL).
+CROWD_VIRTUAL = os.environ.get('CROWD_VIRTUAL', '1') == '1'
+_crowd_viewers = {}     # (경기, 팀) -> {uid: 마지막으로 본 시각}
+_crowd_presses = {}     # (경기, 팀, 종류, 타석) -> {uid}
+_crowd_rate = {}        # (경기, 팀, 종류, 타석) -> 가상 감독들이 누르는 비율
+CROWD_ACTIVE_SEC = 30
+
+
+def _crowd_game(engine):
+    return f"{getattr(engine, 'lineup_date', '') or datetime.date.today().isoformat()}|{engine.away_team_name}|{engine.home_team_name}"
+
+
+def _crowd_hash(*parts):
+    import hashlib
+    return int(hashlib.md5('|'.join(map(str, parts)).encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
+
+
+def crowd_touch(engine, uid):
+    team = getattr(engine, 'user_team', None)
+    if not (uid and team) or engine.game_over:
+        return
+    now = time.time()
+    room = _crowd_viewers.setdefault((_crowd_game(engine), team), {})
+    room[uid] = now
+    if len(room) > 50:
+        for k in [k for k, t in room.items() if now - t > CROWD_ACTIVE_SEC]:
+            room.pop(k, None)
+
+
+def crowd_record_press(engine, uid, kind):
+    team = getattr(engine, 'user_team', None)
+    d = (getattr(engine, 'duels', None) or {}).get(kind)
+    if not (team and d):
+        return
+    key = (_crowd_game(engine), team, kind, d.get('press_pa', 0))
+    _crowd_presses.setdefault(key, set()).add(uid)
+    if key not in _crowd_rate:
+        # 상황이 급할수록 많이 누름 (투수가 흔들리면 교체, 득점권 후반이면 대타)
+        jitter = 0.75 + 0.5 * _crowd_hash(*key)
+        if kind == 'PITCHER':
+            mcp = engine.manager_change_probability()
+            rate = (0.05 + 0.55 * mcp) if engine._pitcher_in_trouble() else (0.02 + 0.18 * mcp)
+        else:
+            risp = engine.runner_2b or engine.runner_3b
+            close = abs(engine.score_home - engine.score_away) <= 2
+            rate = 0.03 + (0.22 if risp and engine.inning >= 6 else 0.06) + (0.08 if close and engine.inning >= 7 else 0)
+        _crowd_rate[key] = max(0.02, min(0.85, rate * jitter))
+    crowd_touch(engine, uid)
+
+
+def crowd_info(engine, uid):
+    """내가 누른 작전이 진행 중일 때만: 같은 경기를 보는 내 팀 감독 수와 같은 타석에서 누른 수"""
+    team = getattr(engine, 'user_team', None)
+    duels = getattr(engine, 'duels', None) or {}
+    d = next((x for x in duels.values() if 'press_pa' in x), None)
+    if not (team and d):
+        return None
+    kind, pa = d['kind'], d['press_pa']
+    game = _crowd_game(engine)
+    key = (game, team, kind, pa)
+    now = time.time()
+    room = _crowd_viewers.get((game, team), {})
+    real_viewers = sum(1 for t in room.values() if now - t <= CROWD_ACTIVE_SEC) or 1
+    real_pressed = len(_crowd_presses.get(key, ())) or 1
+    viewers, pressed = real_viewers, min(real_pressed, real_viewers)
+    if CROWD_VIRTUAL:
+        base = 600 + int(_crowd_hash(game, team) * 1800)                 # 팀·경기마다 600~2,400명
+        # 경기 초반엔 덜 들어오고 후반·접전일수록 늘어남. 같은 장면 안에서는 숫자가 흔들리지 않게 타석 기준
+        progress = min(1.0, (engine.inning - 1 + (0 if engine.is_top else 0.5)) / 8)
+        close = abs(engine.score_home - engine.score_away) <= 2
+        flow = 0.8 + 0.25 * progress + (0.08 if close and engine.inning >= 7 else 0)
+        wobble = 1 + 0.03 * (_crowd_hash(game, team, pa) - 0.5)
+        v_viewers = int(base * flow * wobble)
+        # 누른 사람은 공이 지날수록 조금씩 늘어남 (누르고 나서 몇 구 동안)
+        pitches = max(0, getattr(engine, 'pitch_serial', 0) - d.get('press_pitch', 0))
+        frac = min(1.0, 0.6 + 0.13 * pitches)
+        v_pressed = int(v_viewers * _crowd_rate.get(key, 0.1) * frac)
+        viewers += v_viewers
+        pressed += v_pressed
+    return {"kind": kind, "team": team, "viewers": viewers, "pressed": pressed,
+            "pct": round(pressed * 100 / viewers) if viewers else 0}
+
+
+def with_crowd(engine, state):
+    uid = session.get('user_id')
+    crowd_touch(engine, uid)
+    try:
+        state["crowd"] = crowd_info(engine, uid)
+    except Exception as e:
+        print(f"⚠️ [crowd] {e}")
+        state["crowd"] = None
+    return state
+
+
 @app.route('/api/tactic/press', methods=['POST'])
 def api_tactic_press():
     """상시 작전 버튼 (투수 교체 / 대타): 다음 타자부터 적용"""
@@ -1083,6 +1181,8 @@ def api_tactic_press():
     res = engine.press_tactic(data.get('kind'))
     if res.get('status') == 'success':
         save_engine_snapshot(engine, force=True)
+        crowd_record_press(engine, session.get('user_id'), data.get('kind'))
+        res['state'] = with_crowd(engine, res['state'])
     return jsonify(res)
 
 
@@ -1484,7 +1584,7 @@ def api_step():
     state = engine.step_pitch()
     record_game_end(engine)
     save_engine_snapshot(engine, force=engine.game_over)
-    return jsonify(state)
+    return jsonify(with_crowd(engine, state))
 
 
 # ==============================================================================

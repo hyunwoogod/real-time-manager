@@ -1288,7 +1288,8 @@ class GameEngine:
         if kind == "PITCHER" and not self._virtual_reliever():
             return {"status": "error", "message": "남은 불펜 투수가 없어요."}
         self.tactic_left[kind] -= 1
-        self.duels[kind] = {"kind": kind, "active": False, "k": 0, "runs": 0, "results": []}
+        self.duels[kind] = {"kind": kind, "active": False, "k": 0, "runs": 0, "results": [],
+                            "press_pa": self.pa_seq, "press_pitch": getattr(self, 'pitch_serial', 0)}
         label = "투수 교체" if kind == "PITCHER" else "대타"
         self.commentary_logs.insert(0, f"📋 [작전] {label} 버튼을 눌렀어요 (다음 타자부터 적용)")
         # 지금 타자에게 아직 공을 안 던졌으면 이번 타자부터 적용

@@ -2206,25 +2206,36 @@ function igRenderTactics(s) {
         const actions = btn.parentElement;
         if (actions) actions.classList.toggle('with-tactic', !btn.hidden);
     }
-    const stage = document.querySelector('#ingame-view .ig-stage');
-    if (!stage) return;
-    let pill = document.getElementById('ig-tactic-pill');
+    // 작전 진행 상황은 그라운드 위에 겹치지 않게, 그라운드와 버튼 사이 한 줄에 표시
+    const actionsRow = document.querySelector('#ingame-view .ig-actions');
+    if (!actionsRow) return;
+    let bar = document.getElementById('ig-tactic-bar');
     const duels = info.duels || [];
-    if (!duels.length) { if (pill) pill.remove(); return; }
-    if (!pill) {
-        pill = document.createElement('div');
-        pill.id = 'ig-tactic-pill';
-        pill.className = 'ig-tactic-pill';
-        stage.appendChild(pill);
+    const c = s && !s.game_over ? s.crowd : null;
+    if (!duels.length && !c) { if (bar) bar.remove(); return; }
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'ig-tactic-bar';
+        bar.className = 'ig-tactic-bar';
+        actionsRow.parentElement.insertBefore(bar, actionsRow);
     }
-    const txt = duels.map(d => {
+    const status = duels.map(d => {
         const mine = d.kind === 'PH' ? '대타' : '교체';
         if (!d.active) return `${d.kind === 'PH' ? '대타' : '투수 교체'} 대기 · 다음 차례부터 적용`;
         const mgr = d.same ? mine : (d.kind === 'PH' ? '그대로' : '유지');
         const count = d.kind === 'PH' ? '이번 타석' : `타자 ${Math.min(d.k + 1, d.window)}/${d.window}`;
         return `대결 중 · 나 ${mine} / 감독 ${mgr} (${count})`;
     }).join('  ');
-    if (pill.textContent !== txt) pill.textContent = txt;
+    let html = '';
+    if (c) {
+        const team = normalizeTeamShort(c.team) || c.team;
+        const what = c.kind === 'PH' ? '대타' : '교체';
+        html += `<div class="tb-crowd"><span class="tb-fire">🔥</span><p>현재 경기를 지켜보는 ${team} 감독 <b>${Number(c.viewers).toLocaleString()}명</b> 중<br>`
+            + `<b class="hl">${Number(c.pressed).toLocaleString()}명(${c.pct}%)</b>이 ${what}를 눌렀어요</p></div>`
+            + `<div class="tb-meter"><i style="width:${Math.max(2, Math.min(100, c.pct))}%"></i></div>`;
+    }
+    if (status) html += `<div class="tb-status">${status}</div>`;
+    if (bar.innerHTML !== html) bar.innerHTML = html;
 }
 
 function pressTactic() {

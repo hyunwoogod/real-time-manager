@@ -3641,3 +3641,18 @@ button:active:not(:disabled), .mg-card:active, .mr-row:active, .sc-date:active {
 .pg-log-row.duel .pg-log-choice { grid-column: 2; grid-row: 2; min-width: 0; white-space: normal; word-break: keep-all; }
 .pg-log-row.duel .pg-log-res { grid-column: 3; grid-row: 1; justify-self: end; white-space: nowrap; }
 .pg-log-row.duel .pg-log-delta { grid-column: 3; grid-row: 2; justify-self: end; }
+
+/* 작전 진행 상황 줄 (그라운드와 버튼 사이, 겹치지 않게) */
+.ig-tactic-bar {
+    flex: none; display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; border-radius: 14px;
+    background: #111a2e; border: 1px solid rgba(251, 146, 60, 0.45); animation: igBarIn .3s ease-out;
+}
+.ig-tactic-bar .tb-crowd { display: flex; align-items: center; gap: 9px; }
+.ig-tactic-bar .tb-fire { font-size: 1.15rem; }
+.ig-tactic-bar p { margin: 0; color: #cbd5e1; font-size: 0.84rem; font-weight: 700; line-height: 1.5; word-break: keep-all; }
+.ig-tactic-bar p b { color: #fff; }
+.ig-tactic-bar p b.hl { color: #fdba74; font-size: 0.95rem; }
+.ig-tactic-bar .tb-meter { height: 6px; border-radius: 99px; background: rgba(148, 163, 184, 0.2); overflow: hidden; }
+.ig-tactic-bar .tb-meter i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #fb923c, #f97316); transition: width .6s ease; }
+.ig-tactic-bar .tb-status { color: #fde68a; font-size: 0.74rem; font-weight: 800; }
+@keyframes igBarIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
