@@ -531,6 +531,15 @@ KIND_LABELS = {"WALK": "볼넷", "K": "삼진", "SINGLE": "안타", "DOUBLE": "2
 
 
 class GameEngine:
+    @property
+    def rng(self):
+        r = self.__dict__.get('_rng')
+        return r if r is not None else random   # 예전에 저장된 경기는 기본 난수
+
+    @rng.setter
+    def rng(self, v):
+        self.__dict__['_rng'] = v
+
     def __init__(self, home_team="삼성", away_team="한화", home_pitcher=None, away_pitcher=None, user_id=None):
         self.user_id = user_id  # 이 경기를 보는 사용자 (점수 저장 대상)
         if home_team == away_team:
@@ -607,6 +616,8 @@ class GameEngine:
         self.batter_index_away = 0
         
         self.last_win_prob = 50.0
+        # 같은 날 같은 경기는 누가 보든 똑같이 진행 (공·타구·감독 판단 모두 같은 순서의 난수)
+        self.rng = random.Random(f"GAME|{ld or ''}|{self.away_team_name}|{self.home_team_name}") if ld else random.Random()
         self.init_first_session()
 
     def get_batter_in_game_stats(self, batter_name):
@@ -697,24 +708,24 @@ class GameEngine:
 
     def _make_pitch_obj(self, seq, code, res_text, pitch_desc, sb_count_str, commentary_text):
         if code in ["STRIKE", "FOUL", "SINGLE", "DOUBLE", "TRIPLE", "HOMERUN", "OUT", "ERROR"]:
-            pz_x = round(random.uniform(-0.65, 0.65), 2)
-            pz_y = round(random.uniform(-0.65, 0.65), 2)
+            pz_x = round(self.rng.uniform(-0.65, 0.65), 2)
+            pz_y = round(self.rng.uniform(-0.65, 0.65), 2)
             is_strike = True
         else:
             is_strike = False
-            side = random.choice(["top", "bottom", "left", "right"])
+            side = self.rng.choice(["top", "bottom", "left", "right"])
             if side == "top":
-                pz_x = round(random.uniform(-0.7, 0.7), 2)
-                pz_y = round(random.uniform(-1.45, -1.1), 2)
+                pz_x = round(self.rng.uniform(-0.7, 0.7), 2)
+                pz_y = round(self.rng.uniform(-1.45, -1.1), 2)
             elif side == "bottom":
-                pz_x = round(random.uniform(-0.7, 0.7), 2)
-                pz_y = round(random.uniform(1.1, 1.45), 2)
+                pz_x = round(self.rng.uniform(-0.7, 0.7), 2)
+                pz_y = round(self.rng.uniform(1.1, 1.45), 2)
             elif side == "left":
-                pz_x = round(random.uniform(-1.45, -1.1), 2)
-                pz_y = round(random.uniform(-0.7, 0.7), 2)
+                pz_x = round(self.rng.uniform(-1.45, -1.1), 2)
+                pz_y = round(self.rng.uniform(-0.7, 0.7), 2)
             else:
-                pz_x = round(random.uniform(1.1, 1.45), 2)
-                pz_y = round(random.uniform(-0.7, 0.7), 2)
+                pz_x = round(self.rng.uniform(1.1, 1.45), 2)
+                pz_y = round(self.rng.uniform(-0.7, 0.7), 2)
         return {
             "seq": seq,
             "currentBatterPitchCount": self.currentBatterPitchCount,
@@ -767,9 +778,9 @@ class GameEngine:
     def _pitch_desc(self, pitcher):
         f, rt = self._fatigue(pitcher)
         kinds = [("직구", 0), ("투심", -5), ("슬라이더", -12), ("체인지업", -17), ("커브", -24), ("포크볼", -14)]
-        name, off = random.choice(kinds)
+        name, off = self.rng.choice(kinds)
         top = 144 + int(rt["q"] * 10) - int(f * 3)
-        return f"{top + off + random.randint(-2, 1)}km/h {name}"
+        return f"{top + off + self.rng.randint(-2, 1)}km/h {name}"
 
     def _simulate_pitch(self, batter, pitcher):
         """한 구의 결과: BALL / STRIKE / FOUL / INPLAY"""
@@ -779,11 +790,11 @@ class GameEngine:
             ball_p -= 0.06
         if self.strikes == 2 and self.balls < 2:
             ball_p += 0.04
-        if random.random() < ball_p:
+        if self.rng.random() < ball_p:
             return "BALL"
         strike_p = 0.285 - 0.05 * f + (rt["q"] - 0.5) * 0.06
         foul_p = 0.41 + (0.06 if self.strikes == 2 else 0)
-        r = random.random()
+        r = self.rng.random()
         if r < strike_p:
             return "STRIKE"
         if r < strike_p + foul_p:
@@ -794,11 +805,11 @@ class GameEngine:
         f, rt = self._fatigue(pitcher)
         br = self._batter_rating(batter)
         hit_p = 0.335 + (br["avg"] - 0.27) * 1.3 + 0.07 * f - (rt["q"] - 0.5) * 0.07
-        if random.random() < hit_p:
+        if self.rng.random() < hit_p:
             hr = 0.045 + br["power"] * 0.12
             triple = 0.02
             double = 0.15 + br["power"] * 0.08
-            r = random.random()
+            r = self.rng.random()
             if r < hr:
                 return "HOMERUN"
             if r < hr + triple:
@@ -806,9 +817,9 @@ class GameEngine:
             if r < hr + triple + double:
                 return "DOUBLE"
             return "SINGLE"
-        if random.random() < 0.02:
+        if self.rng.random() < 0.02:
             return "ERROR"
-        r = random.random()
+        r = self.rng.random()
         return "GROUND" if r < 0.46 else ("FLY" if r < 0.84 else "LINE")
 
     # 주자 이동 (이름과 함께). 반환: 이번 플레이로 들어온 점수
@@ -826,12 +837,12 @@ class GameEngine:
         """타석 결과 하나를 만듦 (진루는 apply_outcome 규칙으로 결정)"""
         return {
             "kind": kind,
-            "roll": round(random.random(), 4),
-            "pos": random.choice(["유격수", "2루수", "3루수", "1루수"]),
-            "of": random.choice(["좌익수", "중견수", "우익수"]),
-            "dir": random.choice({"SINGLE": ["좌전", "중전", "우전"], "DOUBLE": ["좌중간", "우중간", "좌익선상"],
+            "roll": round(self.rng.random(), 4),
+            "pos": self.rng.choice(["유격수", "2루수", "3루수", "1루수"]),
+            "of": self.rng.choice(["좌익수", "중견수", "우익수"]),
+            "dir": self.rng.choice({"SINGLE": ["좌전", "중전", "우전"], "DOUBLE": ["좌중간", "우중간", "좌익선상"],
                                   "K": ["헛스윙", "루킹"]}.get(kind, [""])),
-            "dist": random.randint(108, 135),
+            "dist": self.rng.randint(108, 135),
         }
 
     def _apply(self, outcome, batter):
@@ -853,6 +864,9 @@ class GameEngine:
         pitcher = self.get_current_pitcher()
         inning_str = f"{self.inning}회{'초' if self.is_top else '말'}"
         curr_session = self.batter_sessions[0]
+        bases_before = self._bases()      # 3D 중계용: 이번 공 전 주자
+        outs_before = self.outs
+        batter_side = self.get_batter_side()
 
         self.pitch_counts[pitcher] = self.pitch_counts.get(pitcher, 0) + 1
         self.totalPitcherCount = self.pitch_counts[pitcher]
@@ -911,7 +925,16 @@ class GameEngine:
 
         sb_count_str = f"S-B: {self.strikes}-{self.balls}"
         commentary_text = f"{head} - {summary_text.split(' : ', 1)[1] if summary_text else res_text}"
-        curr_session["pitches"].append(self._make_pitch_obj(seq, code, res_text, pitch_desc, sb_count_str, commentary_text))
+        pobj = self._make_pitch_obj(seq, code, res_text, pitch_desc, sb_count_str, commentary_text)
+        curr_session["pitches"].append(pobj)
+        # 3D 중계용 정보 (난수를 쓰지 않음 → 같은 경기는 누구에게나 같게 유지)
+        self.pitch_serial = getattr(self, 'pitch_serial', 0) + 1
+        self.last_pitch = dict(pobj, serial=self.pitch_serial, batter=batter, pitcher=pitcher, batter_side=batter_side,
+                               throws=("L" if str(self._pitcher_throws(pitcher)).startswith("좌") else "R"),
+                               inning=self.inning, is_top=self.is_top, outs_before=outs_before,
+                               bases_before=bases_before, bases_after=self._bases(),
+                               play=(dict(outcome, runs=runs, outs_added=outs_added,
+                                          desc=summary_text.split(' : ', 1)[1] if summary_text else '') if outcome else None))
         self.commentary_logs.insert(0, f"⚾ {commentary_text}")
         del self.commentary_logs[60:]
 
@@ -1022,7 +1045,7 @@ class GameEngine:
         elif self.inning >= 7 and diff <= 2 and (self.runner_1b or risp) and idx >= 5:
             p = 0.12 + max(0, gain) * 2
         p = max(0.0, min(0.85, p)) if gain > 0 else 0.0
-        return pick["name"] if random.random() < p else None
+        return pick["name"] if self.rng.random() < p else None
 
     def _apply_pinch_hit(self, ph_name):
         """실제 감독이 대타를 쓰면 타순 그 자리에 대타를 넣음 (수비 위치는 그대로 이어받음)"""
@@ -1135,17 +1158,17 @@ class GameEngine:
         return risp and abs(self.score_home - self.score_away) <= 3
 
     def _manager_turn(self):
-        """타자가 바뀔 때 우리 팀 감독(AI)의 판단: 수비면 위기 교체, 공격이면 대타"""
-        team = getattr(self, 'user_team', None)
-        if self.game_over or not team:
+        """타자가 바뀔 때 두 팀 감독(AI)의 판단: 수비 팀은 위기 교체, 공격 팀은 대타.
+        누가 보든(어느 팀 팬이든) 같은 경기가 되도록 두 팀 모두 똑같이 판단한다"""
+        if self.game_over:
             return
-        if self.get_current_defense_team() == team:
-            if self._pitcher_in_trouble() and random.random() < self.manager_change_probability():
-                lead = (self.score_home - self.score_away) if self.is_top else (self.score_away - self.score_home)
-                picked = self._pick_reliever(team, save_situation=(self.inning >= 9 and 1 <= lead <= 3))
-                if picked:
-                    self._change_pitcher(picked, "위기 교체")
-        elif self.get_current_offense_team() == team:
+        team = self.get_current_defense_team()
+        if self._pitcher_in_trouble() and self.rng.random() < self.manager_change_probability():
+            lead = (self.score_home - self.score_away) if self.is_top else (self.score_away - self.score_home)
+            picked = self._pick_reliever(team, save_situation=(self.inning >= 9 and 1 <= lead <= 3))
+            if picked:
+                self._change_pitcher(picked, "위기 교체")
+        if not self.game_over:
             ph = self._manager_ph_choice()
             if ph:
                 self._apply_pinch_hit(ph)
@@ -1181,7 +1204,7 @@ class GameEngine:
             return closer
         pool = [p["name"] for p in r.get("bullpen", []) if p["name"] not in used and p["name"] != closer]
         if pool:
-            return random.choice(pool)
+            return self.rng.choice(pool)
         if closer and closer not in used:
             return closer
         return None
@@ -1541,6 +1564,8 @@ class GameEngine:
             "pitcher": self.get_current_pitcher(),
             "batter": self.get_current_batter(),
             "batter_side": self.get_batter_side(),
+            "pitch_serial": getattr(self, 'pitch_serial', 0),
+            "last_pitch": getattr(self, 'last_pitch', None),
             "batter_bats": self.get_batter_bats(),
             "pitcher_throws": self._pitcher_throws(self.get_current_pitcher()),
             "on_deck_batters": self.get_on_deck_batters(),

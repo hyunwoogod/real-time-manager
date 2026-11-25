@@ -1194,14 +1194,14 @@ def test_sims(upto_day):
     global _test_sims_cache
     if not _test_sims_cache:
         try:
-            _test_sims_cache = json.loads(database.get_setting("test_sims", "{}") or "{}")
+            _test_sims_cache = json.loads(database.get_setting("test_sims_v2", "{}") or "{}")
         except ValueError:
             _test_sims_cache = {}
     missing = [d for d in range(1, upto_day + 1) if str(d) not in _test_sims_cache]
     if missing:
         for d in missing:
             _test_sims_cache[str(d)] = [game_engine.simulate_test_game(d, i) for i in range(5)]
-        database.set_setting("test_sims", json.dumps(_test_sims_cache))
+        database.set_setting("test_sims_v2", json.dumps(_test_sims_cache))
     return _test_sims_cache
 
 

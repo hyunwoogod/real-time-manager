@@ -875,7 +875,7 @@ function switchView(viewId, preloadedState) {
                 }
             });
         try { updateBottomNavVisibility(); } catch(e) {}
-        // 실시간 연결(SSE)은 서버를 붙잡아 다른 요청을 막으므로 쓰지 않음. 15초마다 진행 요청으로 갱신
+        // 실시간 연결(SSE)은 서버를 붙잡아 다른 요청을 막으므로 쓰지 않음. 3초마다 진행 요청으로 갱신
         if (!autoPitchInterval) {
             startAutoPitchTimer();
         }
@@ -1596,12 +1596,16 @@ let clientPitchSeq = 0;
 
 
 let autoPitchInterval = null;
+const PITCH_GAP_MS = 3000;
 
 function startAutoPitchTimer() {
     stopAutoPitchTimer();
+    // 3초마다 다음 공. 3D 중계가 아직 앞 장면(타구·주루)을 그리는 중이면 끝날 때까지 기다림
     autoPitchInterval = setInterval(() => {
+        if (window.B3D && window.B3D.busy) return;
+        if (Date.now() - (window._lastPitchAt || 0) < PITCH_GAP_MS) return;
         triggerStep();
-    }, 15000);
+    }, 200);
 }
 
 function stopAutoPitchTimer() {
@@ -1612,7 +1616,7 @@ function stopAutoPitchTimer() {
 }
 
 function resetAutoPitchTimer() {
-    startAutoPitchTimer();
+    if (!autoPitchInterval) startAutoPitchTimer();
 }
 
 function handleNextPitch() {
@@ -1639,12 +1643,11 @@ function triggerStep() {
         }
         return;
     }
-    resetAutoPitchTimer();
-    // 응답이 올 때까지 버튼을 눌린 상태로 (연타로 요청이 쌓이지 않게)
-    const pitchBtn = document.getElementById('btn-pitch-step');
-    if (pitchBtn && pitchBtn.classList.contains('busy')) return;
-    if (pitchBtn) pitchBtn.classList.add('busy');
-    const done = () => { if (pitchBtn) pitchBtn.classList.remove('busy'); };
+    // 응답이 올 때까지 다음 요청을 보내지 않음 (요청이 쌓이지 않게)
+    if (window._stepInflight) return;
+    window._stepInflight = true;
+    window._lastPitchAt = Date.now();
+    const done = () => { window._stepInflight = false; };
     fetch('/api/step', { method: 'POST' })
         .then(r => r.json())
         .then(state => {
@@ -1655,19 +1658,25 @@ function triggerStep() {
             const ingameScreen = document.getElementById('ingame-view');
             const isIngameActive = ingameScreen && ingameScreen.classList.contains('active');
 
-            if (isIngameActive) {
-                updateScoreboardUI(state);
-                drawBaseballField(state);
-                renderNaverSportsLiveFeed(state);
-            }
-
-            if (state.game_over) {
-                stopAutoPitchTimer();
-                renderPostGameSummary(state);
-                if (isIngameActive) {
-                    switchView('postgame-view');
+            const apply = () => {
+                const stillIngame = ingameScreen && ingameScreen.classList.contains('active');
+                if (stillIngame) {
+                    updateScoreboardUI(currentGameState);
+                    drawBaseballField(currentGameState);
+                    renderNaverSportsLiveFeed(currentGameState);
                 }
-            }
+                if (state.game_over) {
+                    stopAutoPitchTimer();
+                    renderPostGameSummary(state);
+                    if (stillIngame) {
+                        // 마지막 장면을 잠깐 보여 준 뒤 경기 결과로
+                        setTimeout(() => { if (ingameScreen.classList.contains('active')) switchView('postgame-view'); }, 2500);
+                    }
+                }
+            };
+            // 3D 중계: 공이 미트에 들어가거나 타구가 떨어지는 순간에 점수·카운트를 바꿈
+            if (isIngameActive && b3dOn()) window.B3D.play(state).then(apply);
+            else apply();
         })
         .catch(err => {
             done();
@@ -2143,7 +2152,7 @@ function igCheckPlayResult(s) {
     setTimeout(() => el.remove(), ms);
 }
 
-// PLAY BALL! 뒤 5초 카운트다운 후 1구 (그 뒤로는 15초마다)
+// PLAY BALL! 뒤 5초 카운트다운 후 1구 (그 뒤로는 3초마다)
 function igFirstPitchCountdown(sec) {
     clearInterval(window._igFirstPitchTimer);
     let left = sec;
@@ -2378,10 +2387,18 @@ function renderNaverSportsLiveFeed(s) {
 function setupSmartAutoScroll() {}
 function initCanvas() {}
 
+// 3D 중계를 쓸 수 있으면 켬 (broadcast3d.js가 window.B3D를 만듦). 안 되면 기존 2D 그라운드
+const B3D_OPTS = { short: normalizeTeamShort, color: (team) => teamColorMap[normalizeTeamShort(team)] || '#888888' };
+function b3dOn() {
+    const stage = document.querySelector('#ingame-view .ig-stage');
+    return !!(window.B3D && stage && window.B3D.ensure(stage, B3D_OPTS));
+}
+
 function drawBaseballField(s) {
     if (!s) s = currentGameState;
     if (!s) return;
-    renderIngameField(s);
+    if (b3dOn()) window.B3D.sync(s);
+    else renderIngameField(s);
     renderIngameLast(s);
 }
 
